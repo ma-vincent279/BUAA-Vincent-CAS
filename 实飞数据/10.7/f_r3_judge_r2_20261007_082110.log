@@ -1,0 +1,17 @@
+[INFO] [1791332226.290302092] [final_judge]: Bucket1 GZ(32.51,-0.52,0.25) → NED(-1.50,31.50,0.58)
+[INFO] [1791332226.290993032] [final_judge]: Bucket2 GZ(34.01,2.98,0.25) → NED(2.00,33.00,0.58)
+[INFO] [1791332226.291753429] [final_judge]: Bucket3 GZ(35.01,0.98,0.25) → NED(0.00,34.00,0.58)
+[INFO] [1791332226.295304156] [final_judge]: Final judge ready: 3 buckets, radius=0.125m, match_max=3.0m
+[INFO] [1791332293.134459737] [final_judge]: Impact #1: NED(0.055,33.959)
+[INFO] [1791332293.135574995] [final_judge]: ========== RESULT B3 ==========
+[INFO] [1791332293.136659888] [final_judge]:   距离: 0.0685m, 得分: 8
+[INFO] [1791332293.137870023] [final_judge]:   落点 NED(0.0551,33.9594) 桶 NED(0.00,34.00) GZ(35.01,0.98)
+[INFO] [1791332293.139610891] [final_judge]:   Cumulative: 1 buckets, avg_dist=0.0685m, total_score=8
+[INFO] [1791332293.143483810] [final_judge]: =============================
+[INFO] [1791332326.735298879] [final_judge]: Impact #2: NED(1.915,33.029)
+[INFO] [1791332326.736890332] [final_judge]: ========== RESULT B2 ==========
+[INFO] [1791332326.737804983] [final_judge]:   距离: 0.0902m, 得分: 8
+[INFO] [1791332326.738695069] [final_judge]:   落点 NED(1.9145,33.0290) 桶 NED(2.00,33.00) GZ(34.01,2.98)
+[INFO] [1791332326.739243152] [final_judge]:   Cumulative: 2 buckets, avg_dist=0.0793m, total_score=16
+[INFO] [1791332326.739735745] [final_judge]: =============================
+[ros2run]: Killed

@@ -1,0 +1,536 @@
+[2026年 09月 19日 星期六 18:01:09 CST] 日志文件: /home/nvidia/fly_logs/d_mission_20260919_180109.log
+=== 检查环境 ===
+  ROS 2 Humble       : OK
+  DDS Agent          : MicroXRCEAgent
+  DDS Device         : /dev/ttyTHS1 @ 921600 baud
+  Conda env          : yolov8
+  Workspace          : /home/nvidia/fly
+
+=== 1/3 启动 DDS Agent ===
+  DDS Agent PID=4139
+[35m[1789812069.850293][m info     | [34mTermiosAgentLinux.cpp[m | [37minit                    [m | [32mrunning...[m             | fd: 3
+[35m[1789812069.851007][m info     | [34mRoot.cpp          [m | [37mset_verbose_level       [m | [32mlogger setup[m           | verbose_level: 4
+[35m[1789812070.584922][m info     | [34mRoot.cpp          [m | [37mcreate_client           [m | [32mcreate[m                 | client_key: 0x00000001, session_id: 0x81
+[35m[1789812070.587963][m info     | [34mSessionManager.hpp[m | [37mestablish_session       [m | [32msession established[m    | client_key: 0x00000001, address: 1
+[35m[1789812070.601994][m info     | [34mProxyClient.cpp   [m | [37mcreate_participant      [m | [32mparticipant created[m    | client_key: 0x00000001, participant_id: 0x001(1)
+  DDS Agent 运行正常
+
+=== 2/3 启动 see 多桶检测节点 ===
+[35m[1789812076.222270][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x800(2), participant_id: 0x001(1)
+[35m[1789812076.222583][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x800(4), participant_id: 0x001(1)
+[35m[1789812076.223484][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x800(6), subscriber_id: 0x800(4)
+[35m[1789812076.226652][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x801(2), participant_id: 0x001(1)
+[35m[1789812076.226768][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x801(4), participant_id: 0x001(1)
+[35m[1789812076.227208][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x801(6), subscriber_id: 0x801(4)
+[35m[1789812076.230228][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x802(2), participant_id: 0x001(1)
+[35m[1789812076.230338][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x802(4), participant_id: 0x001(1)
+[35m[1789812076.230745][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x802(6), subscriber_id: 0x802(4)
+[35m[1789812076.233707][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x803(2), participant_id: 0x001(1)
+[35m[1789812076.233807][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x803(4), participant_id: 0x001(1)
+[35m[1789812076.234249][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x803(6), subscriber_id: 0x803(4)
+[35m[1789812076.238672][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x804(2), participant_id: 0x001(1)
+[35m[1789812076.238783][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x804(4), participant_id: 0x001(1)
+[35m[1789812076.239183][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x804(6), subscriber_id: 0x804(4)
+[35m[1789812076.242336][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x805(2), participant_id: 0x001(1)
+[35m[1789812076.242458][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x805(4), participant_id: 0x001(1)
+[35m[1789812076.242850][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x805(6), subscriber_id: 0x805(4)
+[35m[1789812076.245785][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x806(2), participant_id: 0x001(1)
+[35m[1789812076.245898][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x806(4), participant_id: 0x001(1)
+[35m[1789812076.246742][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x806(6), subscriber_id: 0x806(4)
+[35m[1789812076.249560][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x807(2), participant_id: 0x001(1)
+[35m[1789812076.249662][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x807(4), participant_id: 0x001(1)
+[35m[1789812076.249953][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x807(6), subscriber_id: 0x807(4)
+[35m[1789812076.254908][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x808(2), participant_id: 0x001(1)
+[35m[1789812076.255146][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x808(4), participant_id: 0x001(1)
+[35m[1789812076.256046][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x808(6), subscriber_id: 0x808(4)
+[35m[1789812076.260454][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x809(2), participant_id: 0x001(1)
+[35m[1789812076.260727][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x809(4), participant_id: 0x001(1)
+[35m[1789812076.263118][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x809(6), subscriber_id: 0x809(4)
+[35m[1789812076.266356][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x80A(2), participant_id: 0x001(1)
+[35m[1789812076.266672][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x80A(4), participant_id: 0x001(1)
+[35m[1789812076.267523][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x80A(6), subscriber_id: 0x80A(4)
+[35m[1789812076.270523][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x80B(2), participant_id: 0x001(1)
+[35m[1789812076.270850][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x80B(4), participant_id: 0x001(1)
+[35m[1789812076.272053][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x80B(6), subscriber_id: 0x80B(4)
+[35m[1789812076.275122][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x80C(2), participant_id: 0x001(1)
+[35m[1789812076.275468][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x80C(4), participant_id: 0x001(1)
+[35m[1789812076.276796][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x80C(6), subscriber_id: 0x80C(4)
+[35m[1789812076.279716][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x80D(2), participant_id: 0x001(1)
+[35m[1789812076.279964][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x80D(4), participant_id: 0x001(1)
+[35m[1789812076.285943][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x80D(6), subscriber_id: 0x80D(4)
+[35m[1789812076.289552][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x80E(2), participant_id: 0x001(1)
+[35m[1789812076.289701][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x80E(4), participant_id: 0x001(1)
+[35m[1789812076.290224][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x80E(6), subscriber_id: 0x80E(4)
+[35m[1789812076.294562][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x80F(2), participant_id: 0x001(1)
+[35m[1789812076.294792][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x80F(4), participant_id: 0x001(1)
+[35m[1789812076.295618][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x80F(6), subscriber_id: 0x80F(4)
+[35m[1789812076.298560][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x810(2), participant_id: 0x001(1)
+[35m[1789812076.298740][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x810(4), participant_id: 0x001(1)
+[35m[1789812076.299725][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x810(6), subscriber_id: 0x810(4)
+[35m[1789812076.302767][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x811(2), participant_id: 0x001(1)
+[35m[1789812076.303003][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x811(4), participant_id: 0x001(1)
+[35m[1789812076.303540][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x811(6), subscriber_id: 0x811(4)
+[35m[1789812076.306488][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x812(2), participant_id: 0x001(1)
+[35m[1789812076.306656][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x812(4), participant_id: 0x001(1)
+[35m[1789812076.307089][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x812(6), subscriber_id: 0x812(4)
+[35m[1789812076.321317][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x813(2), participant_id: 0x001(1)
+[35m[1789812076.321492][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x813(4), participant_id: 0x001(1)
+[35m[1789812076.321993][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x813(6), subscriber_id: 0x813(4)
+[35m[1789812076.325149][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x814(2), participant_id: 0x001(1)
+[35m[1789812076.325286][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x814(4), participant_id: 0x001(1)
+[35m[1789812076.325741][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x814(6), subscriber_id: 0x814(4)
+[35m[1789812076.328580][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x815(2), participant_id: 0x001(1)
+[35m[1789812076.328696][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x815(4), participant_id: 0x001(1)
+[35m[1789812076.329093][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x815(6), subscriber_id: 0x815(4)
+[35m[1789812076.332120][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x816(2), participant_id: 0x001(1)
+[35m[1789812076.332259][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x816(4), participant_id: 0x001(1)
+[35m[1789812076.332801][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x816(6), subscriber_id: 0x816(4)
+[35m[1789812076.335902][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x817(2), participant_id: 0x001(1)
+[35m[1789812076.336182][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x817(4), participant_id: 0x001(1)
+[35m[1789812076.336994][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x817(6), subscriber_id: 0x817(4)
+[35m[1789812076.340181][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x818(2), participant_id: 0x001(1)
+[35m[1789812076.340336][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x818(4), participant_id: 0x001(1)
+[35m[1789812076.341418][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x818(6), subscriber_id: 0x818(4)
+[35m[1789812076.344534][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x819(2), participant_id: 0x001(1)
+[35m[1789812076.345164][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x819(4), participant_id: 0x001(1)
+[35m[1789812076.351089][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x819(6), subscriber_id: 0x819(4)
+[35m[1789812076.354302][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x81A(2), participant_id: 0x001(1)
+[35m[1789812076.354424][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x81A(4), participant_id: 0x001(1)
+[35m[1789812076.354806][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x81A(6), subscriber_id: 0x81A(4)
+[35m[1789812076.358172][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x81B(2), participant_id: 0x001(1)
+[35m[1789812076.358297][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x81B(4), participant_id: 0x001(1)
+[35m[1789812076.358669][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x81B(6), subscriber_id: 0x81B(4)
+[35m[1789812076.361743][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x81C(2), participant_id: 0x001(1)
+[35m[1789812076.361832][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x81C(4), participant_id: 0x001(1)
+[35m[1789812076.362497][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x81C(6), subscriber_id: 0x81C(4)
+[35m[1789812076.366749][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x81D(2), participant_id: 0x001(1)
+[35m[1789812076.367027][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x81D(4), participant_id: 0x001(1)
+[35m[1789812076.367496][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x81D(6), subscriber_id: 0x81D(4)
+[35m[1789812076.370659][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x81E(2), participant_id: 0x001(1)
+[35m[1789812076.370864][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x81E(4), participant_id: 0x001(1)
+[35m[1789812076.371321][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x81E(6), subscriber_id: 0x81E(4)
+[35m[1789812076.374224][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x81F(2), participant_id: 0x001(1)
+[35m[1789812076.374408][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x81F(4), participant_id: 0x001(1)
+[35m[1789812076.374857][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x81F(6), subscriber_id: 0x81F(4)
+[35m[1789812076.378053][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x820(2), participant_id: 0x001(1)
+[35m[1789812076.378397][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x820(4), participant_id: 0x001(1)
+[35m[1789812076.379609][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x820(6), subscriber_id: 0x820(4)
+[35m[1789812076.382829][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x821(2), participant_id: 0x001(1)
+[35m[1789812076.383280][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x821(4), participant_id: 0x001(1)
+[35m[1789812076.384604][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x821(6), subscriber_id: 0x821(4)
+[35m[1789812076.392172][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x822(2), participant_id: 0x001(1)
+[35m[1789812076.392947][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x822(4), participant_id: 0x001(1)
+[35m[1789812076.396750][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x822(6), subscriber_id: 0x822(4)
+[35m[1789812076.400074][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x823(2), participant_id: 0x001(1)
+[35m[1789812076.400471][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x823(4), participant_id: 0x001(1)
+[35m[1789812076.402351][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x823(6), subscriber_id: 0x823(4)
+[35m[1789812076.405512][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x824(2), participant_id: 0x001(1)
+[35m[1789812076.405915][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x824(4), participant_id: 0x001(1)
+[35m[1789812076.406922][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x824(6), subscriber_id: 0x824(4)
+[35m[1789812076.410198][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x825(2), participant_id: 0x001(1)
+[35m[1789812076.410358][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x825(4), participant_id: 0x001(1)
+[35m[1789812076.410817][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x825(6), subscriber_id: 0x825(4)
+[35m[1789812076.414011][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x0CD(2), participant_id: 0x001(1)
+[35m[1789812076.414171][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x0CD(3), participant_id: 0x001(1)
+[35m[1789812076.414849][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x0CD(5), publisher_id: 0x0CD(3)
+[35m[1789812076.421018][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x010(2), participant_id: 0x001(1)
+[35m[1789812076.422092][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x010(3), participant_id: 0x001(1)
+[35m[1789812076.426498][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x010(5), publisher_id: 0x010(3)
+[35m[1789812076.429636][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x09D(2), participant_id: 0x001(1)
+[35m[1789812076.429794][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x09D(3), participant_id: 0x001(1)
+[35m[1789812076.430231][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x09D(5), publisher_id: 0x09D(3)
+[35m[1789812076.432935][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x014(2), participant_id: 0x001(1)
+[35m[1789812076.433077][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x014(3), participant_id: 0x001(1)
+[35m[1789812076.433466][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x014(5), publisher_id: 0x014(3)
+[35m[1789812076.436692][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x01B(2), participant_id: 0x001(1)
+[35m[1789812076.436855][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x01B(3), participant_id: 0x001(1)
+[35m[1789812076.437265][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x01B(5), publisher_id: 0x01B(3)
+[35m[1789812076.440186][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x055(2), participant_id: 0x001(1)
+[35m[1789812076.440296][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x055(3), participant_id: 0x001(1)
+[35m[1789812076.440630][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x055(5), publisher_id: 0x055(3)
+[35m[1789812076.443339][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x05B(2), participant_id: 0x001(1)
+[35m[1789812076.443566][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x05B(3), participant_id: 0x001(1)
+[35m[1789812076.444236][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x05B(5), publisher_id: 0x05B(3)
+[35m[1789812076.447161][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x094(2), participant_id: 0x001(1)
+[35m[1789812076.447368][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x094(3), participant_id: 0x001(1)
+[35m[1789812076.448242][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x094(5), publisher_id: 0x094(3)
+[35m[1789812076.451193][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x09A(2), participant_id: 0x001(1)
+[35m[1789812076.451402][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x09A(3), participant_id: 0x001(1)
+[35m[1789812076.452001][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x09A(5), publisher_id: 0x09A(3)
+[35m[1789812076.455913][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x0C0(2), participant_id: 0x001(1)
+[35m[1789812076.456105][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x0C0(3), participant_id: 0x001(1)
+[35m[1789812076.456587][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x0C0(5), publisher_id: 0x0C0(3)
+[35m[1789812076.459578][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x0E1(2), participant_id: 0x001(1)
+[35m[1789812076.459745][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x0E1(3), participant_id: 0x001(1)
+[35m[1789812076.460804][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x0E1(5), publisher_id: 0x0E1(3)
+[35m[1789812076.465101][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x0F9(2), participant_id: 0x001(1)
+[35m[1789812076.465254][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x0F9(3), participant_id: 0x001(1)
+[35m[1789812076.465712][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x0F9(5), publisher_id: 0x0F9(3)
+[35m[1789812076.468658][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x0FC(2), participant_id: 0x001(1)
+[35m[1789812076.468844][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x0FC(3), participant_id: 0x001(1)
+[35m[1789812076.469355][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x0FC(5), publisher_id: 0x0FC(3)
+[35m[1789812076.472227][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x115(2), participant_id: 0x001(1)
+[35m[1789812076.472463][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x115(3), participant_id: 0x001(1)
+[35m[1789812076.473574][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x115(5), publisher_id: 0x115(3)
+[35m[1789812076.476390][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x108(2), participant_id: 0x001(1)
+[35m[1789812076.476695][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x108(3), participant_id: 0x001(1)
+[35m[1789812076.477613][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x108(5), publisher_id: 0x108(3)
+[35m[1789812076.480529][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x10F(2), participant_id: 0x001(1)
+[35m[1789812076.480948][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x10F(3), participant_id: 0x001(1)
+[35m[1789812076.481456][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x10F(5), publisher_id: 0x10F(3)
+[35m[1789812076.484194][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x10C(2), participant_id: 0x001(1)
+[35m[1789812076.484322][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x10C(3), participant_id: 0x001(1)
+[35m[1789812076.484702][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x10C(5), publisher_id: 0x10C(3)
+[35m[1789812076.489619][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x110(2), participant_id: 0x001(1)
+[35m[1789812076.489904][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x110(3), participant_id: 0x001(1)
+[35m[1789812076.490410][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x110(5), publisher_id: 0x110(3)
+  conda: /home/nvidia/miniforge3/envs/yolov8/bin/python3
+  PYTHONPATH 已设置
+  see PID=4208
+[35m[1789812076.634793][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x112(2), participant_id: 0x001(1)
+[35m[1789812076.634920][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x112(3), participant_id: 0x001(1)
+[35m[1789812076.635410][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x112(5), publisher_id: 0x112(3)
+[35m[1789812076.638202][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x116(2), participant_id: 0x001(1)
+[35m[1789812076.638276][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x116(3), participant_id: 0x001(1)
+[35m[1789812076.638557][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x116(5), publisher_id: 0x116(3)
+[35m[1789812076.641569][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x11B(2), participant_id: 0x001(1)
+[35m[1789812076.641650][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x11B(3), participant_id: 0x001(1)
+[35m[1789812076.641943][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x11B(5), publisher_id: 0x11B(3)
+[35m[1789812076.644680][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x120(2), participant_id: 0x001(1)
+[35m[1789812076.644768][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x120(3), participant_id: 0x001(1)
+[35m[1789812076.645067][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x120(5), publisher_id: 0x120(3)
+[35m[1789812076.648237][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x00D(2), participant_id: 0x001(1)
+[35m[1789812076.648314][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x00D(3), participant_id: 0x001(1)
+[35m[1789812076.648648][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x00D(5), publisher_id: 0x00D(3)
+[35m[1789812076.651853][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x129(2), participant_id: 0x001(1)
+[35m[1789812076.651978][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x129(3), participant_id: 0x001(1)
+[35m[1789812076.652359][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x129(5), publisher_id: 0x129(3)
+[35m[1789812076.655860][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x080(2), participant_id: 0x001(1)
+[35m[1789812076.655958][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x080(3), participant_id: 0x001(1)
+[35m[1789812076.656450][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x080(5), publisher_id: 0x080(3)
+[35m[1789812076.658902][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x12B(2), participant_id: 0x001(1)
+[35m[1789812076.658984][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x12B(3), participant_id: 0x001(1)
+[35m[1789812076.659288][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x12B(5), publisher_id: 0x12B(3)
+[35m[1789812076.662257][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x06E(2), participant_id: 0x001(1)
+[35m[1789812076.662317][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x06E(3), participant_id: 0x001(1)
+[35m[1789812076.662591][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x06E(5), publisher_id: 0x06E(3)
+[35m[1789812076.733615][m info     | [34mProxyClient.cpp   [m | [37mcreate_replier          [m | [32mreplier created[m        | client_key: 0x00000001, requester_id: 0x800(7), participant_id: 0x001(1)
+WARNING ⚠️ Unable to automatically guess model task, assuming 'task=detect'. Explicitly define task for your model, i.e. 'task=detect', 'segment', 'classify', 'pose', 'obb' or 'semantic'.
+Loading /home/nvidia/d.engine for TensorRT inference...
+[09/19/2026-18:01:22] [TRT] [I] Loaded engine size: 21 MiB
+[09/19/2026-18:01:22] [TRT] [W] Using an engine plan file across different models of devices is not recommended and is likely to affect performance or even cause errors.
+[09/19/2026-18:01:22] [TRT] [I] [MemUsageChange] TensorRT-managed allocation in IExecutionContext creation: CPU +0, GPU +88, now: CPU 0, GPU 106 (MiB)
+  see 节点运行正常
+
+=== 3/3 启动 d 投放+侦察任务节点 (前台) ===
+    按 Ctrl+C 停止所有节点
+
+[INFO] [1789812085.205945878] [see]: Model warm-up: 3104ms
+[INFO] [1789812085.207660236] [see]: Target 'bucket' -> cls_idx=0
+[INFO] [1789812086.302500512] [d_mission]: D Mission ready. HEADING=180deg offset_B1=0.10m offset_B2=-0.05m FORWARD_DIST=34.0m SCOUT_DIST=59.5m cruise=5.0m drop=1.2m (no flight boundary)
+[INFO] [1789812086.308718783] [d_mission]: Takeoff ref: NED(7.23,40.25,0.06) HEADING_DEG=180deg (hardcoded)
+[INFO] [1789812086.612179677] [see]: Camera opened: /dev/video0 (1920x1080) -> resize to 640x360
+[INFO] [1789812086.614615398] [see]: see ready [Multi-Bucket Detector] model={0: 'bucket'} conf=0.5 infer=10.0Hz image=640x360 crop_fov=120.0->136.0 r=0.7
+[INFO] [1789812087.286906710] [d_mission]: [TAKEOFF] NED(7.23,40.25,0.09) h=179deg no-det
+[INFO] [1789812088.286748498] [d_mission]: [TAKEOFF] NED(7.23,40.25,0.09) h=179deg no-det
+[INFO] [1789812089.286760063] [d_mission]: [TAKEOFF] NED(7.23,40.24,0.08) h=179deg no-det
+[INFO] [1789812089.387225493] [d_mission]: Requesting ARM...
+[INFO] [1789812089.440107502] [d_mission]: ARM OK, requesting OFFBOARD mode...
+[INFO] [1789812089.444122296] [d_mission]: Requesting OFFBOARD mode...
+[INFO] [1789812089.486667914] [d_mission]: ARM + OFFBOARD active (t=0.1s), entering mission
+[INFO] [1789812090.287040590] [d_mission]: [TAKEOFF] NED(7.23,40.24,0.09) h=179deg no-det
+[INFO] [1789812091.287054810] [d_mission]: [TAKEOFF] NED(7.23,40.25,0.05) h=179deg no-det
+[INFO] [1789812092.286616101] [d_mission]: [TAKEOFF] NED(7.23,40.25,-0.00) h=179deg no-det
+[INFO] [1789812093.286680368] [d_mission]: [TAKEOFF] NED(7.21,40.25,-0.01) h=171deg no-det
+[INFO] [1789812094.286682612] [d_mission]: [TAKEOFF] NED(7.06,40.35,-0.45) h=171deg no-det
+[INFO] [1789812095.286899227] [d_mission]: [TAKEOFF] NED(6.97,40.31,-1.40) h=173deg no-det
+[INFO] [1789812096.286677222] [d_mission]: [TAKEOFF] NED(7.07,40.22,-2.42) h=172deg no-det
+[INFO] [1789812097.286620585] [d_mission]: [TAKEOFF] NED(7.12,40.18,-3.42) h=168deg no-det
+[INFO] [1789812098.287382905] [d_mission]: [TAKEOFF] NED(7.14,40.22,-4.27) h=168deg no-det
+[INFO] [1789812098.595626752] [d_mission]: Reached cruise height, entering STABILIZE
+[INFO] [1789812099.287065984] [d_mission]: [STABILIZE] NED(7.08,40.39,-4.74) h=169deg no-det stabilizing 0.7s/3.0s
+[INFO] [1789812100.286827027] [d_mission]: [STABILIZE] NED(7.07,40.42,-4.82) h=169deg no-det stabilizing 1.7s/3.0s
+[INFO] [1789812101.287475805] [d_mission]: [STABILIZE] NED(7.10,40.32,-4.85) h=169deg no-det stabilizing 2.7s/3.0s
+[INFO] [1789812101.637481707] [d_mission]: Home locked: NED(7.23,40.25,0.06) heading0=180deg (hardcoded) target NED(-34.0,0.0)
+[INFO] [1789812101.638384246] [d_mission]: STEP STABILIZE->FORWARD (prev 3.0s) NED(7.12,40.29,-4.85) H=4.91m
+[INFO] [1789812102.286540395] [d_mission]: [FORWARD] NED(6.93,40.27,-4.85) h=-176deg DETx1 dist_to_target=33.7m
+[INFO] [1789812103.286829842] [d_mission]: [FORWARD] NED(5.43,40.26,-4.58) h=-179deg no-det dist_to_target=32.2m
+[INFO] [1789812104.286979741] [d_mission]: [FORWARD] NED(3.45,40.27,-4.52) h=180deg no-det dist_to_target=30.2m
+[INFO] [1789812105.286623869] [d_mission]: [FORWARD] NED(1.35,40.27,-4.70) h=179deg no-det dist_to_target=28.1m
+[INFO] [1789812106.286998533] [d_mission]: [FORWARD] NED(-0.74,40.27,-4.88) h=179deg no-det dist_to_target=26.0m
+[INFO] [1789812107.286664324] [d_mission]: [FORWARD] NED(-2.98,40.29,-4.99) h=-179deg no-det dist_to_target=23.8m
+[INFO] [1789812108.287165372] [d_mission]: [FORWARD] NED(-5.18,40.33,-4.99) h=180deg no-det dist_to_target=21.6m
+[INFO] [1789812109.286565817] [d_mission]: [FORWARD] NED(-7.24,40.45,-5.05) h=-179deg no-det dist_to_target=19.5m
+[INFO] [1789812110.286893857] [d_mission]: [FORWARD] NED(-9.33,40.49,-5.08) h=-180deg no-det dist_to_target=17.4m
+[INFO] [1789812111.287185672] [d_mission]: [FORWARD] NED(-11.43,40.49,-5.04) h=180deg no-det dist_to_target=15.3m
+[INFO] [1789812112.287770680] [d_mission]: [FORWARD] NED(-13.48,40.44,-4.98) h=180deg no-det dist_to_target=13.3m
+[INFO] [1789812113.286624352] [d_mission]: [FORWARD] NED(-15.47,40.43,-4.90) h=-179deg no-det dist_to_target=11.3m
+[INFO] [1789812114.286980228] [d_mission]: [FORWARD] NED(-17.39,40.49,-4.90) h=-180deg no-det dist_to_target=9.4m
+[INFO] [1789812115.286522212] [d_mission]: [FORWARD] NED(-19.39,40.58,-4.97) h=-180deg no-det dist_to_target=7.4m
+[INFO] [1789812116.286906943] [d_mission]: [FORWARD] NED(-21.41,40.63,-4.93) h=180deg no-det dist_to_target=5.4m
+[INFO] [1789812117.286635271] [d_mission]: [FORWARD] NED(-23.41,40.64,-4.88) h=-180deg no-det dist_to_target=3.4m
+[INFO] [1789812118.286561927] [d_mission]: [FORWARD] NED(-25.35,40.63,-4.91) h=-179deg DETx3 dist_to_target=1.5m
+[INFO] [1789812119.014710840] [d_mission]: Tracker confirmed: NED(-33.4,-0.9) after 1.6s
+[INFO] [1789812119.015904629] [d_mission]: Tracker confirmed: NED(-33.3,0.7) after 1.6s
+[INFO] [1789812119.135999467] [d_mission]: Tracker confirmed: NED(-33.6,2.3) after 1.6s
+[INFO] [1789812119.289019129] [d_mission]: [FORWARD] NED(-26.59,40.61,-4.93) h=-179deg DETx3 dist_to_target=0.4m
+[INFO] [1789812119.338275095] [d_mission]: Arrived at target, dist=0.39m, entering HOVER_SEARCH
+[INFO] [1789812119.342987948] [d_mission]: STEP FORWARD->HOVER_SEARCH (prev 17.7s) NED(-26.64,40.61,-4.94) H=4.99m
+[INFO] [1789812120.287054340] [d_mission]: [HOVER_SEARCH] NED(-27.05,40.52,-4.87) h=178deg DETx3 search 0.9s confirmed=0/3
+[INFO] [1789812120.927559250] [d_mission]: Tracker confirmed: NED(-33.6,2.2) after 1.6s
+[INFO] [1789812120.929604350] [d_mission]: Tracker confirmed: NED(-33.2,0.6) after 1.6s
+[INFO] [1789812120.932980480] [d_mission]: Tracker confirmed: NED(-33.2,-0.9) after 1.6s
+[INFO] [1789812120.937672503] [d_mission]: Selected 2 buckets: NED(-33.2,0.6), NED(-33.2,-0.9)  [lat=-0.59m, lat=+0.90m]
+[INFO] [1789812120.938508967] [d_mission]: STEP HOVER_SEARCH->TRACK (prev 1.6s) NED(-26.99,40.39,-4.93) H=4.98m
+[INFO] [1789812121.286564757] [d_mission]: [TRACK] NED(-26.91,40.33,-5.01) h=179deg DETx3 B1/2
+[INFO] [1789812122.286563747] [d_mission]: [TRACK] NED(-26.34,40.47,-4.99) h=-180deg DETx3 B1/2
+[INFO] [1789812123.286636035] [d_mission]: [TRACK] NED(-25.85,40.78,-4.82) h=-179deg DETx3 B1/2
+[INFO] [1789812124.286501185] [d_mission]: [TRACK] NED(-25.75,40.88,-4.88) h=-179deg DETx3 B1/2
+[INFO] [1789812125.287055112] [d_mission]: [TRACK] NED(-25.83,40.85,-4.97) h=-178deg DETx3 B1/2
+[INFO] [1789812126.287961097] [d_mission]: [TRACK] NED(-25.94,40.80,-5.19) h=-178deg DETx3 B1/2
+[INFO] [1789812127.287339019] [d_mission]: [TRACK] NED(-25.99,40.78,-5.07) h=-178deg DETx3 B1/2
+[INFO] [1789812127.438151834] [d_mission]: STEP TRACK->POSITION_REFINE (prev 6.5s) NED(-26.00,40.78,-5.04) H=5.09m
+[INFO] [1789812127.487669801] [d_mission]:   REFINE candidates vs target(-33.2,0.6): (-33.5,2.5)d=1.9, (-33.1,0.7)d=0.2, (-33.2,-0.8)d=1.4 best_dist=0.2 n=1
+[INFO] [1789812128.286599868] [d_mission]: [POSITION_REFINE] NED(-25.99,40.84,-4.90) h=-178deg DETx3 refine_samples=16 elapsed=0.8s
+[INFO] [1789812128.540965950] [d_mission]:   REFINE candidates vs target(-33.2,0.6): (-33.5,2.4)d=1.8, (-33.2,-0.9)d=1.5, (-33.1,0.7)d=0.1 best_dist=0.1 n=22
+[INFO] [1789812129.286682917] [d_mission]: [POSITION_REFINE] NED(-25.97,40.89,-4.83) h=-179deg DETx3 refine_samples=36 elapsed=1.8s
+[INFO] [1789812129.487150872] [d_mission]: Position refined: (-33.16,0.59) -> (-33.11,0.71) delta=(0.045,0.122)m n=41
+[INFO] [1789812129.488019175] [d_mission]: STEP POSITION_REFINE->PRE_SERVO (prev 2.1s) NED(-25.97,40.89,-4.83) H=4.89m
+[INFO] [1789812130.286592765] [d_mission]: [PRE_SERVO] NED(-25.96,40.90,-4.91) h=-176deg DETx3
+[INFO] [1789812131.287092501] [d_mission]: [PRE_SERVO] NED(-25.89,41.03,-4.65) h=-172deg DETx3
+[INFO] [1789812132.286864375] [d_mission]: [PRE_SERVO] NED(-25.78,41.09,-4.12) h=-170deg DETx3
+[INFO] [1789812133.286561947] [d_mission]: [PRE_SERVO] NED(-25.74,41.07,-4.00) h=-172deg DETx3
+[INFO] [1789812134.286578953] [d_mission]: [PRE_SERVO] NED(-25.81,41.00,-3.83) h=-176deg DETx3
+[INFO] [1789812135.287324873] [d_mission]: [PRE_SERVO] NED(-25.93,40.97,-3.68) h=-177deg DETx3
+[INFO] [1789812136.286851109] [d_mission]: [PRE_SERVO] NED(-25.98,40.99,-3.63) h=-178deg DETx3
+[INFO] [1789812137.287519129] [d_mission]: [PRE_SERVO] NED(-25.96,41.02,-3.16) h=-175deg DETx3
+[INFO] [1789812138.286756081] [d_mission]: [PRE_SERVO] NED(-25.88,41.03,-2.83) h=-176deg DETx3
+[INFO] [1789812138.787099671] [d_mission]: PRE_SERVO update target: (-33.01,0.82) H=2.8m
+[INFO] [1789812138.788133662] [d_mission]: STEP PRE_SERVO->VISUAL_SERVO (prev 9.3s) NED(-25.88,41.01,-2.74) H=2.79m
+[INFO] [1789812139.037884218] [d_mission]:   SERVO err=59px ex=-31 ey=-50 v_fwd=-0.152 v_lat=-0.093(log-only) H=2.7m target=(-33.05,0.92) dec=5x
+[INFO] [1789812139.287083936] [d_mission]: [VISUAL_SERVO] NED(-25.90,40.98,-2.67) h=-178deg DETx3 B1/2 SERVO
+[INFO] [1789812140.286522546] [d_mission]: [VISUAL_SERVO] NED(-25.90,41.10,-2.48) h=-175deg DETx3 B1/2 SERVO
+[INFO] [1789812140.287596119] [d_mission]:   SERVO err=76px ex=-36 ey=-66 v_fwd=-0.046 v_lat=-0.007(log-only) H=2.5m target=(-32.98,1.02) dec=5x
+[INFO] [1789812141.286559635] [d_mission]: [VISUAL_SERVO] NED(-25.87,41.33,-2.60) h=-176deg DETx3 B1/2 SERVO
+[INFO] [1789812141.288074751] [d_mission]:   SERVO err=56px ex=0 ey=-56 v_fwd=-0.043 v_lat=0.020(log-only) H=2.7m target=(-32.97,0.87) dec=5x
+[INFO] [1789812142.286557605] [d_mission]: [VISUAL_SERVO] NED(-25.88,41.33,-2.30) h=-176deg DETx3 B1/2 SERVO
+[INFO] [1789812142.287602347] [d_mission]:   SERVO err=76px ex=24 ey=-72 v_fwd=-0.064 v_lat=0.025(log-only) H=2.4m target=(-32.99,0.83) dec=5x
+[INFO] [1789812143.013287580] [d_mission]:   同帧重复框合并: 3 -> 2 (相距 < 0.8m 视为同一个桶)
+[INFO] [1789812143.124822596] [d_mission]:   同帧重复框合并: 2 -> 2 (相距 < 0.8m 视为同一个桶)
+[INFO] [1789812143.286553604] [d_mission]: [VISUAL_SERVO] NED(-25.87,41.12,-1.69) h=-178deg DETx2 B1/2 SERVO
+[INFO] [1789812143.287676198] [d_mission]:   SERVO err=129px ex=-62 ey=-113 v_fwd=-0.061 v_lat=-0.065(log-only) H=1.7m target=(-32.91,1.12) dec=5x
+[INFO] [1789812144.286660937] [d_mission]: [VISUAL_SERVO] NED(-25.77,41.15,-1.42) h=-179deg DETx2 B1/2 SERVO
+[INFO] [1789812144.287919555] [d_mission]:   SERVO err=122px ex=-93 ey=-79 v_fwd=-0.022 v_lat=-0.030(log-only) H=1.5m target=(-32.92,1.17) dec=5x
+[INFO] [1789812144.538804037] [d_mission]: STEP VISUAL_SERVO->DROP (prev 5.7s) NED(-25.75,41.19,-1.34) H=1.39m
+[INFO] [1789812144.786900864] [d_mission]:   DROP-LOCK accept est=(-32.93,1.07) anchor=(-33.01,0.82) dist=0.27m reject_n=0 err=78px
+[INFO] [1789812145.286568035] [d_mission]: [DROP] NED(-25.74,41.32,-1.26) h=-178deg DETx1 B1/2
+[INFO] [1789812145.537495437] [d_mission]:   DROP-SERVO err=62px ex=-14 ey=-60 v_fwd=-0.031 v_lat=0.005(log-only) H=1.3m target=(-32.93,1.04) dec=5x lock=accept dist=0.19m bias=(+0.04,-0.01) pitch=+0.073 等效地面=22.7cm(门限10cm)
+[INFO] [1789812146.286547170] [d_mission]: [DROP] NED(-25.78,41.35,-1.18) h=180deg DETx1 B1/2
+[INFO] [1789812146.786941786] [d_mission]:   DROP-SERVO err=85px ex=-18 ey=-84 v_fwd=-0.028 v_lat=-0.017(log-only) H=1.3m target=(-32.84,1.04) dec=5x lock=accept dist=0.22m bias=(+0.10,-0.01) pitch=+0.084 等效地面=30.5cm(门限10cm)
+[INFO] [1789812147.286829913] [d_mission]: [DROP] NED(-25.72,41.27,-1.17) h=-179deg DETx1 B1/2
+[INFO] [1789812147.786886551] [d_mission]:   DROP-SERVO err=73px ex=-50 ey=-54 v_fwd=-0.014 v_lat=-0.025(log-only) H=1.2m target=(-32.81,1.12) dec=5x lock=accept dist=0.27m bias=(+0.13,+0.03) pitch=+0.071 等效地面=24.8cm(门限10cm)
+[INFO] [1789812148.287603068] [d_mission]: [DROP] NED(-25.63,41.24,-1.12) h=-178deg DETx1 B1/2
+[INFO] [1789812149.037361912] [d_mission]:   DROP-SERVO err=43px ex=-43 ey=-6 v_fwd=-0.000 v_lat=-0.010(log-only) H=1.1m target=(-32.83,1.16) dec=5x lock=accept dist=0.26m bias=(+0.12,+0.07) pitch=+0.057 等效地面=13.9cm(门限10cm)
+[INFO] [1789812149.286547816] [d_mission]: [DROP] NED(-25.58,41.31,-1.15) h=-178deg DETx1 B1/2
+[INFO] [1789812150.037035639] [d_mission]:   DROP-SERVO err=15px ex=-9 ey=-12 v_fwd=-0.007 v_lat=0.004(log-only) H=1.1m target=(-32.83,1.14) dec=5x lock=accept dist=0.24m bias=(+0.13,+0.07) pitch=+0.064 等效地面=4.8cm(门限10cm)
+[INFO] [1789812150.286537311] [d_mission]: [DROP] NED(-25.59,41.38,-1.11) h=179deg DETx2 B1/2
+[INFO] [1789812151.036977004] [d_mission]:   DROP-SERVO err=10px ex=0 ey=-10 v_fwd=-0.002 v_lat=0.005(log-only) H=1.2m target=(-32.80,1.14) dec=5x lock=accept dist=0.25m bias=(+0.14,+0.07) pitch=+0.055 等效地面=3.5cm(门限10cm)
+[INFO] [1789812151.039170708] [d_mission]: >>> DROP #1! PWM=2000us NED(-25.569,41.386,-1.168) heading=179.8deg 触发方式=收敛即投 last_err=10px(ex=0,ey=-10@H=1.2m) 等效地面=3.5cm
+[INFO] [1789812151.286856871] [d_mission]: [DROP] NED(-25.56,41.39,-1.19) h=180deg DETx2 B1/2
+[INFO] [1789812152.038853176] [d_mission]:   DROP-SERVO err=38px ex=38 ey=0 v_fwd=-0.005 v_lat=0.019(log-only) H=1.3m target=(-32.81,0.92) dec=5x lock=accept dist=0.21m bias=(+0.13,+0.02) pitch=+0.048 等效地面=14.3cm(门限10cm)
+[INFO] [1789812152.286594993] [d_mission]: [DROP] NED(-25.54,41.35,-1.28) h=-179deg DETx3 B1/2
+[INFO] [1789812152.944873501] [d_mission]: Tracker confirmed: NED(-33.0,-0.1) after 1.6s
+[INFO] [1789812153.286496786] [d_mission]: [DROP] NED(-25.58,41.23,-1.36) h=180deg DETx3 B1/2
+[INFO] [1789812153.287573528] [d_mission]:   DROP-SERVO err=8px ex=6 ey=-6 v_fwd=-0.009 v_lat=-0.014(log-only) H=1.4m target=(-32.83,0.91) dec=5x lock=accept dist=0.19m bias=(+0.13,+0.02) pitch=+0.057 等效地面=3.3cm(门限10cm)
+[INFO] [1789812154.286617016] [d_mission]: [DROP] NED(-25.63,41.11,-1.32) h=180deg DETx2 B1/2
+[INFO] [1789812154.288191113] [d_mission]:   DROP-SERVO err=34px ex=-25 ey=-24 v_fwd=-0.014 v_lat=-0.021(log-only) H=1.4m target=(-32.81,0.96) dec=5x lock=accept dist=0.22m bias=(+0.16,+0.05) pitch=+0.067 等效地面=13.6cm(门限10cm)
+[INFO] [1789812155.286620643] [d_mission]: [DROP] NED(-25.66,41.12,-1.26) h=-179deg DETx2 B1/2
+[INFO] [1789812155.537008015] [d_mission]:   DROP-SERVO err=64px ex=-43 ey=-47 v_fwd=-0.020 v_lat=-0.016(log-only) H=1.3m target=(-32.73,1.07) dec=5x lock=accept dist=0.31m bias=(+0.21,+0.10) pitch=+0.073 等效地面=23.1cm(门限10cm)
+[INFO] [1789812156.286518545] [d_mission]: [DROP] NED(-25.63,41.27,-1.16) h=-179deg DETx1 B1/2
+[INFO] [1789812156.544542361] [d_mission]:   DROP-SERVO err=30px ex=7 ey=-29 v_fwd=-0.003 v_lat=0.018(log-only) H=1.2m target=(-32.73,1.04) dec=5x lock=accept dist=0.26m bias=(+0.21,+0.10) pitch=+0.068 等效地面=10.3cm(门限10cm)
+[INFO] [1789812157.286908388] [d_mission]: [DROP] NED(-25.57,41.40,-1.11) h=-179deg DETx1 B1/2
+[INFO] [1789812157.786737990] [d_mission]:   DROP-SERVO err=46px ex=44 ey=12 v_fwd=0.014 v_lat=0.007(log-only) H=1.1m target=(-32.75,0.95) dec=5x lock=accept dist=0.21m bias=(+0.20,+0.05) pitch=+0.054 等效地面=14.7cm(门限10cm)
+[INFO] [1789812158.286591412] [d_mission]: [DROP] NED(-25.51,41.33,-1.08) h=-178deg DETx1 B1/2
+[INFO] [1789812158.787037141] [d_mission]:   DROP-SERVO err=26px ex=0 ey=26 v_fwd=0.012 v_lat=-0.013(log-only) H=1.2m target=(-32.78,0.99) dec=5x lock=accept dist=0.24m bias=(+0.19,+0.06) pitch=+0.054 等效地面=8.8cm(门限10cm)
+[INFO] [1789812159.286774099] [d_mission]: [DROP] NED(-25.52,41.22,-1.15) h=-178deg DETx1 B1/2
+[INFO] [1789812160.037257659] [d_mission]:   DROP-SERVO err=36px ex=-32 ey=16 v_fwd=0.003 v_lat=-0.011(log-only) H=1.1m target=(-32.80,1.07) dec=5x lock=accept dist=0.29m bias=(+0.17,+0.10) pitch=+0.057 等效地面=11.9cm(门限10cm)
+[INFO] [1789812160.286709513] [d_mission]: [DROP] NED(-25.56,41.21,-1.11) h=-178deg DETx1 B1/2
+[INFO] [1789812161.039080181] [d_mission]:   DROP-SERVO err=12px ex=-6 ey=-11 v_fwd=-0.005 v_lat=0.009(log-only) H=1.2m target=(-32.76,1.04) dec=5x lock=accept dist=0.26m bias=(+0.19,+0.10) pitch=+0.064 等效地面=4.3cm(门限10cm)
+[INFO] [1789812161.286604948] [d_mission]: [DROP] NED(-25.59,41.28,-1.14) h=-178deg DETx1 B1/2
+[INFO] [1789812162.087167321] [d_mission]: STEP DROP->CLIMB (prev 17.5s) NED(-25.58,41.31,-1.10) H=1.16m
+[INFO] [1789812162.286577742] [d_mission]: [CLIMB] NED(-25.57,41.30,-1.08) h=-178deg DETx1
+[INFO] [1789812163.287531349] [d_mission]: [CLIMB] NED(-25.52,41.27,-2.72) h=-179deg DETx3
+[INFO] [1789812164.286568672] [d_mission]: [CLIMB] NED(-25.51,41.26,-4.30) h=180deg DETx3
+[INFO] [1789812164.441100527] [d_mission]: Tracker confirmed: NED(-33.2,-0.7) after 1.5s
+[INFO] [1789812164.488338342] [d_mission]: Next bucket 2/2: NED(-33.2,-0.9)
+[INFO] [1789812164.490925699] [d_mission]: STEP CLIMB->TRACK (prev 2.4s) NED(-25.51,41.26,-4.53) H=4.58m
+[INFO] [1789812164.605142379] [d_mission]: Tracker confirmed: NED(-33.5,2.4) after 1.6s
+[INFO] [1789812165.287078492] [d_mission]: [TRACK] NED(-25.57,40.96,-4.95) h=179deg DETx3 B2/2
+[INFO] [1789812166.286629640] [d_mission]: [TRACK] NED(-25.81,39.74,-4.92) h=175deg DETx4 B2/2
+[INFO] [1789812167.286571321] [d_mission]: [TRACK] NED(-25.96,38.92,-5.06) h=178deg DETx3 B2/2
+[INFO] [1789812168.108647710] [d_mission]: Tracker confirmed: NED(-31.2,-5.1) after 1.9s
+[INFO] [1789812168.286926526] [d_mission]: [TRACK] NED(-25.98,38.94,-5.02) h=-178deg DETx3 B2/2
+[INFO] [1789812169.287527959] [d_mission]: [TRACK] NED(-25.99,39.31,-4.93) h=-179deg DETx3 B2/2
+[INFO] [1789812170.286705631] [d_mission]: [TRACK] NED(-26.00,39.49,-4.91) h=-178deg DETx3 B2/2
+[INFO] [1789812171.286606770] [d_mission]: [TRACK] NED(-25.99,39.49,-4.93) h=-179deg DETx3 B2/2
+[INFO] [1789812171.288281117] [d_mission]: STEP TRACK->POSITION_REFINE (prev 6.8s) NED(-25.99,39.49,-4.93) H=4.98m
+[INFO] [1789812171.339521427] [d_mission]:   REFINE candidates vs target(-33.2,-0.9): (-33.5,2.2)d=3.1, (-33.2,0.7)d=1.6, (-33.2,-0.7)d=0.2 best_dist=0.2 n=1
+[INFO] [1789812172.286603515] [d_mission]: [POSITION_REFINE] NED(-25.99,39.40,-5.01) h=-180deg DETx3 refine_samples=19 elapsed=1.0s
+[INFO] [1789812172.345968132] [d_mission]:   REFINE candidates vs target(-33.2,-0.9): (-33.5,2.3)d=3.3, (-33.2,0.8)d=1.7, (-33.2,-0.7)d=0.2 best_dist=0.2 n=21
+[INFO] [1789812173.287056716] [d_mission]: [POSITION_REFINE] NED(-26.00,39.33,-5.01) h=-179deg DETx3 refine_samples=39 elapsed=2.0s
+[INFO] [1789812173.289024719] [d_mission]: Position refined: (-33.20,-0.90) -> (-33.24,-0.69) delta=(-0.031,0.213)m n=40
+[INFO] [1789812173.289835143] [d_mission]: STEP POSITION_REFINE->PRE_SERVO (prev 2.0s) NED(-26.00,39.33,-5.01) H=5.07m
+[INFO] [1789812174.287770134] [d_mission]: [PRE_SERVO] NED(-26.01,39.38,-4.89) h=-179deg DETx3
+[INFO] [1789812175.286623776] [d_mission]: [PRE_SERVO] NED(-26.01,39.53,-4.67) h=-179deg DETx3
+[INFO] [1789812176.286570990] [d_mission]: [PRE_SERVO] NED(-26.01,39.62,-4.47) h=-179deg DETx3
+[INFO] [1789812177.286741453] [d_mission]: [PRE_SERVO] NED(-26.05,39.62,-4.18) h=-179deg DETx3
+[INFO] [1789812178.286804051] [d_mission]: [PRE_SERVO] NED(-26.08,39.58,-4.12) h=-179deg DETx3
+[INFO] [1789812179.286678710] [d_mission]: [PRE_SERVO] NED(-26.07,39.56,-3.93) h=-177deg DETx3
+[INFO] [1789812180.286529873] [d_mission]: [PRE_SERVO] NED(-26.05,39.56,-3.54) h=-178deg DETx3
+[INFO] [1789812180.531697680] [d_mission]:   同帧重复框合并: 4 -> 3 (相距 < 0.8m 视为同一个桶)
+[INFO] [1789812180.636219708] [d_mission]:   同帧重复框合并: 3 -> 3 (相距 < 0.8m 视为同一个桶)
+[INFO] [1789812181.286763470] [d_mission]: [PRE_SERVO] NED(-26.01,39.58,-3.33) h=-177deg DETx3
+[INFO] [1789812181.314722045] [d_mission]:   同帧重复框合并: 4 -> 3 (相距 < 0.8m 视为同一个桶)
+[INFO] [1789812181.703874729] [d_mission]:   同帧重复框合并: 3 -> 3 (相距 < 0.8m 视为同一个桶)
+[INFO] [1789812182.287433398] [d_mission]: [PRE_SERVO] NED(-26.01,39.61,-3.03) h=-178deg DETx3
+[INFO] [1789812183.286824688] [d_mission]: [PRE_SERVO] NED(-26.02,39.61,-2.77) h=-178deg DETx2
+[INFO] [1789812183.388470275] [d_mission]: PRE_SERVO update target: (-33.13,-0.56) H=2.8m
+[INFO] [1789812183.390051547] [d_mission]: STEP PRE_SERVO->VISUAL_SERVO (prev 10.1s) NED(-26.02,39.61,-2.73) H=2.78m
+[INFO] [1789812183.636780102] [d_mission]:   SERVO err=52px ex=0 ey=-52 v_fwd=-0.156 v_lat=0.000(log-only) H=2.7m target=(-33.14,-0.61) dec=5x
+[INFO] [1789812184.286482655] [d_mission]: [VISUAL_SERVO] NED(-25.99,39.63,-2.49) h=-179deg DETx2 B2/2 SERVO
+[INFO] [1789812184.637789959] [d_mission]:   SERVO err=48px ex=0 ey=-48 v_fwd=-0.027 v_lat=0.000(log-only) H=2.5m target=(-33.11,-0.60) dec=5x
+[INFO] [1789812185.287396665] [d_mission]: [VISUAL_SERVO] NED(-25.93,39.69,-2.53) h=-179deg DETx2 B2/2 SERVO
+[INFO] [1789812185.639107214] [d_mission]:   SERVO err=40px ex=13 ey=-38 v_fwd=-0.026 v_lat=0.013(log-only) H=2.5m target=(-33.11,-0.63) dec=5x
+[INFO] [1789812186.287077762] [d_mission]: [VISUAL_SERVO] NED(-25.88,39.68,-2.34) h=180deg DETx2 B2/2 SERVO
+[INFO] [1789812186.886776527] [d_mission]:   SERVO err=25px ex=0 ey=-25 v_fwd=-0.012 v_lat=-0.013(log-only) H=2.2m target=(-33.10,-0.58) dec=5x
+[INFO] [1789812187.286669710] [d_mission]: [VISUAL_SERVO] NED(-25.84,39.63,-1.91) h=179deg DETx2 B2/2 SERVO
+[INFO] [1789812187.887300596] [d_mission]:   SERVO err=17px ex=-7 ey=-15 v_fwd=-0.004 v_lat=-0.016(log-only) H=1.9m target=(-33.09,-0.56) dec=5x
+[INFO] [1789812188.286563563] [d_mission]: [VISUAL_SERVO] NED(-25.82,39.63,-1.84) h=180deg DETx2 B2/2 SERVO
+[INFO] [1789812189.136794534] [d_mission]:   SERVO err=15px ex=0 ey=-15 v_fwd=-0.006 v_lat=0.007(log-only) H=1.6m target=(-33.08,-0.57) dec=5x
+[INFO] [1789812189.286765207] [d_mission]: [VISUAL_SERVO] NED(-25.81,39.67,-1.53) h=180deg DETx2 B2/2 SERVO
+[INFO] [1789812189.687294986] [d_mission]: STEP VISUAL_SERVO->DROP (prev 6.3s) NED(-25.81,39.69,-1.33) H=1.38m
+[INFO] [1789812189.936662681] [d_mission]:   DROP-LOCK accept est=(-33.04,-0.49) anchor=(-33.13,-0.56) dist=0.11m reject_n=0 err=13px
+[INFO] [1789812190.186748309] [d_mission]:   DROP-SERVO err=12px ex=0 ey=-12 v_fwd=-0.003 v_lat=0.000(log-only) H=1.3m target=(-33.06,-0.56) dec=5x lock=accept dist=0.12m bias=(+0.00,+0.00) pitch=+0.022 等效地面=4.3cm(门限10cm)
+[INFO] [1789812190.286563954] [d_mission]: [DROP] NED(-25.79,39.70,-1.18) h=-179deg DETx2 B2/2
+[INFO] [1789812191.186856370] [d_mission]:   DROP-SERVO err=9px ex=6 ey=-6 v_fwd=-0.002 v_lat=0.003(log-only) H=1.3m target=(-33.06,-0.56) dec=5x lock=accept dist=0.11m bias=(+0.01,-0.01) pitch=+0.019 等效地面=3.3cm(门限10cm)
+[INFO] [1789812191.286971447] [d_mission]: [DROP] NED(-25.78,39.72,-1.27) h=-179deg DETx2 B2/2
+[INFO] [1789812191.437665302] [d_mission]: >>> DROP #2! PWM=1000us NED(-25.782,39.722,-1.272) heading=-179.4deg 触发方式=收敛即投 last_err=9px(ex=7,ey=-6@H=1.3m) 等效地面=3.3cm
+[INFO] [1789812192.113060136] [d_mission]:   同帧重复框合并: 3 -> 2 (相距 < 0.8m 视为同一个桶)
+[INFO] [1789812192.187194311] [d_mission]:   DROP-SERVO err=6px ex=0 ey=-6 v_fwd=0.002 v_lat=-0.009(log-only) H=1.4m target=(-33.08,-0.55) dec=5x lock=accept dist=0.10m bias=(+0.01,-0.01) pitch=+0.026 等效地面=2.2cm(门限10cm)
+[INFO] [1789812192.286729791] [d_mission]: [DROP] NED(-25.80,39.72,-1.32) h=-179deg DETx2 B2/2
+[INFO] [1789812192.308967340] [d_mission]:   同帧重复框合并: 2 -> 2 (相距 < 0.8m 视为同一个桶)
+[INFO] [1789812192.438178553] [d_mission]: STEP DROP->CLIMB (prev 2.8s) NED(-25.80,39.72,-1.32) H=1.37m
+[INFO] [1789812193.286645924] [d_mission]: [CLIMB] NED(-25.81,39.72,-2.44) h=-180deg DETx2
+[INFO] [1789812194.286856833] [d_mission]: [CLIMB] NED(-25.76,39.68,-4.17) h=-180deg DETx3
+[INFO] [1789812194.586659683] [d_mission]: All buckets done, flying to SCOUT zone
+[INFO] [1789812194.587879126] [d_mission]: STEP CLIMB->SCOUT (prev 2.1s) NED(-25.73,39.68,-4.55) H=4.61m
+[INFO] [1789812195.286815763] [d_mission]: [SCOUT] NED(-25.87,39.67,-4.89) h=-180deg DETx3 scout sub=0
+[INFO] [1789812195.307439283] [d_mission]: Tracker confirmed: NED(-33.5,2.5) after 1.6s
+[INFO] [1789812196.286848970] [d_mission]: [SCOUT] NED(-27.26,39.70,-5.02) h=-180deg DETx3 scout sub=0
+[INFO] [1789812197.286546154] [d_mission]: [SCOUT] NED(-29.15,39.71,-5.16) h=180deg DETx3 scout sub=0
+[INFO] [1789812198.286566345] [d_mission]: [SCOUT] NED(-31.15,39.73,-5.11) h=180deg no-det scout sub=0
+[INFO] [1789812199.286683914] [d_mission]: [SCOUT] NED(-33.17,39.76,-5.03) h=-180deg no-det scout sub=0
+[INFO] [1789812200.286551504] [d_mission]: [SCOUT] NED(-35.21,39.82,-4.97) h=180deg no-det scout sub=0
+[INFO] [1789812201.286593382] [d_mission]: [SCOUT] NED(-37.21,39.94,-4.99) h=180deg no-det scout sub=0
+[INFO] [1789812202.286868381] [d_mission]: [SCOUT] NED(-39.22,40.07,-4.93) h=-179deg no-det scout sub=0
+[INFO] [1789812203.287426619] [d_mission]: [SCOUT] NED(-41.18,40.16,-4.87) h=-180deg no-det scout sub=0
+[INFO] [1789812204.286815142] [d_mission]: [SCOUT] NED(-43.19,40.22,-4.92) h=180deg no-det scout sub=0
+[INFO] [1789812205.286520523] [d_mission]: [SCOUT] NED(-45.19,40.25,-5.02) h=-180deg no-det scout sub=0
+[INFO] [1789812206.286716448] [d_mission]: [SCOUT] NED(-47.15,40.25,-5.12) h=180deg no-det scout sub=0
+[INFO] [1789812207.286665560] [d_mission]: [SCOUT] NED(-48.95,40.27,-5.09) h=-180deg no-det scout sub=0
+[INFO] [1789812207.586584522] [d_mission]: Scout: arrived at zone near edge, descending 1m first
+[INFO] [1789812208.286478374] [d_mission]: [SCOUT] NED(-49.91,40.30,-4.54) h=180deg no-det scout sub=1
+[INFO] [1789812208.637717420] [d_mission]: Scout: descended 1m, slow moving 10s to zone center
+[INFO] [1789812209.286562053] [d_mission]: [SCOUT] NED(-50.11,40.32,-3.99) h=180deg no-det scout sub=2
+[INFO] [1789812210.287032237] [d_mission]: [SCOUT] NED(-50.05,40.33,-3.98) h=-180deg no-det scout sub=2
+[INFO] [1789812211.287012345] [d_mission]: [SCOUT] NED(-50.15,40.35,-4.04) h=-179deg no-det scout sub=2
+[INFO] [1789812212.286463569] [d_mission]: [SCOUT] NED(-50.41,40.36,-4.10) h=-180deg no-det scout sub=2
+[INFO] [1789812213.286637977] [d_mission]: [SCOUT] NED(-50.72,40.33,-4.02) h=180deg no-det scout sub=2
+[INFO] [1789812214.286571452] [d_mission]: [SCOUT] NED(-50.98,40.32,-3.95) h=180deg no-det scout sub=2
+[INFO] [1789812215.287077820] [d_mission]: [SCOUT] NED(-51.21,40.33,-3.96) h=-180deg no-det scout sub=2
+[INFO] [1789812216.286523235] [d_mission]: [SCOUT] NED(-51.43,40.34,-3.95) h=180deg no-det scout sub=2
+[INFO] [1789812217.286851760] [d_mission]: [SCOUT] NED(-51.66,40.31,-3.91) h=180deg no-det scout sub=2
+[INFO] [1789812218.286625471] [d_mission]: [SCOUT] NED(-51.91,40.29,-3.94) h=180deg no-det scout sub=2
+[INFO] [1789812218.687503480] [d_mission]: Scout: slow move done, moving left 1.5m
+[INFO] [1789812219.286796008] [d_mission]: [SCOUT] NED(-52.15,40.41,-3.97) h=-179deg no-det scout sub=3
+[INFO] [1789812220.286618090] [d_mission]: [SCOUT] NED(-52.32,41.33,-3.94) h=180deg no-det scout sub=3
+[INFO] [1789812220.440220888] [d_mission]: Scout: left 1.5m done, pausing 5s
+[INFO] [1789812221.286823478] [d_mission]: [SCOUT] NED(-52.37,42.01,-3.93) h=-180deg no-det scout sub=4
+[INFO] [1789812222.286990133] [d_mission]: [SCOUT] NED(-52.30,42.08,-3.99) h=180deg no-det scout sub=4
+[INFO] [1789812223.287424781] [d_mission]: [SCOUT] NED(-52.22,41.84,-3.96) h=180deg no-det scout sub=4
+[INFO] [1789812224.287049307] [d_mission]: [SCOUT] NED(-52.20,41.65,-3.92) h=180deg no-det scout sub=4
+[INFO] [1789812225.286538841] [d_mission]: [SCOUT] NED(-52.25,41.63,-3.86) h=180deg no-det scout sub=4
+[INFO] [1789812225.487655079] [d_mission]: Scout: pause done, moving right 3m
+[INFO] [1789812226.286850570] [d_mission]: [SCOUT] NED(-52.31,41.24,-3.96) h=179deg no-det scout sub=5
+[INFO] [1789812227.286682980] [d_mission]: [SCOUT] NED(-52.33,39.41,-3.94) h=-179deg no-det scout sub=5
+[INFO] [1789812227.538172296] [d_mission]: Scout: right 3m done, pausing 5s
+[INFO] [1789812228.286799366] [d_mission]: [SCOUT] NED(-52.31,38.29,-3.95) h=-180deg no-det scout sub=6
+[INFO] [1789812229.286411004] [d_mission]: [SCOUT] NED(-52.34,38.29,-3.96) h=180deg no-det scout sub=6
+[INFO] [1789812230.286516098] [d_mission]: [SCOUT] NED(-52.35,38.65,-3.90) h=180deg no-det scout sub=6
+[INFO] [1789812231.286989246] [d_mission]: [SCOUT] NED(-52.29,38.87,-3.95) h=180deg no-det scout sub=6
+[INFO] [1789812232.287080304] [d_mission]: [SCOUT] NED(-52.26,38.87,-3.90) h=-180deg no-det scout sub=6
+[INFO] [1789812232.587136644] [d_mission]: Scout maneuver complete, returning home
+[INFO] [1789812232.588152280] [d_mission]: STEP SCOUT->RETURN (prev 38.0s) NED(-52.27,38.85,-3.90) H=3.96m
+[INFO] [1789812233.286510818] [d_mission]: [RETURN] NED(-51.93,38.81,-4.23) h=-180deg no-det ->home dist=59.2m
+[INFO] [1789812234.288095266] [d_mission]: [RETURN] NED(-49.68,38.90,-4.60) h=180deg no-det ->home dist=56.9m
+[INFO] [1789812235.286918308] [d_mission]: [RETURN] NED(-46.77,39.01,-4.73) h=180deg no-det ->home dist=54.0m
+[INFO] [1789812236.286521632] [d_mission]: [RETURN] NED(-43.59,39.14,-4.74) h=-180deg no-det ->home dist=50.8m
+[INFO] [1789812237.286706836] [d_mission]: [RETURN] NED(-40.53,39.26,-4.81) h=180deg no-det ->home dist=47.8m
+[INFO] [1789812238.286783105] [d_mission]: [RETURN] NED(-37.45,39.32,-4.89) h=-180deg no-det ->home dist=44.7m
+[INFO] [1789812239.287259936] [d_mission]: [RETURN] NED(-34.38,39.39,-4.97) h=180deg no-det ->home dist=41.6m
+[INFO] [1789812240.286664924] [d_mission]: [RETURN] NED(-31.38,39.46,-4.96) h=-180deg no-det ->home dist=38.6m
+[INFO] [1789812241.286529710] [d_mission]: [RETURN] NED(-28.42,39.50,-4.98) h=180deg no-det ->home dist=35.7m
+[INFO] [1789812242.286551285] [d_mission]: [RETURN] NED(-25.45,39.55,-5.07) h=180deg DETx3 ->home dist=32.7m
+[INFO] [1789812242.910711755] [d_mission]: Tracker confirmed: NED(-32.9,1.9) after 1.6s
+[INFO] [1789812243.016856628] [d_mission]: Tracker confirmed: NED(-32.5,-0.0) after 1.6s
+[INFO] [1789812243.286628922] [d_mission]: [RETURN] NED(-22.46,39.64,-5.07) h=180deg DETx3 ->home dist=29.7m
+[INFO] [1789812244.286560738] [d_mission]: [RETURN] NED(-19.49,39.76,-5.01) h=-180deg no-det ->home dist=26.7m
+[INFO] [1789812245.286576612] [d_mission]: [RETURN] NED(-16.51,39.91,-5.06) h=180deg no-det ->home dist=23.7m
+[INFO] [1789812246.287213851] [d_mission]: [RETURN] NED(-13.57,40.06,-5.03) h=180deg no-det ->home dist=20.8m
+[INFO] [1789812247.287625827] [d_mission]: [RETURN] NED(-10.62,40.23,-4.98) h=180deg no-det ->home dist=17.8m
+[INFO] [1789812248.286751032] [d_mission]: [RETURN] NED(-7.68,40.37,-4.96) h=180deg no-det ->home dist=14.9m
+[INFO] [1789812249.286852316] [d_mission]: [RETURN] NED(-4.63,40.49,-4.95) h=-180deg no-det ->home dist=11.9m
+[INFO] [1789812250.287770435] [d_mission]: [RETURN] NED(-1.68,40.53,-5.01) h=-180deg no-det ->home dist=8.9m
+[INFO] [1789812251.286508226] [d_mission]: [RETURN] NED(1.35,40.48,-4.92) h=-180deg no-det ->home dist=5.9m
+[INFO] [1789812252.286912616] [d_mission]: [RETURN] NED(4.36,40.37,-4.87) h=179deg no-det ->home dist=2.9m
+[INFO] [1789812253.187186135] [d_mission]: Return: over home, stabilizing before land
+[INFO] [1789812253.286552920] [d_mission]: [RETURN] NED(7.03,40.32,-4.94) h=180deg no-det stabilizing dist=0.21m drift=0.00m
+[INFO] [1789812254.286794675] [d_mission]: [RETURN] NED(8.01,40.29,-4.82) h=-180deg no-det stabilizing dist=0.79m drift=1.10m
+[INFO] [1789812255.287203236] [d_mission]: [RETURN] NED(7.68,40.24,-4.86) h=-180deg no-det stabilizing dist=0.46m drift=1.10m
+[INFO] [1789812255.608114695] [d_mission]: Tracker confirmed: NED(1.5,0.5) after 1.7s
+[INFO] [1789812256.287693779] [d_mission]: [RETURN] NED(7.21,40.18,-4.89) h=-180deg DETx1 stabilizing dist=0.06m drift=0.98m
+[INFO] [1789812257.286784062] [d_mission]: [RETURN] NED(7.03,40.20,-4.89) h=180deg DETx1 stabilizing dist=0.20m drift=0.98m
+[INFO] [1789812258.287176162] [d_mission]: [RETURN] NED(7.09,40.24,-4.91) h=-180deg DETx1 stabilizing dist=0.14m drift=0.65m
+[INFO] [1789812258.988353003] [d_mission]: Return: stable (drift 0.28m over 3s), landing
+[INFO] [1789812258.989558948] [d_mission]: STEP RETURN->LAND (prev 26.4s) NED(7.15,40.28,-4.92) H=4.98m
+[INFO] [1789812259.286510981] [d_mission]: [LAND] NED(7.17,40.28,-4.93) h=180deg DETx1
+[INFO] [1789812260.288264695] [d_mission]: [LAND] NED(7.19,40.26,-4.71) h=-179deg DETx1
+[INFO] [1789812261.286500005] [d_mission]: [LAND] NED(7.20,40.24,-4.44) h=-180deg DETx1
+[INFO] [1789812262.286525285] [d_mission]: [LAND] NED(7.21,40.21,-4.03) h=179deg DETx1
+[INFO] [1789812263.286477207] [d_mission]: [LAND] NED(7.21,40.21,-3.63) h=-180deg no-det
+[INFO] [1789812264.286523911] [d_mission]: [LAND] NED(7.22,40.19,-3.19) h=178deg no-det
+[INFO] [1789812265.295211135] [d_mission]: [LAND] NED(7.19,40.22,-2.78) h=-180deg no-det
+[INFO] [1789812266.287035013] [d_mission]: [LAND] NED(7.14,40.26,-2.41) h=-179deg no-det
+[INFO] [1789812267.014887710] [d_mission]:   同帧重复框合并: 2 -> 1 (相距 < 0.8m 视为同一个桶)
+[INFO] [1789812267.287162653] [d_mission]: [LAND] NED(7.09,40.23,-2.02) h=179deg no-det
+[INFO] [1789812268.287570503] [d_mission]: [LAND] NED(7.12,40.13,-1.70) h=179deg no-det
+[INFO] [1789812269.287172084] [d_mission]: [LAND] NED(7.16,40.14,-1.33) h=-180deg no-det
+[INFO] [1789812269.988673324] [d_mission]: Sending MAV_CMD_NAV_LAND at NED(7.19,40.20,-0.92) H=0.98m (descent 11.0s)
+[INFO] [1789812270.286827407] [d_mission]: [LAND] NED(7.20,40.23,-0.77) h=-178deg no-det
+[INFO] [1789812271.287540729] [d_mission]: [LAND] NED(7.19,40.32,-0.17) h=-178deg no-det
+[INFO] [1789812272.286542776] [d_mission]: [LAND] NED(7.17,40.32,0.01) h=-179deg no-det
+[INFO] [1789812273.286742792] [d_mission]: [LAND] NED(7.17,40.32,0.01) h=-179deg no-det
+[INFO] [1789812274.286621031] [d_mission]: [LAND] NED(7.16,40.31,0.20) h=-178deg no-det
+[INFO] [1789812274.436688357] [d_mission]: Landed (vehicle_land_detected), dwell 3s done, disarming. NED(7.16,40.31,0.23) dist_from_home=0.10m
+[INFO] [1789812274.437989516] [d_mission]: ============================================================
+[INFO] [1789812274.439002994] [d_mission]: MISSION SUMMARY
+[INFO] [1789812274.441434702] [d_mission]:   End reason: normal
+[INFO] [1789812274.442415646] [d_mission]:   Total time: 185.0s
+[INFO] [1789812274.443236099] [d_mission]:   Buckets dropped: 2/2
+[INFO] [1789812274.444905889] [d_mission]:   Drop #1: aim NED(-25.79,41.06) at NED(-25.569,41.386) H=1.22m dev=0.389m last_err=10px(ex=0,ey=-10)
+[INFO] [1789812274.446015784] [d_mission]:   Drop #2: aim NED(-25.90,39.69) at NED(-25.782,39.722) H=1.33m dev=0.122m last_err=9px(ex=7,ey=-6)
+[INFO] [1789812274.446704597] [d_mission]:   Scout: completed (38.0s, 7 sub-phases)
+[INFO] [1789812274.447345154] [d_mission]:   Return: stabilized in 5.8s (drift 0.28m)
+[INFO] [1789812274.448077356] [d_mission]:   Landing: NED(7.16,40.31) dist_from_home=0.10m
+[INFO] [1789812274.448798350] [d_mission]: ============================================================
+[INFO] [1789812274.449440476] [d_mission]: Mission complete, shutting down

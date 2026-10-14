@@ -1,0 +1,321 @@
+[2026年 10月 07日 星期三 15:56:51 CST] 日志文件: /home/nvidia/fly_logs/i_mission_20261007_155651.log
+=== 检查环境 ===
+  ROS 2 Humble       : OK
+  DDS Agent          : MicroXRCEAgent
+  DDS Device         : /dev/ttyTHS1 @ 921600 baud
+  Conda env          : yolov8
+  Workspace          : /home/nvidia/fly
+
+=== 1/3 启动 DDS Agent ===
+  ⚠ 检测到已有 DDS Agent 在运行 (PID: 4674
+4675), 先终止...
+  DDS Agent PID=5433
+[35m[1791359813.697987][m info     | [34mTermiosAgentLinux.cpp[m | [37minit                    [m | [32mrunning...[m             | fd: 3
+[35m[1791359813.698642][m info     | [34mRoot.cpp          [m | [37mset_verbose_level       [m | [32mlogger setup[m           | verbose_level: 4
+[35m[1791359816.047036][m info     | [34mRoot.cpp          [m | [37mcreate_client           [m | [32mcreate[m                 | client_key: 0x00000001, session_id: 0x81
+[35m[1791359816.047165][m info     | [34mSessionManager.hpp[m | [37mestablish_session       [m | [32msession established[m    | client_key: 0x00000001, address: 1
+[35m[1791359816.057216][m info     | [34mProxyClient.cpp   [m | [37mcreate_participant      [m | [32mparticipant created[m    | client_key: 0x00000001, participant_id: 0x001(1)
+  DDS Agent 运行正常
+
+=== 2/3 启动 see 多桶检测节点 ===
+  conda: /home/nvidia/miniforge3/envs/yolov8/bin/python3
+  PYTHONPATH 已设置
+  see PID=5460
+[35m[1791359821.663197][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x800(2), participant_id: 0x001(1)
+[35m[1791359821.663419][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x800(4), participant_id: 0x001(1)
+[35m[1791359821.664277][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x800(6), subscriber_id: 0x800(4)
+[35m[1791359821.667439][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x801(2), participant_id: 0x001(1)
+[35m[1791359821.667503][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x801(4), participant_id: 0x001(1)
+[35m[1791359821.667910][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x801(6), subscriber_id: 0x801(4)
+[35m[1791359821.670830][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x802(2), participant_id: 0x001(1)
+[35m[1791359821.670894][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x802(4), participant_id: 0x001(1)
+[35m[1791359821.671467][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x802(6), subscriber_id: 0x802(4)
+[35m[1791359821.674444][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x803(2), participant_id: 0x001(1)
+[35m[1791359821.674579][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x803(4), participant_id: 0x001(1)
+[35m[1791359821.675270][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x803(6), subscriber_id: 0x803(4)
+[35m[1791359821.678361][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x804(2), participant_id: 0x001(1)
+[35m[1791359821.678464][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x804(4), participant_id: 0x001(1)
+[35m[1791359821.679054][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x804(6), subscriber_id: 0x804(4)
+[35m[1791359821.681832][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x805(2), participant_id: 0x001(1)
+[35m[1791359821.681932][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x805(4), participant_id: 0x001(1)
+[35m[1791359821.682383][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x805(6), subscriber_id: 0x805(4)
+[35m[1791359821.685667][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x806(2), participant_id: 0x001(1)
+[35m[1791359821.685853][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x806(4), participant_id: 0x001(1)
+[35m[1791359821.686776][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x806(6), subscriber_id: 0x806(4)
+[35m[1791359821.689530][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x807(2), participant_id: 0x001(1)
+[35m[1791359821.689664][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x807(4), participant_id: 0x001(1)
+[35m[1791359821.690461][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x807(6), subscriber_id: 0x807(4)
+[35m[1791359821.695234][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x808(2), participant_id: 0x001(1)
+[35m[1791359821.695516][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x808(4), participant_id: 0x001(1)
+[35m[1791359821.696619][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x808(6), subscriber_id: 0x808(4)
+[35m[1791359821.699653][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x809(2), participant_id: 0x001(1)
+[35m[1791359821.699774][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x809(4), participant_id: 0x001(1)
+[35m[1791359821.700309][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x809(6), subscriber_id: 0x809(4)
+[35m[1791359821.703308][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x80A(2), participant_id: 0x001(1)
+[35m[1791359821.703402][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x80A(4), participant_id: 0x001(1)
+[35m[1791359821.703839][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x80A(6), subscriber_id: 0x80A(4)
+[35m[1791359821.715068][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x80B(2), participant_id: 0x001(1)
+[35m[1791359821.715216][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x80B(4), participant_id: 0x001(1)
+[35m[1791359821.715841][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x80B(6), subscriber_id: 0x80B(4)
+[35m[1791359821.718596][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x80C(2), participant_id: 0x001(1)
+[35m[1791359821.718724][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x80C(4), participant_id: 0x001(1)
+[35m[1791359821.719288][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x80C(6), subscriber_id: 0x80C(4)
+[35m[1791359821.722375][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x80D(2), participant_id: 0x001(1)
+[35m[1791359821.722460][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x80D(4), participant_id: 0x001(1)
+[35m[1791359821.723107][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x80D(6), subscriber_id: 0x80D(4)
+[35m[1791359821.726671][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x80E(2), participant_id: 0x001(1)
+[35m[1791359821.726810][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x80E(4), participant_id: 0x001(1)
+[35m[1791359821.727404][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x80E(6), subscriber_id: 0x80E(4)
+[35m[1791359821.730832][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x80F(2), participant_id: 0x001(1)
+[35m[1791359821.731048][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x80F(4), participant_id: 0x001(1)
+[35m[1791359821.731758][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x80F(6), subscriber_id: 0x80F(4)
+[35m[1791359821.734761][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x810(2), participant_id: 0x001(1)
+[35m[1791359821.735071][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x810(4), participant_id: 0x001(1)
+[35m[1791359821.735880][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x810(6), subscriber_id: 0x810(4)
+[35m[1791359821.738858][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x811(2), participant_id: 0x001(1)
+[35m[1791359821.739184][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x811(4), participant_id: 0x001(1)
+[35m[1791359821.740267][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x811(6), subscriber_id: 0x811(4)
+[35m[1791359821.743312][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x812(2), participant_id: 0x001(1)
+[35m[1791359821.743498][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x812(4), participant_id: 0x001(1)
+[35m[1791359821.744253][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x812(6), subscriber_id: 0x812(4)
+[35m[1791359821.747056][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x813(2), participant_id: 0x001(1)
+[35m[1791359821.747247][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x813(4), participant_id: 0x001(1)
+[35m[1791359821.748009][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x813(6), subscriber_id: 0x813(4)
+[35m[1791359821.754765][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x814(2), participant_id: 0x001(1)
+[35m[1791359821.754963][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x814(4), participant_id: 0x001(1)
+[35m[1791359821.755896][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x814(6), subscriber_id: 0x814(4)
+[35m[1791359821.759001][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x815(2), participant_id: 0x001(1)
+[35m[1791359821.759151][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x815(4), participant_id: 0x001(1)
+[35m[1791359821.759740][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x815(6), subscriber_id: 0x815(4)
+[35m[1791359821.763202][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x816(2), participant_id: 0x001(1)
+[35m[1791359821.763268][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x816(4), participant_id: 0x001(1)
+[35m[1791359821.763664][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x816(6), subscriber_id: 0x816(4)
+[35m[1791359821.767393][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x817(2), participant_id: 0x001(1)
+[35m[1791359821.767456][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x817(4), participant_id: 0x001(1)
+[35m[1791359821.767859][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x817(6), subscriber_id: 0x817(4)
+[35m[1791359821.771530][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x818(2), participant_id: 0x001(1)
+[35m[1791359821.771602][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x818(4), participant_id: 0x001(1)
+[35m[1791359821.772010][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x818(6), subscriber_id: 0x818(4)
+[35m[1791359821.775702][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x819(2), participant_id: 0x001(1)
+[35m[1791359821.775826][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x819(4), participant_id: 0x001(1)
+[35m[1791359821.776940][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x819(6), subscriber_id: 0x819(4)
+[35m[1791359821.779951][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x81A(2), participant_id: 0x001(1)
+[35m[1791359821.780073][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x81A(4), participant_id: 0x001(1)
+[35m[1791359821.780682][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x81A(6), subscriber_id: 0x81A(4)
+[35m[1791359821.783799][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x81B(2), participant_id: 0x001(1)
+[35m[1791359821.783939][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x81B(4), participant_id: 0x001(1)
+[35m[1791359821.784583][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x81B(6), subscriber_id: 0x81B(4)
+[35m[1791359821.787907][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x81C(2), participant_id: 0x001(1)
+[35m[1791359821.788063][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x81C(4), participant_id: 0x001(1)
+[35m[1791359821.788675][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x81C(6), subscriber_id: 0x81C(4)
+[35m[1791359821.792135][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x81D(2), participant_id: 0x001(1)
+[35m[1791359821.792325][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x81D(4), participant_id: 0x001(1)
+[35m[1791359821.793347][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x81D(6), subscriber_id: 0x81D(4)
+[35m[1791359821.796506][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x81E(2), participant_id: 0x001(1)
+[35m[1791359821.796631][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x81E(4), participant_id: 0x001(1)
+[35m[1791359821.797276][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x81E(6), subscriber_id: 0x81E(4)
+[35m[1791359821.800322][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x81F(2), participant_id: 0x001(1)
+[35m[1791359821.800459][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x81F(4), participant_id: 0x001(1)
+[35m[1791359821.801243][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x81F(6), subscriber_id: 0x81F(4)
+[35m[1791359821.804094][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x820(2), participant_id: 0x001(1)
+[35m[1791359821.804216][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x820(4), participant_id: 0x001(1)
+[35m[1791359821.804872][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x820(6), subscriber_id: 0x820(4)
+[35m[1791359821.807763][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x821(2), participant_id: 0x001(1)
+[35m[1791359821.807879][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x821(4), participant_id: 0x001(1)
+[35m[1791359821.808491][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x821(6), subscriber_id: 0x821(4)
+[35m[1791359821.811719][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x822(2), participant_id: 0x001(1)
+[35m[1791359821.811841][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x822(4), participant_id: 0x001(1)
+[35m[1791359821.812413][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x822(6), subscriber_id: 0x822(4)
+[35m[1791359821.815418][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x823(2), participant_id: 0x001(1)
+[35m[1791359821.815478][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x823(4), participant_id: 0x001(1)
+[35m[1791359821.815889][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x823(6), subscriber_id: 0x823(4)
+[35m[1791359821.818990][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x824(2), participant_id: 0x001(1)
+[35m[1791359821.819107][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x824(4), participant_id: 0x001(1)
+[35m[1791359821.819558][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x824(6), subscriber_id: 0x824(4)
+[35m[1791359821.822477][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x825(2), participant_id: 0x001(1)
+[35m[1791359821.822639][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x825(4), participant_id: 0x001(1)
+[35m[1791359821.823522][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x825(6), subscriber_id: 0x825(4)
+[35m[1791359821.826927][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x0CD(2), participant_id: 0x001(1)
+[35m[1791359821.827106][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x0CD(3), participant_id: 0x001(1)
+[35m[1791359821.827926][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x0CD(5), publisher_id: 0x0CD(3)
+[35m[1791359821.830822][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x010(2), participant_id: 0x001(1)
+[35m[1791359821.830934][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x010(3), participant_id: 0x001(1)
+[35m[1791359821.831312][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x010(5), publisher_id: 0x010(3)
+[35m[1791359821.833881][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x09D(2), participant_id: 0x001(1)
+[35m[1791359821.833993][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x09D(3), participant_id: 0x001(1)
+[35m[1791359821.834385][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x09D(5), publisher_id: 0x09D(3)
+[35m[1791359821.836938][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x014(2), participant_id: 0x001(1)
+[35m[1791359821.837032][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x014(3), participant_id: 0x001(1)
+[35m[1791359821.837354][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x014(5), publisher_id: 0x014(3)
+[35m[1791359821.840554][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x01B(2), participant_id: 0x001(1)
+[35m[1791359821.840655][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x01B(3), participant_id: 0x001(1)
+[35m[1791359821.840943][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x01B(5), publisher_id: 0x01B(3)
+[35m[1791359821.843579][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x055(2), participant_id: 0x001(1)
+[35m[1791359821.843672][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x055(3), participant_id: 0x001(1)
+[35m[1791359821.843950][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x055(5), publisher_id: 0x055(3)
+[35m[1791359821.848051][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x05B(2), participant_id: 0x001(1)
+[35m[1791359821.848143][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x05B(3), participant_id: 0x001(1)
+[35m[1791359821.848454][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x05B(5), publisher_id: 0x05B(3)
+[35m[1791359821.853268][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x094(2), participant_id: 0x001(1)
+[35m[1791359821.853397][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x094(3), participant_id: 0x001(1)
+[35m[1791359821.853976][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x094(5), publisher_id: 0x094(3)
+[35m[1791359821.856902][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x09A(2), participant_id: 0x001(1)
+[35m[1791359821.857044][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x09A(3), participant_id: 0x001(1)
+[35m[1791359821.857518][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x09A(5), publisher_id: 0x09A(3)
+[35m[1791359821.860706][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x0C0(2), participant_id: 0x001(1)
+[35m[1791359821.860770][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x0C0(3), participant_id: 0x001(1)
+[35m[1791359821.861120][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x0C0(5), publisher_id: 0x0C0(3)
+[35m[1791359821.863746][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x0E1(2), participant_id: 0x001(1)
+[35m[1791359821.863795][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x0E1(3), participant_id: 0x001(1)
+[35m[1791359821.864084][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x0E1(5), publisher_id: 0x0E1(3)
+[35m[1791359821.866731][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x0F9(2), participant_id: 0x001(1)
+[35m[1791359821.866818][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x0F9(3), participant_id: 0x001(1)
+[35m[1791359821.867178][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x0F9(5), publisher_id: 0x0F9(3)
+[35m[1791359821.869967][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x0FC(2), participant_id: 0x001(1)
+[35m[1791359821.870029][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x0FC(3), participant_id: 0x001(1)
+[35m[1791359821.870317][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x0FC(5), publisher_id: 0x0FC(3)
+[35m[1791359821.873100][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x115(2), participant_id: 0x001(1)
+[35m[1791359821.873165][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x115(3), participant_id: 0x001(1)
+[35m[1791359821.873423][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x115(5), publisher_id: 0x115(3)
+[35m[1791359821.876066][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x108(2), participant_id: 0x001(1)
+[35m[1791359821.876118][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x108(3), participant_id: 0x001(1)
+[35m[1791359821.876368][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x108(5), publisher_id: 0x108(3)
+[35m[1791359821.879122][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x10F(2), participant_id: 0x001(1)
+[35m[1791359821.879171][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x10F(3), participant_id: 0x001(1)
+[35m[1791359821.879413][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x10F(5), publisher_id: 0x10F(3)
+[35m[1791359821.938604][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x10C(2), participant_id: 0x001(1)
+[35m[1791359821.938751][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x10C(3), participant_id: 0x001(1)
+[35m[1791359821.939362][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x10C(5), publisher_id: 0x10C(3)
+[35m[1791359821.942157][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x110(2), participant_id: 0x001(1)
+[35m[1791359821.942235][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x110(3), participant_id: 0x001(1)
+[35m[1791359821.942620][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x110(5), publisher_id: 0x110(3)
+[35m[1791359821.945261][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x112(2), participant_id: 0x001(1)
+[35m[1791359821.945349][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x112(3), participant_id: 0x001(1)
+[35m[1791359821.945724][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x112(5), publisher_id: 0x112(3)
+[35m[1791359821.948438][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x116(2), participant_id: 0x001(1)
+[35m[1791359821.948538][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x116(3), participant_id: 0x001(1)
+[35m[1791359821.948919][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x116(5), publisher_id: 0x116(3)
+[35m[1791359821.951632][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x11B(2), participant_id: 0x001(1)
+[35m[1791359821.951766][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x11B(3), participant_id: 0x001(1)
+[35m[1791359821.952370][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x11B(5), publisher_id: 0x11B(3)
+[35m[1791359822.108986][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x120(2), participant_id: 0x001(1)
+[35m[1791359822.109179][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x120(3), participant_id: 0x001(1)
+[35m[1791359822.109885][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x120(5), publisher_id: 0x120(3)
+[35m[1791359822.112595][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x00D(2), participant_id: 0x001(1)
+[35m[1791359822.112673][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x00D(3), participant_id: 0x001(1)
+[35m[1791359822.113037][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x00D(5), publisher_id: 0x00D(3)
+[35m[1791359822.115630][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x129(2), participant_id: 0x001(1)
+[35m[1791359822.115685][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x129(3), participant_id: 0x001(1)
+[35m[1791359822.116028][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x129(5), publisher_id: 0x129(3)
+[35m[1791359822.118883][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x080(2), participant_id: 0x001(1)
+[35m[1791359822.118935][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x080(3), participant_id: 0x001(1)
+[35m[1791359822.119254][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x080(5), publisher_id: 0x080(3)
+[35m[1791359822.121971][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x12B(2), participant_id: 0x001(1)
+[35m[1791359822.122039][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x12B(3), participant_id: 0x001(1)
+[35m[1791359822.122410][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x12B(5), publisher_id: 0x12B(3)
+[35m[1791359822.125706][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x06E(2), participant_id: 0x001(1)
+[35m[1791359822.125772][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x06E(3), participant_id: 0x001(1)
+[35m[1791359822.126146][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x06E(5), publisher_id: 0x06E(3)
+[35m[1791359822.130761][m info     | [34mProxyClient.cpp   [m | [37mcreate_replier          [m | [32mreplier created[m        | client_key: 0x00000001, requester_id: 0x800(7), participant_id: 0x001(1)
+WARNING ⚠️ Unable to automatically guess model task, assuming 'task=detect'. Explicitly define task for your model, i.e. 'task=detect', 'segment', 'classify', 'pose', 'obb' or 'semantic'.
+Loading /home/nvidia/d.engine for TensorRT inference...
+[10/07/2026-15:57:04] [TRT] [I] Loaded engine size: 21 MiB
+[10/07/2026-15:57:04] [TRT] [W] Using an engine plan file across different models of devices is not recommended and is likely to affect performance or even cause errors.
+[10/07/2026-15:57:04] [TRT] [I] [MemUsageChange] TensorRT-managed allocation in IExecutionContext creation: CPU +0, GPU +88, now: CPU 0, GPU 106 (MiB)
+[INFO] [1791359826.915756481] [see]: Model warm-up: 2215ms
+[INFO] [1791359826.916800183] [see]: Target 'bucket' -> cls_idx=0
+[INFO] [1791359828.442211600] [see]: Camera opened: /dev/video0 (1920x1080) -> resize to 640x360
+[INFO] [1791359828.444820567] [see]: see ready [Multi-Bucket Detector] model={0: 'bucket'} conf=0.5 infer=10.0Hz image=640x360 crop_fov=120.0->136.0 r=0.7
+  see 节点运行正常
+
+=== 3/3 启动 i 双桶投水+侦察任务节点 (前台) ===
+    按 Ctrl+C 停止所有节点
+
+  i PID=5526
+[INFO] [1791359829.840858906] [i_mission]: F Mission ready. HEADING=213deg offset_横_B1=0.180m B2=0.000m offset_前_B1=0.050m B2=0.050m FORWARD_DIST=34.0m SCOUT_DIST=59.5m cruise=5.0m drop=1.2m (no flight boundary)
+[INFO] [1791359829.842753607] [i_mission]: Build revision=competition-water-20260924-r1-f-i source=/home/nvidia/fly/install/fly/lib/python3.10/site-packages/fly/i.py sha256=a9acaf50a9aa99927dc0c1f68e4b1d238721c13288f84625d7e6d6e5d34d8615 drop_gate=5cm(米制, 原 10px≈3cm) dwell=0.50s detect_age_max=0.50s camera=down_fixed(top=forward,right=right) geometry=FRD-ray-ground
+[INFO] [1791359830.972487846] [i_mission]:   TRK-DBG step=TAKEOFF nbox=0 boxes=[] trackers=0[]
+[INFO] [1791359831.741847282] [i_mission]: Takeoff ref: NED(-12.18,-4.11,353.03) HEADING_DEG=213deg (hardcoded)
+[INFO] [1791359832.052083787] [i_mission]:   TRK-DBG step=TAKEOFF nbox=0 boxes=[] trackers=0[]
+[INFO] [1791359832.725538139] [i_mission]: [t=    3.0 TAKEOFF         ph=  0.0s] NED( -12.18,  -4.11,353.07) H=   -- hdg=-147.2 pit= +1.2 rol= +0.5 vNED=(-0.01,+0.01,+0.01) det=0 age=2.95
+[INFO] [1791359833.060258727] [i_mission]:   TRK-DBG step=TAKEOFF nbox=0 boxes=[] trackers=0[]
+[INFO] [1791359833.725544710] [i_mission]: [t=    4.0 TAKEOFF         ph=  0.0s] NED( -12.18,  -4.11,353.06) H=   -- hdg=-147.2 pit= +1.2 rol= +0.5 vNED=(+0.00,+0.00,+0.00) det=0 age=3.95
+[INFO] [1791359834.147120422] [i_mission]:   TRK-DBG step=TAKEOFF nbox=0 boxes=[] trackers=0[]
+[INFO] [1791359834.725707152] [i_mission]: [t=    5.0 TAKEOFF         ph=  0.0s] NED( -12.17,  -4.11,353.06) H=   -- hdg=-147.1 pit= +1.2 rol= +0.5 vNED=(+0.00,+0.00,+0.00) det=0 age=4.95
+[INFO] [1791359834.825569702] [i_mission]: Requesting ARM... (t=0.0s)
+[INFO] [1791359834.875967420] [i_mission]: ARM OK, requesting OFFBOARD mode... (t=0.0s)
+[INFO] [1791359835.239337649] [i_mission]:   TRK-DBG step=TAKEOFF nbox=0 boxes=[] trackers=0[]
+[INFO] [1791359835.725541021] [i_mission]: [t=    6.0 TAKEOFF         ph=  0.0s] NED( -12.17,  -4.11,353.05) H=   -- hdg=-147.1 pit= +1.2 rol= +0.5 vNED=(-0.00,-0.01,-0.00) det=0 age=5.95
+[INFO] [1791359836.241435816] [i_mission]:   TRK-DBG step=TAKEOFF nbox=0 boxes=[] trackers=0[]
+[INFO] [1791359836.725530184] [i_mission]: [t=    7.0 TAKEOFF         ph=  0.0s] NED( -12.17,  -4.11,353.02) H=   -- hdg=-147.1 pit= +1.2 rol= +0.5 vNED=(-0.01,-0.02,-0.02) det=0 age=6.95
+[INFO] [1791359837.351380839] [i_mission]:   TRK-DBG step=TAKEOFF nbox=0 boxes=[] trackers=0[]
+[INFO] [1791359837.725523699] [i_mission]: [t=    8.0 TAKEOFF         ph=  0.0s] NED( -12.17,  -4.11,353.01) H=   -- hdg=-147.1 pit= +1.2 rol= +0.5 vNED=(-0.02,-0.02,-0.01) det=0 age=7.95
+[INFO] [1791359838.455685821] [i_mission]:   TRK-DBG step=TAKEOFF nbox=0 boxes=[] trackers=0[]
+[INFO] [1791359838.725492095] [i_mission]: [t=    9.0 TAKEOFF         ph=  0.0s] NED( -12.18,  -4.11,353.02) H=   -- hdg=-147.1 pit= +1.2 rol= +0.5 vNED=(-0.02,-0.03,-0.01) det=0 age=8.95
+[INFO] [1791359839.541561061] [i_mission]:   TRK-DBG step=TAKEOFF nbox=0 boxes=[] trackers=0[]
+[INFO] [1791359839.725533514] [i_mission]: [t=   10.0 TAKEOFF         ph=  0.0s] NED( -12.17,  -4.10,353.02) H=   -- hdg=-147.1 pit= +1.3 rol= +0.5 vNED=(-0.02,-0.03,-0.01) det=0 age=9.95
+[INFO] [1791359840.542400937] [i_mission]:   TRK-DBG step=TAKEOFF nbox=0 boxes=[] trackers=0[]
+[INFO] [1791359840.725520117] [i_mission]: [t=   11.0 TAKEOFF         ph=  0.0s] NED( -12.17,  -4.10,353.04) H=   -- hdg=-147.1 pit= +1.3 rol= +0.5 vNED=(-0.01,-0.02,-0.00) det=0 age=10.95
+[INFO] [1791359841.648052049] [i_mission]:   TRK-DBG step=TAKEOFF nbox=0 boxes=[] trackers=0[]
+[INFO] [1791359841.725518689] [i_mission]: [t=   12.0 TAKEOFF         ph=  0.0s] NED( -12.17,  -4.09,353.06) H=   -- hdg=-147.0 pit= +1.3 rol= +0.5 vNED=(-0.01,-0.02,+0.00) det=0 age=11.95
+[INFO] [1791359842.725548524] [i_mission]: [t=   13.0 TAKEOFF         ph=  0.0s] NED( -12.17,  -4.09,353.02) H=   -- hdg=-147.0 pit= +1.3 rol= +0.5 vNED=(-0.01,-0.01,-0.01) det=0 age=12.95
+[INFO] [1791359842.739284774] [i_mission]:   TRK-DBG step=TAKEOFF nbox=0 boxes=[] trackers=0[]
+[INFO] [1791359843.725512408] [i_mission]: [t=   14.0 TAKEOFF         ph=  0.0s] NED( -12.16,  -4.08,353.02) H=   -- hdg=-147.0 pit= +1.3 rol= +0.5 vNED=(-0.00,-0.01,-0.01) det=0 age=13.95
+[INFO] [1791359843.849378596] [i_mission]:   TRK-DBG step=TAKEOFF nbox=0 boxes=[] trackers=0[]
+[INFO] [1791359844.725566883] [i_mission]: [t=   15.0 TAKEOFF         ph=  0.0s] NED( -12.16,  -4.08,353.03) H=   -- hdg=-147.0 pit= +1.3 rol= +0.5 vNED=(+0.00,-0.00,-0.00) det=0 age=14.95
+[INFO] [1791359844.943508093] [i_mission]:   TRK-DBG step=TAKEOFF nbox=0 boxes=[] trackers=0[]
+[INFO] [1791359845.725688749] [i_mission]: [t=   16.0 TAKEOFF         ph=  0.0s] NED( -12.16,  -4.08,353.06) H=   -- hdg=-147.0 pit= +1.3 rol= +0.5 vNED=(+0.00,-0.00,+0.01) det=0 age=15.95
+[INFO] [1791359846.051753165] [i_mission]:   TRK-DBG step=TAKEOFF nbox=0 boxes=[] trackers=0[]
+[INFO] [1791359846.725550362] [i_mission]: [t=   17.0 TAKEOFF         ph=  0.0s] NED( -12.15,  -4.07,353.06) H=   -- hdg=-147.0 pit= +1.3 rol= +0.5 vNED=(+0.01,+0.01,+0.01) det=0 age=16.95
+[INFO] [1791359847.247916614] [i_mission]:   TRK-DBG step=TAKEOFF nbox=0 boxes=[] trackers=0[]
+[INFO] [1791359847.725506022] [i_mission]: [t=   18.0 TAKEOFF         ph=  0.0s] NED( -12.14,  -4.06,353.06) H=   -- hdg=-147.0 pit= +1.3 rol= +0.5 vNED=(+0.02,+0.03,+0.00) det=0 age=17.95
+[INFO] [1791359848.251898027] [i_mission]:   TRK-DBG step=TAKEOFF nbox=0 boxes=[] trackers=0[]
+[INFO] [1791359848.725673168] [i_mission]: [t=   19.0 TAKEOFF         ph=  0.0s] NED( -12.13,  -4.06,353.04) H=   -- hdg=-146.9 pit= +1.4 rol= +0.5 vNED=(+0.03,+0.03,-0.00) det=0 age=18.95
+[INFO] [1791359849.252429969] [i_mission]:   TRK-DBG step=TAKEOFF nbox=0 boxes=[] trackers=0[]
+[INFO] [1791359849.725531005] [i_mission]: [t=   20.0 TAKEOFF         ph=  0.0s] NED( -12.12,  -4.06,353.06) H=   -- hdg=-146.9 pit= +1.3 rol= +0.5 vNED=(+0.04,+0.03,+0.00) det=0 age=19.95
+[INFO] [1791359850.343841157] [i_mission]:   TRK-DBG step=TAKEOFF nbox=0 boxes=[] trackers=0[]
+[INFO] [1791359850.725553640] [i_mission]: [t=   21.0 TAKEOFF         ph=  0.0s] NED( -12.12,  -4.06,353.05) H=   -- hdg=-146.9 pit= +1.3 rol= +0.5 vNED=(+0.04,+0.03,+0.00) det=0 age=20.95
+[INFO] [1791359851.437130054] [i_mission]:   TRK-DBG step=TAKEOFF nbox=0 boxes=[] trackers=0[]
+[INFO] [1791359851.625491136] [i_mission]: ARM request sent, waiting for armed flag... (t=16.8s)
+[INFO] [1791359851.725515668] [i_mission]: [t=   22.0 TAKEOFF         ph=  0.0s] NED( -12.11,  -4.06,353.06) H=   -- hdg=-146.9 pit= +1.2 rol= +0.4 vNED=(+0.02,+0.01,+0.00) det=0 age=21.95
+[INFO] [1791359852.441133291] [i_mission]:   TRK-DBG step=TAKEOFF nbox=0 boxes=[] trackers=0[]
+[INFO] [1791359852.725537951] [i_mission]: [t=   23.0 TAKEOFF         ph=  0.0s] NED( -12.02,  -4.03,352.90) H=   -- hdg=-167.8 pit= -2.4 rol= -5.0 vNED=(+0.38,+0.27,-0.66) det=0 age=22.95
+[INFO] [1791359853.443112803] [i_mission]:   TRK-DBG step=TAKEOFF nbox=0 boxes=[] trackers=0[]
+[INFO] [1791359853.725602219] [i_mission]: [t=   24.0 TAKEOFF         ph=  0.0s] NED( -11.22,  -3.30,352.62) H=   -- hdg= 125.5 pit= +0.3 rol= -5.6 vNED=(+1.25,+0.86,-0.04) det=0 age=23.95
+[INFO] [1791359854.444021446] [i_mission]:   TRK-DBG step=TAKEOFF nbox=0 boxes=[] trackers=0[]
+[INFO] [1791359854.725547607] [i_mission]: [t=   25.0 TAKEOFF         ph=  0.0s] NED(  -9.68,  -2.47,352.59) H=   -- hdg=  93.8 pit= -3.3 rol= +0.6 vNED=(+1.23,+0.69,+0.14) det=0 age=24.95
+[INFO] [1791359855.450520979] [i_mission]:   TRK-DBG step=TAKEOFF nbox=0 boxes=[] trackers=0[]
+[INFO] [1791359855.725526179] [i_mission]: [t=   26.0 TAKEOFF         ph=  0.0s] NED(  -8.37,  -1.94,352.66) H=   -- hdg= 106.3 pit= -7.7 rol= -7.5 vNED=(+1.34,+0.62,+0.14) det=0 age=25.95
+[INFO] [1791359856.457107359] [i_mission]:   TRK-DBG step=TAKEOFF nbox=0 boxes=[] trackers=0[]
+[INFO] [1791359856.725634157] [i_mission]: [t=   27.0 TAKEOFF         ph=  0.0s] NED(  -6.99,  -1.42,352.74) H=   -- hdg= 101.4 pit= -8.7 rol= -7.5 vNED=(+1.48,+0.58,+0.11) det=0 age=26.95
+[INFO] [1791359857.639638013] [i_mission]:   TRK-DBG step=TAKEOFF nbox=0 boxes=[] trackers=0[]
+[INFO] [1791359857.725526042] [i_mission]: [t=   28.0 TAKEOFF         ph=  0.0s] NED(  -5.53,  -0.91,352.71) H=   -- hdg= 101.1 pit=-12.3 rol=-11.1 vNED=(+1.51,+0.50,+0.05) det=0 age=27.95
+[INFO] [1791359858.645216114] [i_mission]:   TRK-DBG step=TAKEOFF nbox=0 boxes=[] trackers=0[]
+[INFO] [1791359858.725588262] [i_mission]: [t=   29.0 TAKEOFF         ph=  0.0s] NED(  -4.06,  -0.49,352.68) H=   -- hdg=  98.6 pit=-11.3 rol= -8.5 vNED=(+1.53,+0.42,+0.15) det=0 age=28.95
+[INFO] [1791359859.648824155] [i_mission]:   TRK-DBG step=TAKEOFF nbox=0 boxes=[] trackers=0[]
+[INFO] [1791359859.725500466] [i_mission]: [t=   30.0 TAKEOFF         ph=  0.0s] NED(  -2.74,  -0.10,352.65) H=   -- hdg= 108.8 pit=-14.2 rol= -8.4 vNED=(+1.27,+0.39,+0.10) det=0 age=29.95
+[INFO] [1791359860.725533022] [i_mission]: [t=   31.0 TAKEOFF         ph=  0.0s] NED(  -1.68,   0.22,352.66) H=   -- hdg= 136.8 pit=-16.4 rol=-10.5 vNED=(+1.12,+0.20,+0.13) det=0 age=30.95
+[INFO] [1791359860.741796000] [i_mission]:   TRK-DBG step=TAKEOFF nbox=0 boxes=[] trackers=0[]
+[INFO] [1791359861.725505194] [i_mission]: [t=   32.0 TAKEOFF         ph=  0.0s] NED(  -0.98,   0.29,352.65) H=   -- hdg= 161.2 pit=-14.8 rol=-12.4 vNED=(+0.65,-0.03,+0.25) det=0 age=31.95
+[INFO] [1791359861.842803766] [i_mission]:   TRK-DBG step=TAKEOFF nbox=0 boxes=[] trackers=0[]
+[INFO] [1791359862.725527062] [i_mission]: [t=   33.0 TAKEOFF         ph=  0.0s] NED(  -0.65,   0.27,352.90) H=   -- hdg=-172.4 pit=-15.0 rol= -8.6 vNED=(+0.19,+0.08,+0.26) det=0 age=32.95
+[INFO] [1791359862.939598582] [i_mission]:   TRK-DBG step=TAKEOFF nbox=0 boxes=[] trackers=0[]
+[INFO] [1791359863.725553889] [i_mission]: [t=   34.0 TAKEOFF         ph=  0.0s] NED(  -0.62,   0.17,353.04) H=   -- hdg=-171.2 pit= -5.1 rol= +0.6 vNED=(+0.02,-0.13,+0.04) det=0 age=33.95
+[INFO] [1791359863.951763147] [i_mission]:   TRK-DBG step=TAKEOFF nbox=0 boxes=[] trackers=0[]
+[INFO] [1791359864.725558573] [i_mission]: [t=   35.0 TAKEOFF         ph=  0.0s] NED(  -0.60,   0.13,353.04) H=   -- hdg=-173.5 pit= +0.4 rol= +0.7 vNED=(-0.10,-0.14,+0.01) det=0 age=34.95
+[ERROR] [1791359864.875498844] [i_mission]: Mode timeout
+[INFO] [1791359864.876462707] [i_mission]: ========================================================================
+[INFO] [1791359864.877138988] [i_mission]: MISSION SUMMARY (project f)
+[INFO] [1791359864.877792838] [i_mission]:   End reason: mode_timeout
+[INFO] [1791359864.878424928] [i_mission]:   Buckets dropped: 0/0
+[INFO] [1791359864.879076730] [i_mission]:   Scout: not reached
+[INFO] [1791359864.879696148] [i_mission]:   Return: no stabilization (forced land)
+[INFO] [1791359864.880337133] [i_mission]:   Landing: not reached
+[INFO] [1791359864.880980551] [i_mission]: ========================================================================
+[INFO] [1791359864.881601377] [i_mission]: Mission complete, shutting down
+
+=== 正在停止所有后台进程... ===
+  watchdog (5525) 已终止
+  see (5460) 已终止
+  dds  (5433) 已终止
+=== 清理完成 ===

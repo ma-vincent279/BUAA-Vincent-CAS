@@ -1,0 +1,331 @@
+[INFO] [1786767075.719874264] [d_mission]: D Mission ready. HEADING=92deg offset_B1=0.10m offset_B2=-0.05m FORWARD_DIST=34.0m SCOUT_DIST=59.5m cruise=5.0m drop=1.5m lateral_boundary=+-4.0m
+[INFO] [1786767075.730766111] [d_mission]: Takeoff ref: NED(0.02,-0.02,-0.03) HEADING_DEG=92deg (hardcoded)
+[INFO] [1786767076.720925526] [d_mission]: [TAKEOFF] NED(0.02,-0.02,-0.02) h=92deg no-det
+[INFO] [1786767077.719729387] [d_mission]: [TAKEOFF] NED(0.03,-0.01,-0.02) h=92deg no-det
+[INFO] [1786767078.721346137] [d_mission]: [TAKEOFF] NED(0.03,-0.01,-0.02) h=92deg no-det
+[INFO] [1786767079.718320994] [d_mission]: [TAKEOFF] NED(0.04,-0.01,-0.01) h=92deg no-det
+[INFO] [1786767080.718607314] [d_mission]: [TAKEOFF] NED(0.04,-0.00,-0.01) h=92deg no-det
+[INFO] [1786767081.718902410] [d_mission]: [TAKEOFF] NED(0.03,0.00,-0.01) h=92deg no-det
+[INFO] [1786767082.719155705] [d_mission]: [TAKEOFF] NED(0.03,0.00,-0.00) h=92deg no-det
+[INFO] [1786767083.718878028] [d_mission]: [TAKEOFF] NED(0.03,-0.00,0.00) h=92deg no-det
+[INFO] [1786767084.719656284] [d_mission]: [TAKEOFF] NED(0.02,-0.00,0.00) h=93deg no-det
+[INFO] [1786767085.718886443] [d_mission]: [TAKEOFF] NED(0.01,-0.00,0.00) h=93deg no-det
+[INFO] [1786767086.721394138] [d_mission]: [TAKEOFF] NED(0.01,-0.00,-0.00) h=93deg no-det
+[INFO] [1786767087.719215653] [d_mission]: [TAKEOFF] NED(0.01,-0.00,0.00) h=93deg no-det
+[INFO] [1786767088.719412456] [d_mission]: [TAKEOFF] NED(0.01,-0.00,0.00) h=93deg no-det
+[INFO] [1786767089.722727885] [d_mission]: [TAKEOFF] NED(0.00,-0.00,-0.11) h=93deg no-det
+[INFO] [1786767090.720414093] [d_mission]: [TAKEOFF] NED(-0.04,-0.01,-0.61) h=93deg no-det
+[INFO] [1786767091.719940417] [d_mission]: [TAKEOFF] NED(-0.07,-0.04,-1.37) h=93deg no-det
+[INFO] [1786767092.721221840] [d_mission]: [TAKEOFF] NED(-0.10,-0.06,-2.05) h=93deg no-det
+[INFO] [1786767093.720420669] [d_mission]: [TAKEOFF] NED(-0.11,-0.08,-2.91) h=93deg no-det
+[INFO] [1786767094.718989683] [d_mission]: [TAKEOFF] NED(-0.12,-0.09,-3.50) h=93deg no-det
+[INFO] [1786767095.720703736] [d_mission]: [TAKEOFF] NED(-0.12,-0.09,-3.89) h=93deg no-det
+[INFO] [1786767096.718161846] [d_mission]: [TAKEOFF] NED(-0.11,-0.09,-4.24) h=93deg no-det
+[INFO] [1786767097.717895080] [d_mission]: [TAKEOFF] NED(-0.08,-0.08,-4.47) h=93deg no-det
+[INFO] [1786767098.020036871] [d_mission]: Reached cruise height, entering STABILIZE
+[INFO] [1786767098.718279962] [d_mission]: [STABILIZE] NED(-0.05,-0.06,-4.62) h=93deg no-det stabilizing 0.7s/3.0s
+[INFO] [1786767099.718908404] [d_mission]: [STABILIZE] NED(-0.01,-0.03,-4.75) h=93deg no-det stabilizing 1.7s/3.0s
+[INFO] [1786767100.717440108] [d_mission]: [STABILIZE] NED(0.03,-0.00,-4.84) h=93deg no-det stabilizing 2.7s/3.0s
+[INFO] [1786767101.070466728] [d_mission]: Home locked: NED(0.02,-0.02,-0.03) heading0=92deg (hardcoded) target NED(-1.2,34.0)
+[INFO] [1786767101.071674357] [d_mission]: STEP STABILIZE->FORWARD (prev 3.1s) NED(0.04,0.01,-4.85) H=4.83m
+[INFO] [1786767101.721210203] [d_mission]: [FORWARD] NED(0.06,0.11,-4.90) h=92deg no-det dist_to_target=33.9m
+[INFO] [1786767102.718042594] [d_mission]: [FORWARD] NED(0.07,0.47,-4.90) h=92deg no-det dist_to_target=33.5m
+[INFO] [1786767103.719535789] [d_mission]: [FORWARD] NED(0.09,1.10,-4.90) h=91deg no-det dist_to_target=32.9m
+[INFO] [1786767104.717836495] [d_mission]: [FORWARD] NED(0.12,1.64,-4.90) h=91deg no-det dist_to_target=32.4m
+[INFO] [1786767105.722166007] [d_mission]: [FORWARD] NED(0.15,2.39,-4.90) h=91deg no-det dist_to_target=31.6m
+[INFO] [1786767106.718350489] [d_mission]: [FORWARD] NED(0.17,3.18,-4.91) h=91deg no-det dist_to_target=30.8m
+[INFO] [1786767107.718422390] [d_mission]: [FORWARD] NED(0.19,4.19,-4.91) h=91deg no-det dist_to_target=29.8m
+[INFO] [1786767108.718595694] [d_mission]: [FORWARD] NED(0.19,4.84,-4.92) h=92deg no-det dist_to_target=29.2m
+[INFO] [1786767109.718827500] [d_mission]: [FORWARD] NED(0.18,5.91,-4.93) h=92deg no-det dist_to_target=28.1m
+[INFO] [1786767110.718807384] [d_mission]: [FORWARD] NED(0.17,6.81,-4.93) h=92deg no-det dist_to_target=27.2m
+[INFO] [1786767111.718004233] [d_mission]: [FORWARD] NED(0.16,7.59,-4.94) h=92deg no-det dist_to_target=26.4m
+[INFO] [1786767112.718247122] [d_mission]: [FORWARD] NED(0.15,8.43,-4.94) h=92deg no-det dist_to_target=25.6m
+[INFO] [1786767113.721611855] [d_mission]: [FORWARD] NED(0.12,9.42,-4.94) h=92deg no-det dist_to_target=24.6m
+[INFO] [1786767114.718921803] [d_mission]: [FORWARD] NED(0.08,10.42,-4.93) h=92deg no-det dist_to_target=23.6m
+[INFO] [1786767115.720350054] [d_mission]: [FORWARD] NED(0.03,11.38,-4.92) h=92deg no-det dist_to_target=22.6m
+[INFO] [1786767116.719023813] [d_mission]: [FORWARD] NED(-0.02,12.17,-4.92) h=92deg no-det dist_to_target=21.8m
+[INFO] [1786767117.723131232] [d_mission]: [FORWARD] NED(-0.05,12.66,-4.92) h=92deg no-det dist_to_target=21.4m
+[INFO] [1786767118.718840396] [d_mission]: [FORWARD] NED(-0.10,13.23,-4.91) h=92deg no-det dist_to_target=20.8m
+[INFO] [1786767119.718302482] [d_mission]: [FORWARD] NED(-0.18,14.25,-4.91) h=92deg no-det dist_to_target=19.8m
+[INFO] [1786767120.717788801] [d_mission]: [FORWARD] NED(-0.24,14.95,-4.91) h=92deg no-det dist_to_target=19.0m
+[INFO] [1786767121.720353513] [d_mission]: [FORWARD] NED(-0.31,15.68,-4.92) h=92deg no-det dist_to_target=18.3m
+[INFO] [1786767122.718977418] [d_mission]: [FORWARD] NED(-0.40,16.44,-4.92) h=92deg no-det dist_to_target=17.6m
+[INFO] [1786767123.719124695] [d_mission]: [FORWARD] NED(-0.50,17.25,-4.91) h=92deg no-det dist_to_target=16.7m
+[INFO] [1786767124.718887267] [d_mission]: [FORWARD] NED(-0.65,18.31,-4.91) h=92deg no-det dist_to_target=15.7m
+[INFO] [1786767125.723657926] [d_mission]: [FORWARD] NED(-0.76,19.05,-4.91) h=92deg no-det dist_to_target=14.9m
+[INFO] [1786767126.723339627] [d_mission]: [FORWARD] NED(-0.87,19.87,-4.92) h=92deg no-det dist_to_target=14.1m
+[INFO] [1786767127.721535144] [d_mission]: [FORWARD] NED(-0.96,20.50,-4.92) h=92deg no-det dist_to_target=13.5m
+[INFO] [1786767128.718686975] [d_mission]: [FORWARD] NED(-1.06,21.17,-4.92) h=92deg no-det dist_to_target=12.8m
+[INFO] [1786767129.722004240] [d_mission]: [FORWARD] NED(-1.17,21.92,-4.93) h=92deg no-det dist_to_target=12.1m
+[INFO] [1786767130.718457079] [d_mission]: [FORWARD] NED(-1.31,22.87,-4.93) h=92deg no-det dist_to_target=11.1m
+[INFO] [1786767131.721491236] [d_mission]: [FORWARD] NED(-1.47,23.85,-4.93) h=92deg no-det dist_to_target=10.1m
+[INFO] [1786767132.719880351] [d_mission]: [FORWARD] NED(-1.61,24.85,-4.93) h=92deg no-det dist_to_target=9.1m
+[INFO] [1786767133.718878665] [d_mission]: [FORWARD] NED(-1.71,25.65,-4.93) h=92deg no-det dist_to_target=8.4m
+[INFO] [1786767134.718356698] [d_mission]: [FORWARD] NED(-1.81,26.50,-4.93) h=92deg no-det dist_to_target=7.5m
+[INFO] [1786767135.720795767] [d_mission]: [FORWARD] NED(-1.92,27.48,-4.93) h=92deg no-det dist_to_target=6.5m
+[INFO] [1786767136.717390359] [d_mission]: [FORWARD] NED(-2.01,28.42,-4.94) h=92deg no-det dist_to_target=5.6m
+[INFO] [1786767137.718917909] [d_mission]: [FORWARD] NED(-2.08,29.18,-4.94) h=92deg no-det dist_to_target=4.9m
+[INFO] [1786767138.719380998] [d_mission]: [FORWARD] NED(-2.08,29.18,-4.94) h=92deg DETx1 dist_to_target=4.9m
+[INFO] [1786767139.654452841] [d_mission]: Tracker confirmed: NED(-1.6,31.0) after 1.7s
+[INFO] [1786767139.718793285] [d_mission]: [FORWARD] NED(-2.10,29.46,-4.94) h=92deg DETx1 dist_to_target=4.6m
+[INFO] [1786767140.717498173] [d_mission]: [FORWARD] NED(-2.21,30.77,-4.94) h=92deg DETx1 dist_to_target=3.4m
+[INFO] [1786767141.718868726] [d_mission]: [FORWARD] NED(-2.28,32.20,-4.94) h=92deg DETx2 dist_to_target=2.1m
+[INFO] [1786767142.718025802] [d_mission]: [FORWARD] NED(-2.31,33.45,-4.94) h=92deg DETx2 dist_to_target=1.2m
+[INFO] [1786767143.280931032] [d_mission]: Tracker confirmed: NED(1.4,34.3) after 1.8s
+[INFO] [1786767143.719248359] [d_mission]: [FORWARD] NED(-2.30,33.69,-4.94) h=92deg DETx3 dist_to_target=1.2m
+[INFO] [1786767144.719205886] [d_mission]: [FORWARD] NED(-2.23,34.23,-4.94) h=92deg DETx3 dist_to_target=1.1m
+[INFO] [1786767144.937945467] [d_mission]: Tracker confirmed: NED(-0.2,34.5) after 1.7s
+[INFO] [1786767145.417480977] [d_mission]: Overshot target travel=34.60m > 34.0m, entering HOVER_SEARCH
+[INFO] [1786767145.418481742] [d_mission]: STEP FORWARD->HOVER_SEARCH (prev 44.3s) NED(-2.14,34.53,-4.95) H=4.92m
+[INFO] [1786767145.719016344] [d_mission]: [HOVER_SEARCH] NED(-2.12,34.61,-4.95) h=92deg DETx3 search 0.3s confirmed=0/3
+[INFO] [1786767146.718093990] [d_mission]: [HOVER_SEARCH] NED(-1.82,34.78,-4.98) h=92deg DETx2 search 1.3s confirmed=0/3
+[INFO] [1786767147.189298293] [d_mission]: Tracker confirmed: NED(-0.1,34.5) after 1.7s
+[INFO] [1786767147.189928818] [d_mission]: Tracker confirmed: NED(1.7,33.7) after 1.7s
+[INFO] [1786767147.219514875] [d_mission]: Selected 2 buckets: NED(-0.1,34.5), NED(1.7,33.7)
+[INFO] [1786767147.220313158] [d_mission]: STEP HOVER_SEARCH->TRACK (prev 1.8s) NED(-1.61,34.72,-4.98) H=4.96m
+[INFO] [1786767147.717385761] [d_mission]: [TRACK] NED(-1.27,34.60,-4.99) h=93deg DETx2 B1/2
+[INFO] [1786767148.719863963] [d_mission]: [TRACK] NED(-0.48,34.43,-4.99) h=93deg DETx2 B1/2
+[INFO] [1786767149.722216927] [d_mission]: [TRACK] NED(0.18,34.41,-5.00) h=93deg DETx3 B1/2
+[INFO] [1786767149.850249522] [d_mission]: Tracker confirmed: NED(-1.1,31.9) after 1.7s
+[INFO] [1786767150.718479464] [d_mission]: [TRACK] NED(0.40,34.44,-5.00) h=93deg DETx3 B1/2
+[INFO] [1786767151.717719968] [d_mission]: [TRACK] NED(0.40,34.44,-5.00) h=93deg DETx3 B1/2
+[INFO] [1786767152.720944563] [d_mission]: [TRACK] NED(0.26,34.43,-5.01) h=93deg DETx3 B1/2
+[INFO] [1786767153.717797996] [d_mission]: [TRACK] NED(0.24,34.42,-5.01) h=93deg DETx3 B1/2
+[INFO] [1786767153.722581838] [d_mission]: STEP TRACK->POSITION_REFINE (prev 6.5s) NED(0.24,34.42,-5.01) H=4.98m
+[INFO] [1786767153.771764133] [d_mission]:   REFINE candidates vs target(-0.1,34.5): (-0.0,34.0)d=0.6, (1.8,33.1)d=2.3, (-1.4,32.0)d=2.8 best_dist=0.6 n=1
+[INFO] [1786767154.718847997] [d_mission]: [POSITION_REFINE] NED(0.24,34.42,-5.01) h=93deg DETx3 refine_samples=19 elapsed=1.0s
+[INFO] [1786767154.818160695] [d_mission]:   REFINE candidates vs target(-0.1,34.5): (-0.0,34.0)d=0.6, (1.8,33.1)d=2.3, (-1.4,32.0)d=2.8 best_dist=0.6 n=22
+[INFO] [1786767155.720363134] [d_mission]: [POSITION_REFINE] NED(0.08,34.41,-5.01) h=93deg DETx3 refine_samples=39 elapsed=2.0s
+[INFO] [1786767155.725548084] [d_mission]: Position refined: (-0.07,34.54) -> (-0.03,33.99) delta=(0.042,-0.553)m n=40
+[INFO] [1786767155.726605407] [d_mission]: STEP POSITION_REFINE->PRE_SERVO (prev 2.0s) NED(0.08,34.41,-5.01) H=4.98m
+[INFO] [1786767156.717982124] [d_mission]: [PRE_SERVO] NED(0.08,34.40,-5.01) h=93deg DETx3
+[INFO] [1786767157.717877461] [d_mission]: [PRE_SERVO] NED(0.08,34.40,-5.01) h=93deg DETx3
+[INFO] [1786767158.719878206] [d_mission]: [PRE_SERVO] NED(0.03,34.39,-4.94) h=93deg DETx3
+[INFO] [1786767159.717873873] [d_mission]: [PRE_SERVO] NED(-0.01,34.21,-4.48) h=93deg DETx3
+[INFO] [1786767160.718217102] [d_mission]: [PRE_SERVO] NED(0.02,33.96,-4.14) h=93deg DETx3
+[INFO] [1786767161.722820316] [d_mission]: [PRE_SERVO] NED(0.06,33.80,-3.89) h=93deg DETx3
+[INFO] [1786767162.717469847] [d_mission]: [PRE_SERVO] NED(0.08,33.71,-3.62) h=93deg DETx3
+[INFO] [1786767163.718924269] [d_mission]: [PRE_SERVO] NED(0.05,33.69,-3.36) h=93deg DETx3
+[INFO] [1786767164.717603587] [d_mission]: [PRE_SERVO] NED(0.01,33.70,-3.11) h=93deg DETx2
+[INFO] [1786767165.721497117] [d_mission]: [PRE_SERVO] NED(-0.02,33.75,-2.87) h=93deg DETx2
+[INFO] [1786767165.970239848] [d_mission]: PRE_SERVO update target: (-0.04,33.93) H=2.8m
+[INFO] [1786767165.974366932] [d_mission]: STEP PRE_SERVO->VISUAL_SERVO (prev 10.2s) NED(-0.03,33.76,-2.82) H=2.79m
+[INFO] [1786767166.020081671] [d_mission]:   SERVO err=32px ex=-10 ey=30 v_fwd=0.300 v_lat=-0.123 H=2.8m target=(-0.04,33.95)
+[INFO] [1786767166.720206274] [d_mission]: [VISUAL_SERVO] NED(-0.04,33.78,-2.75) h=92deg DETx2 B1/2 SERVO
+[INFO] [1786767167.020903538] [d_mission]:   SERVO err=31px ex=-12 ey=28 v_fwd=0.025 v_lat=-0.011 H=2.7m target=(-0.03,33.97)
+[INFO] [1786767167.720334163] [d_mission]: [VISUAL_SERVO] NED(-0.02,33.82,-2.65) h=92deg DETx2 B1/2 SERVO
+[INFO] [1786767168.070336638] [d_mission]:   SERVO err=32px ex=-14 ey=29 v_fwd=0.024 v_lat=-0.011 H=2.6m target=(-0.02,33.99)
+[INFO] [1786767168.720400553] [d_mission]: [VISUAL_SERVO] NED(-0.02,33.82,-2.44) h=92deg DETx2 B1/2 SERVO
+[INFO] [1786767169.121888236] [d_mission]:   SERVO err=31px ex=-16 ey=26 v_fwd=0.017 v_lat=-0.010 H=2.3m target=(-0.01,34.02)
+[INFO] [1786767169.724342525] [d_mission]: [VISUAL_SERVO] NED(-0.01,33.85,-2.20) h=92deg DETx2 B1/2 SERVO
+[INFO] [1786767170.170215412] [d_mission]:   SERVO err=28px ex=-16 ey=22 v_fwd=0.014 v_lat=-0.010 H=2.1m target=(0.00,34.03)
+[INFO] [1786767170.717347078] [d_mission]: [VISUAL_SERVO] NED(-0.01,33.87,-2.12) h=92deg DETx2 B1/2 SERVO
+[INFO] [1786767171.217807790] [d_mission]:   SERVO err=26px ex=-16 ey=20 v_fwd=0.012 v_lat=-0.010 H=2.0m target=(0.01,34.04)
+[INFO] [1786767171.720324652] [d_mission]: [VISUAL_SERVO] NED(0.01,33.90,-1.86) h=92deg DETx2 B1/2 SERVO
+[INFO] [1786767172.269770533] [d_mission]:   SERVO err=24px ex=-18 ey=16 v_fwd=0.007 v_lat=-0.008 H=1.7m target=(0.03,34.05)
+[INFO] [1786767172.320522668] [d_mission]: STEP VISUAL_SERVO->DROP (prev 6.3s) NED(0.03,33.94,-1.72) H=1.70m
+[INFO] [1786767172.718452904] [d_mission]: [DROP] NED(0.04,33.95,-1.64) h=92deg DETx2 B1/2
+[INFO] [1786767173.271536813] [d_mission]:   DROP-SERVO err=24px ex=-19 ey=14 v_fwd=0.008 v_lat=-0.009 H=1.6m target=(0.03,34.06)
+[INFO] [1786767173.719194272] [d_mission]: [DROP] NED(0.05,33.98,-1.60) h=92deg DETx2 B1/2
+[INFO] [1786767174.318171362] [d_mission]:   DROP-SERVO err=23px ex=-19 ey=14 v_fwd=0.006 v_lat=-0.009 H=1.6m target=(0.04,34.07)
+[INFO] [1786767174.717417154] [d_mission]: [DROP] NED(0.05,33.98,-1.59) h=92deg DETx2 B1/2
+[INFO] [1786767175.318750266] [d_mission]:   DROP-SERVO err=19px ex=-16 ey=10 v_fwd=0.005 v_lat=-0.008 H=1.6m target=(0.05,34.07)
+[INFO] [1786767175.717446029] [d_mission]: [DROP] NED(0.05,33.98,-1.59) h=92deg DETx2 B1/2
+[INFO] [1786767176.367694765] [d_mission]:   DROP-SERVO err=19px ex=-16 ey=10 v_fwd=0.006 v_lat=-0.007 H=1.6m target=(0.06,34.08)
+[INFO] [1786767176.718522197] [d_mission]: [DROP] NED(0.05,34.00,-1.57) h=92deg DETx2 B1/2
+[INFO] [1786767177.369186981] [d_mission]:   DROP-SERVO err=16px ex=-14 ey=7 v_fwd=0.003 v_lat=-0.007 H=1.5m target=(0.06,34.08)
+[INFO] [1786767177.720580942] [d_mission]: [DROP] NED(0.07,34.01,-1.55) h=92deg DETx2 B1/2
+[INFO] [1786767178.420999392] [d_mission]:   DROP-SERVO err=16px ex=-14 ey=8 v_fwd=0.003 v_lat=-0.005 H=1.5m target=(0.07,34.08)
+[INFO] [1786767178.717848559] [d_mission]: [DROP] NED(0.09,34.03,-1.54) h=92deg DETx2 B1/2
+[INFO] [1786767179.468365828] [d_mission]:   DROP-SERVO err=10px ex=-10 ey=0 v_fwd=0.000 v_lat=-0.004 H=1.5m target=(0.08,34.08)
+[INFO] [1786767179.720707558] [d_mission]: [DROP] NED(0.10,34.05,-1.53) h=92deg DETx2 B1/2
+[INFO] [1786767180.473540580] [d_mission]:   DROP-SERVO err=10px ex=-7 ey=-6 v_fwd=-0.003 v_lat=-0.003 H=1.5m target=(0.08,34.08)
+[INFO] [1786767180.719321879] [d_mission]: [DROP] NED(0.10,34.05,-1.53) h=92deg DETx2 B1/2
+[INFO] [1786767181.519707761] [d_mission]:   DROP-SERVO err=8px ex=-6 ey=-6 v_fwd=-0.003 v_lat=-0.003 H=1.5m target=(0.08,34.08)
+[INFO] [1786767181.719129584] [d_mission]: [DROP] NED(0.10,34.05,-1.53) h=92deg DETx2 B1/2
+[INFO] [1786767182.369721240] [d_mission]: >>> DROP #1! PWM=2000us NED(0.104,34.063,-1.534) heading=92.3deg last_err=8px(ex=-6,ey=-6@H=1.5m)
+[INFO] [1786767182.568487683] [d_mission]:   DROP-SERVO err=30px ex=29 ey=-8 v_fwd=-0.003 v_lat=0.012 H=1.5m target=(0.07,34.07)
+[INFO] [1786767182.717447059] [d_mission]: [DROP] NED(0.11,34.06,-1.53) h=92deg DETx2 B1/2
+[INFO] [1786767183.370740490] [d_mission]: STEP DROP->CLIMB (prev 11.1s) NED(0.10,34.07,-1.53) H=1.51m
+[INFO] [1786767183.717859216] [d_mission]: [CLIMB] NED(0.10,34.07,-1.68) h=92deg DETx2
+[INFO] [1786767184.720941110] [d_mission]: [CLIMB] NED(0.11,34.08,-2.74) h=92deg DETx2
+[INFO] [1786767185.717489073] [d_mission]: [CLIMB] NED(0.12,34.10,-3.67) h=92deg DETx2
+[INFO] [1786767186.720333404] [d_mission]: [CLIMB] NED(0.13,34.13,-4.60) h=92deg DETx2
+[INFO] [1786767186.721550263] [d_mission]: Next bucket 2/2: NED(1.7,33.7)
+[INFO] [1786767186.725464243] [d_mission]: STEP CLIMB->TRACK (prev 3.4s) NED(0.13,34.13,-4.60) H=4.57m
+[INFO] [1786767187.718201939] [d_mission]: [TRACK] NED(0.27,34.12,-4.94) h=92deg DETx3 B2/2
+[INFO] [1786767188.718423487] [d_mission]: [TRACK] NED(0.87,34.00,-4.98) h=92deg DETx3 B2/2
+[INFO] [1786767189.620861394] [d_mission]: Tracker confirmed: NED(-1.0,31.9) after 2.9s
+[INFO] [1786767189.717976311] [d_mission]: [TRACK] NED(1.45,33.91,-5.00) h=93deg DETx3 B2/2
+[INFO] [1786767190.721013431] [d_mission]: [TRACK] NED(1.81,33.83,-5.01) h=93deg DETx3 B2/2
+[INFO] [1786767191.720249202] [d_mission]: [TRACK] NED(1.96,33.75,-5.02) h=93deg DETx3 B2/2
+[INFO] [1786767192.717906889] [d_mission]: [TRACK] NED(1.94,33.69,-5.02) h=93deg DETx3 B2/2
+[INFO] [1786767193.719280625] [d_mission]: [TRACK] NED(1.86,33.66,-5.03) h=93deg DETx3 B2/2
+[INFO] [1786767194.377017773] [d_mission]: STEP TRACK->POSITION_REFINE (prev 7.6s) NED(1.78,33.65,-5.03) H=5.00m
+[INFO] [1786767194.420179945] [d_mission]:   REFINE candidates vs target(1.7,33.7): (1.9,33.0)d=0.7, (-1.3,31.7)d=3.6, (0.1,33.9)d=1.7 best_dist=0.7 n=1
+[INFO] [1786767194.717739929] [d_mission]: [POSITION_REFINE] NED(1.74,33.64,-5.03) h=93deg DETx3 refine_samples=6 elapsed=0.3s
+[INFO] [1786767195.467910531] [d_mission]:   REFINE candidates vs target(1.7,33.7): (0.1,33.9)d=1.7, (1.9,33.0)d=0.7, (-1.2,31.7)d=3.6 best_dist=0.7 n=22
+[INFO] [1786767195.718354052] [d_mission]: [POSITION_REFINE] NED(1.66,33.65,-5.03) h=93deg DETx3 refine_samples=26 elapsed=1.3s
+[INFO] [1786767196.418876780] [d_mission]: Position refined: (1.72,33.67) -> (1.87,33.02) delta=(0.156,-0.642)m n=41
+[INFO] [1786767196.422718076] [d_mission]: STEP POSITION_REFINE->PRE_SERVO (prev 2.0s) NED(1.62,33.66,-5.03) H=5.00m
+[INFO] [1786767196.717420771] [d_mission]: [PRE_SERVO] NED(1.62,33.66,-5.03) h=93deg DETx3
+[INFO] [1786767197.719871722] [d_mission]: [PRE_SERVO] NED(1.62,33.66,-5.03) h=93deg DETx3
+[INFO] [1786767198.722515701] [d_mission]: [PRE_SERVO] NED(1.60,33.65,-4.92) h=93deg DETx3
+[INFO] [1786767199.717445328] [d_mission]: [PRE_SERVO] NED(1.64,33.50,-4.63) h=93deg DETx3
+[INFO] [1786767200.720718938] [d_mission]: [PRE_SERVO] NED(1.71,33.31,-4.41) h=93deg DETx3
+[INFO] [1786767201.717825575] [d_mission]: [PRE_SERVO] NED(1.76,33.21,-4.26) h=93deg DETx3
+[INFO] [1786767202.720064058] [d_mission]: [PRE_SERVO] NED(1.79,33.13,-4.13) h=93deg DETx3
+[INFO] [1786767203.719907098] [d_mission]: [PRE_SERVO] NED(1.84,33.03,-3.88) h=93deg DETx3
+[INFO] [1786767204.718237727] [d_mission]: [PRE_SERVO] NED(1.90,32.95,-3.46) h=93deg DETx3
+[INFO] [1786767205.719850219] [d_mission]: [PRE_SERVO] NED(1.90,32.94,-3.20) h=93deg DETx3
+[INFO] [1786767206.720122428] [d_mission]: [PRE_SERVO] NED(1.89,32.97,-2.85) h=93deg DETx3
+[INFO] [1786767206.821226647] [d_mission]: PRE_SERVO update target: (1.94,33.01) H=2.8m
+[INFO] [1786767206.821764964] [d_mission]: STEP PRE_SERVO->VISUAL_SERVO (prev 10.4s) NED(1.89,32.98,-2.82) H=2.80m
+[INFO] [1786767206.868495471] [d_mission]:   SERVO err=7px ex=0 ey=7 v_fwd=0.083 v_lat=0.000 H=2.8m target=(1.94,33.01)
+[INFO] [1786767207.719730342] [d_mission]: [VISUAL_SERVO] NED(1.90,33.02,-2.76) h=93deg DETx3 B2/2 SERVO
+[INFO] [1786767207.874155089] [d_mission]:   SERVO err=0px ex=0 ey=0 v_fwd=0.000 v_lat=0.000 H=2.7m target=(1.94,33.01)
+[INFO] [1786767208.723865079] [d_mission]: [VISUAL_SERVO] NED(1.90,33.03,-2.73) h=93deg DETx2 B2/2 SERVO
+[INFO] [1786767208.869040474] [d_mission]:   SERVO err=0px ex=0 ey=0 v_fwd=0.000 v_lat=0.000 H=2.7m target=(1.94,33.01)
+[INFO] [1786767209.421717536] [d_mission]: Servo converged! err=0px, dropping
+[INFO] [1786767209.422438167] [d_mission]: STEP VISUAL_SERVO->DROP (prev 2.6s) NED(1.90,33.03,-2.73) H=2.70m
+[INFO] [1786767209.721168508] [d_mission]: [DROP] NED(1.91,33.03,-2.72) h=93deg DETx2 B2/2
+[INFO] [1786767209.920613483] [d_mission]:   DROP-SERVO err=0px ex=0 ey=0 v_fwd=0.000 v_lat=0.000 H=2.7m target=(1.94,33.01)
+[INFO] [1786767210.723551972] [d_mission]: [DROP] NED(1.94,33.03,-2.16) h=93deg DETx2 B2/2
+[INFO] [1786767210.967938967] [d_mission]:   DROP-SERVO err=0px ex=0 ey=0 v_fwd=0.000 v_lat=0.000 H=2.0m target=(1.94,33.01)
+[INFO] [1786767211.718340539] [d_mission]: [DROP] NED(1.96,33.02,-1.89) h=93deg DETx2 B2/2
+[INFO] [1786767211.969871120] [d_mission]:   DROP-SERVO err=0px ex=0 ey=0 v_fwd=0.000 v_lat=0.000 H=1.9m target=(1.94,33.01)
+[INFO] [1786767212.723615724] [d_mission]: [DROP] NED(2.00,33.01,-1.71) h=93deg DETx2 B2/2
+[INFO] [1786767213.019326707] [d_mission]:   DROP-SERVO err=0px ex=0 ey=0 v_fwd=0.000 v_lat=0.000 H=1.6m target=(1.94,33.01)
+[INFO] [1786767213.717911032] [d_mission]: [DROP] NED(2.03,32.99,-1.62) h=93deg DETx2 B2/2
+[INFO] [1786767214.020046865] [d_mission]:   DROP-SERVO err=14px ex=14 ey=0 v_fwd=0.000 v_lat=0.006 H=1.6m target=(1.93,33.01)
+[INFO] [1786767214.718762534] [d_mission]: [DROP] NED(2.03,32.97,-1.58) h=93deg DETx2 B2/2
+[INFO] [1786767215.070071842] [d_mission]:   DROP-SERVO err=17px ex=17 ey=0 v_fwd=0.000 v_lat=0.009 H=1.5m target=(1.92,33.01)
+[INFO] [1786767215.719360430] [d_mission]: [DROP] NED(2.03,32.98,-1.56) h=93deg DETx1 B2/2
+[INFO] [1786767216.118948177] [d_mission]:   DROP-SERVO err=16px ex=15 ey=6 v_fwd=0.003 v_lat=0.008 H=1.5m target=(1.92,33.01)
+[INFO] [1786767216.721263437] [d_mission]: [DROP] NED(2.03,32.98,-1.55) h=93deg DETx1 B2/2
+[INFO] [1786767217.168975772] [d_mission]:   DROP-SERVO err=18px ex=17 ey=6 v_fwd=0.001 v_lat=0.007 H=1.5m target=(1.91,33.02)
+[INFO] [1786767217.717514179] [d_mission]: [DROP] NED(2.03,33.00,-1.54) h=93deg DETx1 B2/2
+[INFO] [1786767218.224820634] [d_mission]:   DROP-SERVO err=16px ex=16 ey=0 v_fwd=0.000 v_lat=0.013 H=1.5m target=(1.90,33.02)
+[INFO] [1786767218.719911054] [d_mission]: [DROP] NED(2.02,33.01,-1.53) h=92deg DETx1 B2/2
+[INFO] [1786767219.269158624] [d_mission]:   DROP-SERVO err=16px ex=16 ey=0 v_fwd=0.000 v_lat=0.009 H=1.5m target=(1.89,33.02)
+[INFO] [1786767219.473007495] [d_mission]: >>> DROP #2! PWM=1000us NED(2.012,33.017,-1.531) heading=92.5deg last_err=17px(ex=17,ey=0@H=1.5m)
+[INFO] [1786767219.721279443] [d_mission]: [DROP] NED(2.01,33.02,-1.53) h=92deg DETx1 B2/2
+[INFO] [1786767220.318911981] [d_mission]:   DROP-SERVO err=17px ex=17 ey=0 v_fwd=0.000 v_lat=0.006 H=1.5m target=(1.88,33.02)
+[INFO] [1786767220.520483972] [d_mission]: STEP DROP->CLIMB (prev 11.1s) NED(2.01,33.03,-1.53) H=1.50m
+[INFO] [1786767220.718568459] [d_mission]: [CLIMB] NED(2.00,33.03,-1.54) h=93deg DETx1
+[INFO] [1786767221.720810792] [d_mission]: [CLIMB] NED(2.04,33.05,-2.43) h=92deg DETx2
+[INFO] [1786767222.718800006] [d_mission]: [CLIMB] NED(2.04,33.05,-2.44) h=92deg DETx2
+[INFO] [1786767223.408123717] [d_mission]: Tracker confirmed: NED(0.1,33.9) after 1.8s
+[INFO] [1786767223.717438567] [d_mission]: [CLIMB] NED(2.04,33.05,-2.44) h=92deg DETx2
+[INFO] [1786767224.718507965] [d_mission]: [CLIMB] NED(2.08,33.08,-3.50) h=92deg DETx2
+[INFO] [1786767225.718134010] [d_mission]: [CLIMB] NED(2.08,33.08,-3.54) h=92deg DETx2
+[INFO] [1786767226.718043417] [d_mission]: [CLIMB] NED(2.08,33.08,-3.56) h=92deg DETx3
+[INFO] [1786767227.720382745] [d_mission]: [CLIMB] NED(2.08,33.08,-3.56) h=92deg DETx3
+[INFO] [1786767227.730254210] [d_mission]: Tracker confirmed: NED(-1.0,31.6) after 1.8s
+[INFO] [1786767228.719118788] [d_mission]: [CLIMB] NED(2.11,33.12,-4.24) h=92deg DETx3
+[INFO] [1786767229.119118853] [d_mission]: All buckets done, flying to SCOUT zone
+[INFO] [1786767229.123820211] [d_mission]: STEP CLIMB->SCOUT (prev 8.6s) NED(2.13,33.14,-4.59) H=4.57m
+[INFO] [1786767229.720120963] [d_mission]: [SCOUT] NED(2.15,33.18,-4.83) h=92deg DETx3 ->scout dist=26.6m
+[INFO] [1786767230.717704655] [d_mission]: [SCOUT] NED(2.12,33.53,-4.90) h=92deg DETx3 ->scout dist=26.2m
+[INFO] [1786767231.717951019] [d_mission]: [SCOUT] NED(1.99,34.40,-4.91) h=92deg DETx3 ->scout dist=25.4m
+[INFO] [1786767232.718801913] [d_mission]: [SCOUT] NED(1.97,34.54,-4.91) h=92deg DETx3 ->scout dist=25.2m
+[INFO] [1786767233.681073664] [d_mission]: Tracker confirmed: NED(-1.3,32.3) after 1.8s
+[INFO] [1786767233.717465294] [d_mission]: [SCOUT] NED(1.96,34.56,-4.91) h=92deg DETx3 ->scout dist=25.2m
+[INFO] [1786767234.717481760] [d_mission]: [SCOUT] NED(1.77,35.55,-4.92) h=92deg DETx3 ->scout dist=24.2m
+[INFO] [1786767235.717853185] [d_mission]: [SCOUT] NED(1.46,36.98,-4.93) h=92deg DETx3 ->scout dist=22.7m
+[INFO] [1786767236.719487602] [d_mission]: [SCOUT] NED(1.16,38.49,-4.95) h=92deg DETx1 ->scout dist=21.2m
+[INFO] [1786767237.718634929] [d_mission]: [SCOUT] NED(0.95,39.60,-4.96) h=92deg no-det ->scout dist=20.1m
+[INFO] [1786767238.717380583] [d_mission]: [SCOUT] NED(0.74,40.80,-4.97) h=92deg no-det ->scout dist=18.9m
+[INFO] [1786767239.717514743] [d_mission]: [SCOUT] NED(0.48,42.31,-4.97) h=92deg no-det ->scout dist=17.3m
+[INFO] [1786767240.717763110] [d_mission]: [SCOUT] NED(0.29,43.47,-4.98) h=92deg no-det ->scout dist=16.2m
+[INFO] [1786767241.721473098] [d_mission]: [SCOUT] NED(0.10,44.63,-4.98) h=92deg no-det ->scout dist=15.0m
+[INFO] [1786767242.718234776] [d_mission]: [SCOUT] NED(-0.10,46.01,-4.99) h=92deg no-det ->scout dist=13.6m
+[INFO] [1786767243.717694805] [d_mission]: [SCOUT] NED(-0.26,47.16,-5.01) h=92deg no-det ->scout dist=12.4m
+[INFO] [1786767244.720464911] [d_mission]: [SCOUT] NED(-0.41,48.29,-5.02) h=92deg no-det ->scout dist=11.3m
+[INFO] [1786767245.717997268] [d_mission]: [SCOUT] NED(-0.56,49.40,-5.03) h=92deg no-det ->scout dist=10.2m
+[INFO] [1786767246.717977457] [d_mission]: [SCOUT] NED(-0.72,50.41,-5.04) h=92deg no-det ->scout dist=9.1m
+[INFO] [1786767247.719183351] [d_mission]: [SCOUT] NED(-0.92,51.74,-5.04) h=92deg no-det ->scout dist=7.8m
+[INFO] [1786767248.719648788] [d_mission]: [SCOUT] NED(-1.08,52.96,-5.05) h=92deg no-det ->scout dist=6.6m
+[INFO] [1786767249.717942099] [d_mission]: [SCOUT] NED(-1.21,53.99,-5.05) h=92deg no-det ->scout dist=5.5m
+[INFO] [1786767250.717541203] [d_mission]: [SCOUT] NED(-1.35,55.10,-5.05) h=92deg no-det ->scout dist=4.4m
+[INFO] [1786767251.717386305] [d_mission]: [SCOUT] NED(-1.51,56.33,-5.05) h=92deg no-det ->scout dist=3.2m
+[INFO] [1786767252.717505276] [d_mission]: [SCOUT] NED(-1.67,57.47,-5.05) h=92deg no-det ->scout dist=2.0m
+[INFO] [1786767253.717431309] [d_mission]: [SCOUT] NED(-1.85,58.57,-5.04) h=92deg no-det ->scout dist=0.9m
+[INFO] [1786767254.419533336] [d_mission]: Arrived at scout zone, hovering 5.0s
+[INFO] [1786767254.717916369] [d_mission]: [SCOUT] NED(-1.94,59.16,-5.03) h=92deg no-det ->scout dist=0.3m
+[INFO] [1786767255.718976572] [d_mission]: [SCOUT] NED(-2.03,59.57,-5.03) h=92deg no-det ->scout dist=0.1m
+[INFO] [1786767256.717907113] [d_mission]: [SCOUT] NED(-2.07,59.66,-5.02) h=92deg no-det ->scout dist=0.2m
+[INFO] [1786767257.717535830] [d_mission]: [SCOUT] NED(-2.10,59.55,-5.02) h=92deg no-det ->scout dist=0.1m
+[INFO] [1786767258.717819919] [d_mission]: [SCOUT] NED(-2.09,59.43,-5.02) h=92deg no-det ->scout dist=0.0m
+[INFO] [1786767259.467561206] [d_mission]: Scout: hovering done, descending 1m
+[INFO] [1786767259.720045395] [d_mission]: [SCOUT] NED(-2.08,59.37,-5.03) h=92deg no-det ->scout dist=0.1m
+[INFO] [1786767260.717654319] [d_mission]: [SCOUT] NED(-2.08,59.34,-4.47) h=92deg no-det ->scout dist=0.1m
+[INFO] [1786767261.471784145] [d_mission]: Scout: descended 1m, moving left 1m
+[INFO] [1786767261.718150183] [d_mission]: [SCOUT] NED(-2.08,59.35,-4.25) h=92deg no-det ->scout dist=0.1m
+[INFO] [1786767262.718296031] [d_mission]: [SCOUT] NED(-1.96,59.37,-4.16) h=92deg no-det ->scout dist=0.1m
+[INFO] [1786767263.719621684] [d_mission]: [SCOUT] NED(-1.67,59.42,-4.12) h=92deg no-det ->scout dist=0.4m
+[INFO] [1786767264.717764769] [d_mission]: [SCOUT] NED(-1.37,59.47,-4.09) h=92deg no-det ->scout dist=0.7m
+[INFO] [1786767264.821020207] [d_mission]: Scout: left 1m done, moving right 2m
+[INFO] [1786767265.718716275] [d_mission]: [SCOUT] NED(-1.32,59.51,-4.09) h=92deg no-det ->scout dist=0.7m
+[INFO] [1786767266.717569011] [d_mission]: [SCOUT] NED(-2.07,59.43,-4.06) h=92deg no-det ->scout dist=0.0m
+[INFO] [1786767267.717666105] [d_mission]: [SCOUT] NED(-2.68,59.36,-4.05) h=92deg no-det ->scout dist=0.6m
+[INFO] [1786767267.918481820] [d_mission]: Scout maneuver complete, returning home
+[INFO] [1786767267.919191194] [d_mission]: STEP SCOUT->RETURN (prev 38.8s) NED(-2.80,59.35,-4.05) H=4.02m
+[INFO] [1786767268.717582430] [d_mission]: [RETURN] NED(-3.12,59.22,-4.22) h=92deg no-det ->home dist=59.3m
+[INFO] [1786767269.717866689] [d_mission]: [RETURN] NED(-3.31,58.23,-4.49) h=92deg no-det ->home dist=58.3m
+[INFO] [1786767270.717641480] [d_mission]: [RETURN] NED(-3.29,57.15,-4.61) h=92deg no-det ->home dist=57.3m
+[INFO] [1786767271.717669241] [d_mission]: [RETURN] NED(-3.19,55.66,-4.73) h=92deg no-det ->home dist=55.8m
+[INFO] [1786767272.717583003] [d_mission]: [RETURN] NED(-3.07,54.02,-4.82) h=92deg no-det ->home dist=54.1m
+[INFO] [1786767273.719555520] [d_mission]: [RETURN] NED(-2.98,52.42,-4.88) h=92deg no-det ->home dist=52.5m
+[INFO] [1786767274.719677528] [d_mission]: [RETURN] NED(-2.89,50.71,-4.94) h=92deg no-det ->home dist=50.8m
+[INFO] [1786767275.717931156] [d_mission]: [RETURN] NED(-2.83,49.21,-4.98) h=92deg no-det ->home dist=49.3m
+[INFO] [1786767276.717492167] [d_mission]: [RETURN] NED(-2.78,47.85,-5.01) h=92deg no-det ->home dist=47.9m
+[INFO] [1786767277.718098525] [d_mission]: [RETURN] NED(-2.71,46.35,-5.04) h=92deg no-det ->home dist=46.4m
+[INFO] [1786767278.717893093] [d_mission]: [RETURN] NED(-2.65,44.63,-5.06) h=92deg no-det ->home dist=44.7m
+[INFO] [1786767279.717724207] [d_mission]: [RETURN] NED(-2.61,43.24,-5.08) h=92deg no-det ->home dist=43.3m
+[INFO] [1786767280.720391124] [d_mission]: [RETURN] NED(-2.55,41.04,-5.10) h=92deg no-det ->home dist=41.1m
+[INFO] [1786767281.720686931] [d_mission]: [RETURN] NED(-2.50,39.41,-5.11) h=92deg no-det ->home dist=39.5m
+[INFO] [1786767282.720179510] [d_mission]: [RETURN] NED(-2.42,37.74,-5.11) h=92deg no-det ->home dist=37.8m
+[INFO] [1786767283.717430982] [d_mission]: [RETURN] NED(-2.42,37.45,-5.11) h=92deg no-det ->home dist=37.5m
+[INFO] [1786767284.721323334] [d_mission]: [RETURN] NED(-2.36,36.01,-5.11) h=92deg no-det ->home dist=36.1m
+[INFO] [1786767285.718913658] [d_mission]: [RETURN] NED(-2.27,34.24,-5.11) h=92deg DETx2 ->home dist=34.3m
+[INFO] [1786767286.367098560] [d_mission]: Tracker confirmed: NED(-0.3,34.1) after 1.5s
+[INFO] [1786767286.717504563] [d_mission]: [RETURN] NED(-2.27,34.24,-5.11) h=92deg DETx3 ->home dist=34.3m
+[INFO] [1786767286.872372599] [d_mission]: Tracker confirmed: NED(1.5,33.4) after 1.5s
+[INFO] [1786767287.719801394] [d_mission]: [RETURN] NED(-2.17,32.75,-5.11) h=92deg DETx3 ->home dist=32.8m
+[INFO] [1786767288.332005152] [d_mission]: Tracker confirmed: NED(-1.6,32.0) after 2.2s
+[INFO] [1786767288.717412374] [d_mission]: [RETURN] NED(-2.17,32.68,-5.11) h=92deg DETx3 ->home dist=32.8m
+[INFO] [1786767289.719839366] [d_mission]: [RETURN] NED(-2.10,31.79,-5.10) h=92deg DETx3 ->home dist=31.9m
+[INFO] [1786767290.719316502] [d_mission]: [RETURN] NED(-1.96,30.04,-5.09) h=92deg DETx3 ->home dist=30.1m
+[INFO] [1786767291.659663543] [d_mission]: Tracker confirmed: NED(-1.5,30.5) after 1.7s
+[INFO] [1786767291.717810738] [d_mission]: [RETURN] NED(-1.81,28.44,-5.08) h=92deg DETx1 ->home dist=28.5m
+[INFO] [1786767292.717436978] [d_mission]: [RETURN] NED(-1.65,26.56,-5.08) h=92deg DETx1 ->home dist=26.6m
+[INFO] [1786767293.720647447] [d_mission]: [RETURN] NED(-1.50,24.85,-5.07) h=92deg no-det ->home dist=24.9m
+[INFO] [1786767294.717629456] [d_mission]: [RETURN] NED(-1.30,22.37,-5.06) h=92deg no-det ->home dist=22.4m
+[INFO] [1786767295.721301693] [d_mission]: [RETURN] NED(-1.20,21.20,-5.05) h=92deg no-det ->home dist=21.3m
+[INFO] [1786767296.719902958] [d_mission]: [RETURN] NED(-1.09,19.81,-5.05) h=92deg no-det ->home dist=19.9m
+[INFO] [1786767297.718250087] [d_mission]: [RETURN] NED(-0.92,17.55,-5.06) h=92deg no-det ->home dist=17.6m
+[INFO] [1786767298.718628696] [d_mission]: [RETURN] NED(-0.82,15.91,-5.06) h=92deg no-det ->home dist=16.0m
+[INFO] [1786767299.719878904] [d_mission]: [RETURN] NED(-0.74,14.46,-5.07) h=92deg no-det ->home dist=14.5m
+[INFO] [1786767300.717963084] [d_mission]: [RETURN] NED(-0.66,12.82,-5.06) h=92deg no-det ->home dist=12.9m
+[INFO] [1786767301.717813063] [d_mission]: [RETURN] NED(-0.61,11.62,-5.06) h=92deg no-det ->home dist=11.7m
+[INFO] [1786767302.718196816] [d_mission]: [RETURN] NED(-0.57,9.94,-5.06) h=92deg no-det ->home dist=10.0m
+[INFO] [1786767303.718615304] [d_mission]: [RETURN] NED(-0.52,8.25,-5.06) h=92deg no-det ->home dist=8.3m
+[INFO] [1786767304.717590835] [d_mission]: [RETURN] NED(-0.47,6.81,-5.05) h=92deg no-det ->home dist=6.8m
+[INFO] [1786767305.719015625] [d_mission]: [RETURN] NED(-0.40,4.97,-5.05) h=92deg no-det ->home dist=5.0m
+[INFO] [1786767306.718896130] [d_mission]: [RETURN] NED(-0.34,3.90,-5.05) h=92deg no-det ->home dist=3.9m
+[INFO] [1786767307.717663492] [d_mission]: [RETURN] NED(-0.24,2.23,-5.04) h=92deg no-det ->home dist=2.3m
+[INFO] [1786767308.717528375] [d_mission]: [RETURN] NED(-0.12,0.67,-5.03) h=92deg no-det ->home dist=0.7m
+[INFO] [1786767309.267823890] [d_mission]: STEP RETURN->LAND (prev 41.3s) NED(-0.10,0.35,-5.03) H=5.00m
+[INFO] [1786767309.717505432] [d_mission]: [LAND] NED(-0.05,-0.17,-4.94) h=92deg no-det
+[INFO] [1786767310.724012360] [d_mission]: [LAND] NED(0.01,-0.93,-4.03) h=92deg no-det
+[INFO] [1786767311.719731833] [d_mission]: [LAND] NED(0.03,-0.99,-3.00) h=92deg no-det
+[INFO] [1786767312.719610780] [d_mission]: [LAND] NED(0.02,-0.70,-2.13) h=92deg no-det
+[INFO] [1786767313.717858069] [d_mission]: [LAND] NED(0.01,-0.38,-1.46) h=92deg no-det
+[INFO] [1786767314.717704584] [d_mission]: [LAND] NED(0.01,-0.04,-1.00) h=92deg no-det
+[INFO] [1786767315.717510594] [d_mission]: [LAND] NED(0.01,0.16,-0.74) h=92deg no-det
+[INFO] [1786767316.718266056] [d_mission]: [LAND] NED(0.01,0.23,-0.41) h=92deg no-det
+[INFO] [1786767317.720237858] [d_mission]: [LAND] NED(-0.10,0.37,-0.08) h=92deg no-det
+[INFO] [1786767318.717456021] [d_mission]: [LAND] NED(-0.22,0.49,0.01) h=92deg no-det
+[INFO] [1786767319.717641617] [d_mission]: [LAND] NED(-0.21,0.50,0.08) h=92deg no-det
+[INFO] [1786767320.468522472] [d_mission]: Mission complete, shutting down

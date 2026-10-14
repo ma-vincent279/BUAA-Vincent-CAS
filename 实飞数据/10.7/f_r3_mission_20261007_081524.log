@@ -1,0 +1,708 @@
+[INFO] [1791331719.976132469] [f_r3_mission]: F Mission ready. HEADING=92deg outlet_right_B1=+0.0567m outlet_right_B2=-0.0567m FORWARD_DIST=34.0m SCOUT_DIST=59.5m cruise=5.0m drop=1.2m (no flight boundary)
+[INFO] [1791331719.982564930] [f_r3_mission]: Build revision=competition-water-20261006-r3-f-continuous-brake-hold-sitl-import source=/home/vincent/SITL/install/drone_drl/lib/python3.10/site-packages/drone_drl/f_r3.py sha256=882677a28a5ea5647030609fc17978a47a17cd0bfd8c09d68b9164dd5beb13c8 drop_gate=0.050m speed<=0.10m/s frames=2 force=35s xy_target_rate_max=0.08m/s brake_T=0.60s fx=349.2 fy=353.3 (assumed; verify actual see crop) detect_age_max=0.25s camera=down_fixed(top=forward,right=right) geometry=FRD-ray-ground
+[INFO] [1791331721.154137678] [f_r3_mission]: Takeoff ref: NED(-0.01,-0.01,-0.07) HEADING_DEG=92deg (hardcoded)
+[INFO] [1791331722.141617138] [f_r3_mission]: [t=    2.5 TAKEOFF         ph=  0.0s] NED(  -0.01,  -0.01, -0.07) H=   -- hdg=  91.0 pit= +0.0 rol= +0.3 vNED=(-0.03,-0.01,-0.03) det=0 age=2.45
+[INFO] [1791331723.141941366] [f_r3_mission]: [t=    3.5 TAKEOFF         ph=  0.0s] NED(  -0.01,  -0.01, -0.07) H=   -- hdg=  91.0 pit= +0.0 rol= +0.3 vNED=(-0.02,-0.01,-0.04) det=0 age=3.45
+[INFO] [1791331724.144385636] [f_r3_mission]: [t=    4.5 TAKEOFF         ph=  0.0s] NED(  -0.01,  -0.01, -0.08) H=   -- hdg=  91.1 pit= +0.1 rol= +0.4 vNED=(-0.02,-0.01,-0.05) det=0 age=4.46
+[INFO] [1791331724.290072932] [f_r3_mission]: Requesting ARM... (t=0.0s)
+[INFO] [1791331724.340961846] [f_r3_mission]: ARM OK, requesting OFFBOARD mode... (t=0.1s)
+[INFO] [1791331724.389294690] [f_r3_mission]: ARM + OFFBOARD active (t=0.1s), entering mission
+[INFO] [1791331725.140208511] [f_r3_mission]: [t=    0.7 TAKEOFF         ph=  0.7s] NED(  -0.01,  -0.01, -0.09) H=   -- hdg=  91.1 pit= +0.1 rol= +0.4 vNED=(-0.01,-0.01,-0.05) det=0 age=5.45
+[INFO] [1791331726.142344257] [f_r3_mission]: [t=    1.8 TAKEOFF         ph=  1.8s] NED(  -0.01,  -0.01, -0.09) H=   -- hdg=  91.2 pit= +0.1 rol= +0.6 vNED=(-0.03,-0.02,-0.05) det=0 age=6.45
+[INFO] [1791331727.139950757] [f_r3_mission]: [t=    2.7 TAKEOFF         ph=  2.7s] NED(  -0.01,  -0.01, -0.10) H=   -- hdg=  91.1 pit= +0.0 rol= +0.5 vNED=(-0.04,-0.02,-0.05) det=0 age=7.45
+[INFO] [1791331728.140530032] [f_r3_mission]: [t=    3.7 TAKEOFF         ph=  3.7s] NED(  -0.01,  -0.01, -0.11) H=   -- hdg=  91.1 pit= +0.1 rol= +0.5 vNED=(-0.04,-0.02,-0.05) det=0 age=8.45
+[INFO] [1791331729.140949955] [f_r3_mission]: [t=    4.7 TAKEOFF         ph=  4.7s] NED(  -0.01,  -0.01, -0.11) H=   -- hdg=  91.0 pit= +0.1 rol= +0.4 vNED=(-0.06,-0.02,-0.06) det=0 age=9.45
+[INFO] [1791331730.150573942] [f_r3_mission]: [t=    5.8 TAKEOFF         ph=  5.8s] NED(  -0.01,  -0.01, -0.11) H=   -- hdg=  91.0 pit= -0.0 rol= +0.4 vNED=(-0.05,-0.02,-0.05) det=0 age=10.46
+[INFO] [1791331731.139982719] [f_r3_mission]: [t=    6.7 TAKEOFF         ph=  6.7s] NED(  -0.01,  -0.01, -0.12) H=   -- hdg=  90.9 pit= -0.0 rol= +0.3 vNED=(-0.05,-0.02,-0.05) det=0 age=11.45
+[INFO] [1791331732.138706142] [f_r3_mission]: [t=    7.7 TAKEOFF         ph=  7.7s] NED(  -0.01,  -0.01, -0.12) H=   -- hdg=  91.0 pit= +0.0 rol= +0.2 vNED=(-0.03,-0.01,-0.05) det=0 age=12.45
+[INFO] [1791331733.141226955] [f_r3_mission]: [t=    8.7 TAKEOFF         ph=  8.8s] NED(   0.00,  -0.00, -0.12) H=   -- hdg=  91.0 pit= -0.0 rol= +0.1 vNED=(-0.04,-0.00,-0.05) det=0 age=13.45
+[INFO] [1791331734.139472941] [f_r3_mission]: [t=    9.7 TAKEOFF         ph=  9.7s] NED(  -0.00,   0.00, -0.12) H=   -- hdg=  91.0 pit= -0.2 rol= +0.2 vNED=(-0.03,+0.00,-0.04) det=0 age=14.45
+[INFO] [1791331735.141321662] [f_r3_mission]: [t=   10.7 TAKEOFF         ph= 10.8s] NED(   0.00,   0.00, -0.12) H=   -- hdg=  91.0 pit= -0.1 rol= +0.0 vNED=(-0.02,+0.01,-0.09) det=0 age=15.45
+[INFO] [1791331736.138537087] [f_r3_mission]: [t=   11.7 TAKEOFF         ph= 11.7s] NED(   0.00,   0.00, -0.24) H=   -- hdg=  91.0 pit= -0.0 rol= -0.4 vNED=(+0.01,+0.01,-0.73) det=0 age=16.45
+[INFO] [1791331737.143267358] [f_r3_mission]: [t=   12.7 TAKEOFF         ph= 12.7s] NED(   0.01,   0.00, -0.54) H=   -- hdg=  91.0 pit= +0.1 rol= +0.1 vNED=(+0.03,+0.00,-1.46) det=0 age=17.45
+[INFO] [1791331738.140097364] [f_r3_mission]: [t=   13.7 TAKEOFF         ph= 13.7s] NED(   0.02,   0.00, -0.94) H=   -- hdg=  90.9 pit= +0.0 rol= +0.4 vNED=(+0.02,-0.01,-1.90) det=0 age=18.45
+[INFO] [1791331739.147113062] [f_r3_mission]: [t=   14.8 TAKEOFF         ph= 14.8s] NED(   0.03,   0.00, -1.30) H=   -- hdg=  90.9 pit= -0.0 rol= +0.4 vNED=(+0.01,-0.01,-2.06) det=0 age=19.45
+[INFO] [1791331740.139328403] [f_r3_mission]: [t=   15.7 TAKEOFF         ph= 15.7s] NED(   0.03,   0.00, -1.95) H=   -- hdg=  90.9 pit= -0.1 rol= +0.3 vNED=(-0.02,-0.01,-2.22) det=0 age=20.45
+[INFO] [1791331741.143618521] [f_r3_mission]: [t=   16.7 TAKEOFF         ph= 16.7s] NED(   0.02,   0.01, -2.63) H=   -- hdg=  90.9 pit= -0.0 rol= +0.3 vNED=(-0.02,-0.01,-2.12) det=0 age=21.45
+[INFO] [1791331742.138954824] [f_r3_mission]: [t=   17.7 TAKEOFF         ph= 17.7s] NED(   0.02,   0.01, -3.16) H=   -- hdg=  90.9 pit= +0.1 rol= +0.2 vNED=(-0.02,-0.01,-1.72) det=0 age=22.45
+[INFO] [1791331743.144173734] [f_r3_mission]: [t=   18.7 TAKEOFF         ph= 18.7s] NED(   0.01,   0.02, -3.43) H=   -- hdg=  90.9 pit= +0.3 rol= +0.2 vNED=(-0.02,+0.00,-1.45) det=0 age=23.45
+[INFO] [1791331744.138515344] [f_r3_mission]: [t=   19.7 TAKEOFF         ph= 19.7s] NED(  -0.00,   0.03, -3.87) H=   -- hdg=  90.9 pit= +0.2 rol= +0.1 vNED=(-0.02,-0.04,-0.99) det=0 age=24.45
+[INFO] [1791331745.141280718] [f_r3_mission]: [t=   20.7 TAKEOFF         ph= 20.7s] NED(  -0.02,   0.03, -4.14) H=   -- hdg=  90.9 pit= -0.1 rol= +0.1 vNED=(-0.01,-0.04,-0.72) det=0 age=25.45
+[INFO] [1791331746.139701915] [f_r3_mission]: [t=   21.7 TAKEOFF         ph= 21.7s] NED(  -0.04,   0.03, -4.39) H=   -- hdg=  90.9 pit= +0.1 rol= -0.1 vNED=(-0.01,-0.03,-0.49) det=0 age=26.45
+[INFO] [1791331747.139838994] [f_r3_mission]: [t=   22.7 TAKEOFF         ph= 22.7s] NED(  -0.05,   0.03, -4.53) H=   -- hdg=  90.9 pit= +0.0 rol= -0.2 vNED=(-0.00,-0.04,-0.35) det=0 age=27.45
+[INFO] [1791331747.340294774] [f_r3_mission]: Reached cruise height, entering STABILIZE
+[INFO] [1791331748.138388607] [f_r3_mission]: [t=   23.7 STABILIZE       ph=  0.8s] NED(  -0.07,   0.04, -4.69) H=   -- hdg=  91.0 pit= +0.0 rol= -0.1 vNED=(+0.03,-0.04,-0.22) det=0 age=28.45 stabilizing 0.8s/3.0s
+[INFO] [1791331749.138348630] [f_r3_mission]: [t=   24.7 STABILIZE       ph=  1.8s] NED(  -0.09,   0.04, -4.78) H=   -- hdg=  91.1 pit= +0.1 rol= -0.2 vNED=(+0.02,-0.04,-0.15) det=0 age=29.45 stabilizing 1.8s/3.0s
+[INFO] [1791331750.140304596] [f_r3_mission]: [t=   25.7 STABILIZE       ph=  2.8s] NED(  -0.12,   0.03, -4.85) H=   -- hdg=  91.0 pit= +0.0 rol= -0.5 vNED=(+0.05,-0.04,-0.12) det=0 age=30.45 stabilizing 2.8s/3.0s
+[INFO] [1791331750.392733944] [f_r3_mission]: Home locked: NED(-0.01,-0.01,-0.07) heading0=92deg (hardcoded) target NED(-1.2,34.0)
+[INFO] [1791331750.394259629] [f_r3_mission]: STEP STABILIZE->FORWARD (prev 3.1s) NED(-0.12,0.04,-4.87) H=4.81m
+[INFO] [1791331751.139340647] [f_r3_mission]: [t=   26.7 FORWARD         ph=  0.7s] NED(  -0.13,   0.07, -4.92) H= 4.85 hdg=  91.4 pit=-14.8 rol= +0.4 vNED=(+0.05,+0.31,-0.09) det=0 age=31.45 dist_to_target=33.9m
+[INFO] [1791331752.144969848] [f_r3_mission]: [t=   27.8 FORWARD         ph=  1.7s] NED(  -0.15,   0.43, -4.93) H= 4.86 hdg=  92.0 pit=-10.9 rol= +0.3 vNED=(-0.02,+1.28,+0.03) det=0 age=32.45 dist_to_target=33.6m
+[INFO] [1791331753.138405016] [f_r3_mission]: [t=   28.7 FORWARD         ph=  2.7s] NED(  -0.18,   0.99, -4.93) H= 4.87 hdg=  92.0 pit= -6.9 rol= +0.2 vNED=(-0.05,+1.63,-0.00) det=0 age=33.45 dist_to_target=33.0m
+[INFO] [1791331754.140935812] [f_r3_mission]: [t=   29.7 FORWARD         ph=  3.7s] NED(  -0.20,   1.54, -4.94) H= 4.87 hdg=  92.3 pit= -5.8 rol= +0.1 vNED=(-0.05,+1.76,+0.00) det=0 age=34.45 dist_to_target=32.4m
+[INFO] [1791331755.139558699] [f_r3_mission]: [t=   30.7 FORWARD         ph=  4.7s] NED(  -0.24,   2.39, -4.95) H= 4.88 hdg=  92.1 pit= -5.0 rol= +0.2 vNED=(-0.05,+1.85,-0.01) det=0 age=35.45 dist_to_target=31.6m
+[INFO] [1791331756.141730863] [f_r3_mission]: [t=   31.8 FORWARD         ph=  5.7s] NED(  -0.27,   3.27, -4.96) H= 4.89 hdg=  92.1 pit= -4.5 rol= +0.1 vNED=(-0.07,+1.90,-0.01) det=0 age=36.45 dist_to_target=30.7m
+[INFO] [1791331757.142480981] [f_r3_mission]: [t=   32.7 FORWARD         ph=  6.7s] NED(  -0.32,   4.30, -4.97) H= 4.90 hdg=  92.0 pit= -4.3 rol= +0.1 vNED=(-0.06,+1.94,-0.01) det=0 age=37.45 dist_to_target=29.7m
+[INFO] [1791331758.139455411] [f_r3_mission]: [t=   33.7 FORWARD         ph=  7.7s] NED(  -0.36,   5.54, -4.99) H= 4.92 hdg=  92.0 pit= -4.4 rol= +0.2 vNED=(-0.05,+1.94,-0.02) det=0 age=38.45 dist_to_target=28.4m
+[INFO] [1791331759.138536599] [f_r3_mission]: [t=   34.7 FORWARD         ph=  8.7s] NED(  -0.41,   6.59, -5.00) H= 4.93 hdg=  92.0 pit= -4.4 rol= +0.3 vNED=(-0.04,+1.95,-0.02) det=0 age=39.45 dist_to_target=27.4m
+[INFO] [1791331760.140056970] [f_r3_mission]: [t=   35.7 FORWARD         ph=  9.7s] NED(  -0.46,   7.60, -5.01) H= 4.94 hdg=  91.9 pit= -4.2 rol= +0.3 vNED=(-0.05,+1.97,-0.01) det=0 age=40.45 dist_to_target=26.4m
+[INFO] [1791331761.139580615] [f_r3_mission]: [t=   36.7 FORWARD         ph= 10.7s] NED(  -0.50,   8.23, -5.02) H= 4.95 hdg=  91.9 pit= -4.3 rol= +0.3 vNED=(-0.07,+1.96,-0.02) det=0 age=41.45 dist_to_target=25.8m
+[INFO] [1791331762.142828882] [f_r3_mission]: [t=   37.7 FORWARD         ph= 11.7s] NED(  -0.56,   9.13, -5.03) H= 4.96 hdg=  91.8 pit= -4.3 rol= +0.2 vNED=(-0.07,+1.95,-0.01) det=0 age=42.45 dist_to_target=24.9m
+[INFO] [1791331763.138449035] [f_r3_mission]: [t=   38.7 FORWARD         ph= 12.7s] NED(  -0.62,  10.00, -5.04) H= 4.97 hdg=  91.9 pit= -4.4 rol= +0.3 vNED=(-0.06,+1.97,-0.01) det=0 age=43.45 dist_to_target=24.0m
+[INFO] [1791331764.139712796] [f_r3_mission]: [t=   39.7 FORWARD         ph= 13.7s] NED(  -0.65,  10.55, -5.05) H= 4.98 hdg=  91.9 pit= -4.3 rol= +0.2 vNED=(-0.06,+1.97,-0.01) det=0 age=44.45 dist_to_target=23.4m
+[INFO] [1791331765.139717265] [f_r3_mission]: [t=   40.7 FORWARD         ph= 14.7s] NED(  -0.72,  11.84, -5.05) H= 4.99 hdg=  91.9 pit= -4.3 rol= +0.1 vNED=(-0.07,+1.97,-0.00) det=0 age=45.45 dist_to_target=22.1m
+[INFO] [1791331766.140001085] [f_r3_mission]: [t=   41.7 FORWARD         ph= 15.7s] NED(  -0.76,  12.56, -5.05) H= 4.99 hdg=  91.9 pit= -4.3 rol= +0.1 vNED=(-0.07,+1.97,+0.01) det=0 age=46.45 dist_to_target=21.4m
+[INFO] [1791331767.139643145] [f_r3_mission]: [t=   42.7 FORWARD         ph= 16.7s] NED(  -0.79,  13.41, -5.05) H= 4.99 hdg=  92.0 pit= -4.3 rol= +0.2 vNED=(-0.07,+1.98,-0.00) det=0 age=47.45 dist_to_target=20.6m
+[INFO] [1791331768.141239336] [f_r3_mission]: [t=   43.8 FORWARD         ph= 17.7s] NED(  -0.81,  13.98, -5.05) H= 4.99 hdg=  92.0 pit= -4.2 rol= +0.2 vNED=(-0.06,+1.99,-0.01) det=0 age=48.45 dist_to_target=20.0m
+[INFO] [1791331769.138836315] [f_r3_mission]: [t=   44.7 FORWARD         ph= 18.7s] NED(  -0.82,  14.49, -5.05) H= 4.99 hdg=  92.0 pit= -4.3 rol= +0.3 vNED=(-0.06,+1.98,-0.00) det=0 age=49.45 dist_to_target=19.5m
+[INFO] [1791331770.145547623] [f_r3_mission]: [t=   45.7 FORWARD         ph= 19.7s] NED(  -0.84,  15.38, -5.05) H= 4.98 hdg=  92.1 pit= -4.3 rol= +0.3 vNED=(-0.06,+1.98,-0.01) det=0 age=50.45 dist_to_target=18.6m
+[INFO] [1791331771.142962968] [f_r3_mission]: [t=   46.8 FORWARD         ph= 20.7s] NED(  -0.86,  16.07, -5.04) H= 4.98 hdg=  92.0 pit= -4.2 rol= +0.3 vNED=(-0.06,+1.99,-0.01) det=0 age=51.45 dist_to_target=17.9m
+[INFO] [1791331772.141273928] [f_r3_mission]: [t=   47.7 FORWARD         ph= 21.7s] NED(  -0.87,  16.75, -5.04) H= 4.97 hdg=  92.1 pit= -4.4 rol= +0.2 vNED=(-0.06,+1.97,-0.01) det=0 age=52.45 dist_to_target=17.2m
+[INFO] [1791331773.138728881] [f_r3_mission]: [t=   48.7 FORWARD         ph= 22.7s] NED(  -0.88,  17.55, -5.04) H= 4.97 hdg=  92.1 pit= -4.4 rol= +0.2 vNED=(-0.07,+1.97,-0.01) det=0 age=53.45 dist_to_target=16.4m
+[INFO] [1791331774.142545524] [f_r3_mission]: [t=   49.8 FORWARD         ph= 23.7s] NED(  -0.90,  18.41, -5.04) H= 4.97 hdg=  92.1 pit= -4.4 rol= +0.1 vNED=(-0.07,+1.98,-0.02) det=0 age=54.45 dist_to_target=15.6m
+[INFO] [1791331775.139195326] [f_r3_mission]: [t=   50.7 FORWARD         ph= 24.7s] NED(  -0.90,  19.07, -5.03) H= 4.97 hdg=  92.1 pit= -4.3 rol= +0.3 vNED=(-0.05,+1.99,-0.01) det=0 age=55.45 dist_to_target=14.9m
+[INFO] [1791331776.141867495] [f_r3_mission]: [t=   51.7 FORWARD         ph= 25.7s] NED(  -0.90,  19.97, -5.03) H= 4.96 hdg=  92.1 pit= -4.2 rol= +0.4 vNED=(-0.06,+2.00,-0.01) det=0 age=56.45 dist_to_target=14.0m
+[INFO] [1791331777.138956456] [f_r3_mission]: [t=   52.7 FORWARD         ph= 26.7s] NED(  -0.90,  20.96, -5.03) H= 4.97 hdg=  92.0 pit= -4.2 rol= +0.4 vNED=(-0.05,+2.00,-0.02) det=0 age=57.45 dist_to_target=13.0m
+[INFO] [1791331778.138826930] [f_r3_mission]: [t=   53.7 FORWARD         ph= 27.7s] NED(  -0.90,  21.80, -5.03) H= 4.96 hdg=  92.1 pit= -4.3 rol= +0.4 vNED=(-0.06,+1.99,-0.02) det=0 age=58.45 dist_to_target=12.2m
+[INFO] [1791331779.138608865] [f_r3_mission]: [t=   54.7 FORWARD         ph= 28.7s] NED(  -0.91,  22.49, -5.03) H= 4.96 hdg=  92.1 pit= -4.3 rol= +0.4 vNED=(-0.05,+1.99,-0.02) det=0 age=59.45 dist_to_target=11.5m
+[INFO] [1791331780.138869857] [f_r3_mission]: [t=   55.7 FORWARD         ph= 29.7s] NED(  -0.91,  23.09, -5.03) H= 4.96 hdg=  92.0 pit= -4.3 rol= +0.5 vNED=(-0.05,+1.99,-0.03) det=0 age=60.45 dist_to_target=10.9m
+[INFO] [1791331781.139527858] [f_r3_mission]: [t=   56.7 FORWARD         ph= 30.7s] NED(  -0.92,  23.73, -5.02) H= 4.96 hdg=  91.9 pit= -4.3 rol= +0.5 vNED=(-0.06,+1.99,-0.02) det=0 age=61.45 dist_to_target=10.2m
+[INFO] [1791331782.140925269] [f_r3_mission]: [t=   57.7 FORWARD         ph= 31.7s] NED(  -0.94,  24.43, -5.02) H= 4.95 hdg=  92.0 pit= -4.3 rol= +0.4 vNED=(-0.06,+1.99,-0.02) det=0 age=62.45 dist_to_target=9.5m
+[INFO] [1791331783.139340963] [f_r3_mission]: [t=   58.7 FORWARD         ph= 32.7s] NED(  -0.97,  25.40, -5.01) H= 4.94 hdg=  91.9 pit= -4.3 rol= +0.4 vNED=(-0.07,+1.99,-0.02) det=0 age=63.45 dist_to_target=8.6m
+[INFO] [1791331784.148943503] [f_r3_mission]: [t=   59.7 FORWARD         ph= 33.7s] NED(  -0.98,  25.88, -5.01) H= 4.94 hdg=  91.9 pit= -4.4 rol= +0.4 vNED=(-0.06,+1.99,-0.03) det=0 age=64.45 dist_to_target=8.1m
+[INFO] [1791331785.139869590] [f_r3_mission]: [t=   60.7 FORWARD         ph= 34.7s] NED(  -1.02,  26.77, -5.00) H= 4.93 hdg=  92.1 pit= -4.3 rol= +0.4 vNED=(-0.06,+1.99,-0.03) det=0 age=65.45 dist_to_target=7.2m
+[INFO] [1791331786.138668931] [f_r3_mission]: [t=   61.7 FORWARD         ph= 35.7s] NED(  -1.07,  27.54, -5.00) H= 4.93 hdg=  92.0 pit= -4.4 rol= +0.4 vNED=(-0.07,+1.99,-0.04) det=0 age=66.45 dist_to_target=6.4m
+[INFO] [1791331787.098801704] [f_r3_mission]:   TRK-DBG step=FORWARD nbox=0 boxes=[] trackers=0[]
+[INFO] [1791331787.141757677] [f_r3_mission]: [t=   62.8 FORWARD         ph= 36.7s] NED(  -1.12,  28.36, -5.00) H= 4.93 hdg=  91.8 pit= -4.4 rol= +0.4 vNED=(-0.07,+1.99,-0.04) det=0 age=67.45 dist_to_target=5.6m
+[INFO] [1791331787.790825572] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/1 (阈值8px, 本帧最小边=[7])
+[INFO] [1791331787.888044986] [f_r3_mission]:   TRK-NEW #0 NED(-1.42,31.05) from box(cx=336,cy=10,w=17,h=18) alive=1
+[INFO] [1791331788.139543659] [f_r3_mission]: [t=   63.7 FORWARD         ph= 37.7s] NED(  -1.19,  29.24, -4.99) H= 4.93 hdg=  92.0 pit= -4.2 rol= +0.4 vNED=(-0.06,+2.01,-0.04) det=1 age=0.05 dist_to_target=4.7m
+[INFO] [1791331788.194318303] [f_r3_mission]:   TRK-DBG step=FORWARD nbox=1 boxes=[(336,22)w18→NED(-1.43,31.11)] trackers=1[#0-NED(-1.43,31.07)age0.3s]
+[INFO] [1791331789.139666215] [f_r3_mission]: [t=   64.7 FORWARD         ph= 38.7s] NED(  -1.28,  30.16, -4.99) H= 4.93 hdg=  92.0 pit= -4.3 rol= +0.5 vNED=(-0.06,+2.00,-0.04) det=1 age=0.05 dist_to_target=3.8m
+[INFO] [1791331789.293022459] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/2 (阈值8px, 本帧最小边=[17, 8])
+[INFO] [1791331789.294351182] [f_r3_mission]:   TRK-DBG step=FORWARD nbox=1 boxes=[(332,96)w17→NED(-1.43,31.11)] trackers=1[#0-NED(-1.43,31.11)age1.4s]
+[INFO] [1791331789.388178393] [f_r3_mission]: Tracker confirmed: NED(-1.4,31.1) after 1.5s
+[INFO] [1791331789.388904019] [f_r3_mission]:   TRK-NEW #1 NED(1.93,32.53) from box(cx=82,cy=8,w=17,h=16) alive=2
+[INFO] [1791331790.139112835] [f_r3_mission]: [t=   65.7 FORWARD         ph= 39.7s] NED(  -1.37,  31.01, -4.99) H= 4.92 hdg=  92.0 pit= -4.3 rol= +0.4 vNED=(-0.06,+2.00,-0.04) det=2 age=0.04 dist_to_target=3.0m
+[INFO] [1791331790.388710310] [f_r3_mission]:   TRK-DBG step=FORWARD nbox=2 boxes=[(327,157)w18→NED(-1.43,31.14) (78,60)w17→NED(1.97,32.59)] trackers=2[#0CNED(-1.44,31.14)age2.5s #1-NED(1.95,32.59)age1.0s]
+[INFO] [1791331790.491976265] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/3 (阈值8px, 本帧最小边=[18, 17, 4])
+[INFO] [1791331790.591507817] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/3 (阈值8px, 本帧最小边=[18, 17, 4])
+[INFO] [1791331790.688181304] [f_r3_mission]:   TRK-NEW #2 NED(0.00,33.52) from box(cx=216,cy=5,w=17,h=10) alive=3
+[INFO] [1791331790.894308018] [f_r3_mission]: Tracker confirmed: NED(2.0,32.7) after 1.5s
+[INFO] [1791331791.139436301] [f_r3_mission]: [t=   66.7 FORWARD         ph= 40.7s] NED(  -1.48,  31.88, -4.99) H= 4.92 hdg=  92.0 pit= -2.0 rol= +0.4 vNED=(-0.08,+1.94,-0.03) det=3 age=0.05 dist_to_target=2.1m
+[INFO] [1791331791.397941762] [f_r3_mission]:   TRK-DBG step=FORWARD nbox=3 boxes=[(321,226)w18→NED(-1.46,31.53) (210,52)w18→NED(0.01,34.00) (72,128)w17→NED(2.00,33.01)] trackers=3[#0CNED(-1.45,31.39)age3.5s #1CNED(2.00,32.87)age2.0s #2-NED(0.01,33.83)age0.7s]
+[INFO] [1791331792.139203944] [f_r3_mission]: [t=   67.7 FORWARD         ph= 41.7s] NED(  -1.56,  32.53, -4.98) H= 4.92 hdg=  92.0 pit= +1.5 rol= +0.3 vNED=(-0.07,+1.71,-0.03) det=3 age=0.05 dist_to_target=1.5m
+[INFO] [1791331792.188887981] [f_r3_mission]: Tracker confirmed: NED(0.0,34.1) after 1.5s
+[INFO] [1791331792.500072465] [f_r3_mission]:   TRK-DBG step=FORWARD nbox=3 boxes=[(68,165)w18→NED(2.00,33.18) (316,263)w17→NED(-1.47,31.71) (206,90)w17→NED(0.03,34.18)] trackers=3[#0CNED(-1.47,31.67)age4.6s #1CNED(2.01,33.15)age3.1s #2CNED(0.03,34.14)age1.8s]
+[INFO] [1791331793.138953876] [f_r3_mission]: [t=   68.7 FORWARD         ph= 42.7s] NED(  -1.66,  33.12, -4.98) H= 4.91 hdg=  92.0 pit= +3.2 rol= +0.3 vNED=(-0.06,+1.36,-0.03) det=3 age=0.05 dist_to_target=1.0m
+[INFO] [1791331793.596622772] [f_r3_mission]:   TRK-DBG step=FORWARD nbox=3 boxes=[(308,318)w17→NED(-1.49,31.88) (198,144)w17→NED(0.01,34.32) (60,220)w17→NED(1.96,33.33)] trackers=3[#0CNED(-1.48,31.85)age5.7s #1CNED(1.97,33.30)age4.2s #2CNED(0.02,34.30)age2.9s]
+[INFO] [1791331794.139244406] [f_r3_mission]: [t=   69.7 FORWARD         ph= 43.7s] NED(  -1.80,  33.72, -4.98) H= 4.91 hdg=  91.6 pit= +2.6 rol= +0.3 vNED=(-0.05,+0.92,-0.05) det=3 age=0.05 dist_to_target=0.6m
+[INFO] [1791331794.690075192] [f_r3_mission]:   TRK-DBG step=FORWARD nbox=3 boxes=[(52,256)w17→NED(1.96,33.12) (190,182)w17→NED(-0.00,34.10) (300,353)w18→NED(-1.49,31.69)] trackers=3[#0CNED(-1.48,31.72)age6.8s #1CNED(1.97,33.16)age5.3s #2CNED(0.01,34.14)age4.0s]
+[INFO] [1791331794.792338900] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/3 (阈值8px, 本帧最小边=[17, 17, 7])
+[INFO] [1791331794.889031872] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/3 (阈值8px, 本帧最小边=[18, 17, 5])
+[INFO] [1791331795.138592685] [f_r3_mission]: [t=   70.7 FORWARD         ph= 44.7s] NED(  -1.94,  34.15, -4.98) H= 4.91 hdg=  91.4 pit= +0.1 rol= +0.2 vNED=(-0.05,+0.69,-0.05) det=2 age=0.04 dist_to_target=0.8m
+[INFO] [1791331795.694916457] [f_r3_mission]:   TRK-DBG step=FORWARD nbox=2 boxes=[(182,202)w18→NED(-0.01,33.99) (44,276)w17→NED(1.97,33.00)] trackers=3[#0CNED(-1.48,31.72)age7.8s #1CNED(1.98,33.02)age6.3s #2CNED(-0.00,34.01)age5.0s]
+[INFO] [1791331796.141528894] [f_r3_mission]: [t=   71.8 FORWARD         ph= 45.7s] NED(  -2.06,  34.44, -4.98) H= 4.91 hdg=  91.3 pit= -0.7 rol= -0.0 vNED=(-0.06,+0.61,-0.05) det=2 age=0.05 dist_to_target=1.0m
+[INFO] [1791331796.388739993] [f_r3_mission]: Overshot target travel=34.52m > 34.0m, entering HOVER_SEARCH
+[INFO] [1791331796.389851812] [f_r3_mission]: STEP FORWARD->HOVER_SEARCH (prev 46.0s) NED(-2.07,34.46,-4.98) H=4.91m
+[INFO] [1791331796.488457004] [f_r3_mission]:   TRK-NEW #0 NED(-0.02,33.95) from box(cx=175,cy=217,w=18,h=18) alive=1
+[INFO] [1791331796.489496639] [f_r3_mission]:   TRK-NEW #1 NED(1.97,32.96) from box(cx=36,cy=292,w=17,h=17) alive=2
+[INFO] [1791331796.792394991] [f_r3_mission]:   TRK-DBG step=HOVER_SEARCH nbox=2 boxes=[(36,295)w18→NED(1.95,32.95) (174,220)w18→NED(-0.02,33.95)] trackers=2[#0-NED(-0.02,33.95)age0.3s #1-NED(1.96,32.96)age0.3s]
+[INFO] [1791331797.139267120] [f_r3_mission]: [t=   72.7 HOVER_SEARCH    ph=  0.7s] NED(  -2.13,  34.61, -4.99) H= 4.93 hdg=  91.6 pit= +3.3 rol= -3.5 vNED=(-0.01,+0.53,-0.12) det=2 age=0.05 search 0.7s confirmed=0/2
+[INFO] [1791331797.901505143] [f_r3_mission]:   TRK-DBG step=HOVER_SEARCH nbox=2 boxes=[(34,314)w18→NED(0.96,33.89) (171,238)w18→NED(-0.69,34.73)] trackers=2[#0-NED(-0.66,34.67)age1.4s #1-NED(1.00,33.83)age1.4s]
+[INFO] [1791331797.991774512] [f_r3_mission]: Tracker confirmed: NED(1.0,33.8) after 1.5s
+[INFO] [1791331797.993382557] [f_r3_mission]: Tracker confirmed: NED(-0.6,34.7) after 1.5s
+[INFO] [1791331797.996109509] [f_r3_mission]: Selected 2 buckets: NED(-0.6,34.7), NED(1.0,33.8)  [lat=-0.56m, lat=-2.19m]
+[INFO] [1791331797.996820700] [f_r3_mission]:   Selection basis (all 2 confirmed, |lateral| asc): NED(-0.65,34.67)[lat=-0.56m,area=306], NED(1.01,33.83)[lat=-2.19m,area=306]
+[INFO] [1791331797.997645324] [f_r3_mission]: STEP HOVER_SEARCH->TRACK (prev 1.6s) NED(-2.17,34.79,-5.02) H=4.96m
+[INFO] [1791331798.139479538] [f_r3_mission]: [t=   73.7 TRACK           ph=  0.1s] NED(  -2.17,  34.79, -5.02) H= 4.96 hdg=  91.7 pit= +7.0 rol= -5.6 vNED=(+0.48,-0.12,-0.05) det=2 age=0.05 B1/2 tgt=NED(-0.65,34.67) px=(-149,-60)err=161px
+[INFO] [1791331798.739424491] [f_r3_mission]:   TARGET-REFRESH id=#3 NED(-0.63,34.52) -> NED(-0.66,34.42) delta=0.10m
+[INFO] [1791331798.990556398] [f_r3_mission]:   TRK-DBG step=TRACK nbox=2 boxes=[(42,311)w18→NED(1.01,33.17) (180,238)w17→NED(-0.73,34.04)] trackers=2[#0CNED(-0.71,34.19)age2.5s #1CNED(1.00,33.33)age2.5s]
+[INFO] [1791331799.139229722] [f_r3_mission]: [t=   74.7 TRACK           ph=  1.1s] NED(  -2.00,  34.77, -5.03) H= 4.97 hdg=  91.0 pit= +0.3 rol= -6.7 vNED=(+0.87,-0.28,-0.03) det=2 age=0.05 B1/2 tgt=NED(-0.70,34.15) px=(-138,-56)err=149px
+[INFO] [1791331800.092521582] [f_r3_mission]:   TRK-DBG step=TRACK nbox=2 boxes=[(64,303)w17→NED(1.49,33.33) (202,231)w17→NED(-0.33,34.25)] trackers=2[#0CNED(-0.38,34.24)age3.6s #1CNED(1.43,33.34)age3.6s]
+[INFO] [1791331800.139777388] [f_r3_mission]: [t=   75.7 TRACK           ph=  2.1s] NED(  -1.71,  34.70, -5.03) H= 4.96 hdg=  90.7 pit= +2.5 rol= -3.3 vNED=(+1.03,-0.35,-0.02) det=2 age=0.05 B1/2 tgt=NED(-0.40,34.24) px=(-118,-51)err=129px
+[INFO] [1791331801.138917517] [f_r3_mission]: [t=   76.7 TRACK           ph=  3.1s] NED(  -1.21,  34.55, -5.03) H= 4.97 hdg=  90.7 pit= +0.6 rol= -1.2 vNED=(+1.08,-0.39,-0.02) det=2 age=0.05 B1/2 tgt=NED(-0.23,34.08) px=(-86,-41)err=96px
+[INFO] [1791331801.188309331] [f_r3_mission]:   TRK-DBG step=TRACK nbox=2 boxes=[(100,292)w18→NED(1.82,33.11) (238,220)w17→NED(-0.11,34.07)] trackers=2[#0CNED(-0.17,34.07)age4.7s #1CNED(1.74,33.12)age4.7s]
+[INFO] [1791331802.142404390] [f_r3_mission]: [t=   77.7 TRACK           ph=  4.1s] NED(  -0.82,  34.44, -5.03) H= 4.97 hdg=  90.8 pit= +0.5 rol= -0.2 vNED=(+0.97,-0.37,-0.03) det=2 age=0.05 B1/2 tgt=NED(-0.05,34.08) px=(-59,-32)err=67px
+[INFO] [1791331802.191451074] [f_r3_mission]:   TRK-DBG step=TRACK nbox=2 boxes=[(128,283)w17→NED(1.97,33.06) (266,210)w17→NED(-0.00,34.05)] trackers=2[#0CNED(-0.03,34.07)age5.7s #1CNED(1.92,33.09)age5.7s]
+[INFO] [1791331803.139302990] [f_r3_mission]: [t=   78.7 TRACK           ph=  5.1s] NED(  -0.35,  34.28, -5.04) H= 4.97 hdg=  90.7 pit= -0.2 rol= +1.3 vNED=(+0.71,-0.31,-0.03) det=2 age=0.05 B1/2 tgt=NED(0.09,34.01) px=(-24,-20)err=31px
+[INFO] [1791331803.292864349] [f_r3_mission]:   TRK-DBG step=TRACK nbox=2 boxes=[(160,270)w17→NED(2.13,33.00) (298,198)w17→NED(0.12,34.00)] trackers=2[#0CNED(0.11,34.00)age6.8s #1CNED(2.11,33.00)age6.8s]
+[INFO] [1791331804.139806355] [f_r3_mission]: [t=   79.7 TRACK           ph=  6.1s] NED(  -0.13,  34.20, -5.04) H= 4.97 hdg=  90.8 pit= -0.2 rol= +1.6 vNED=(+0.54,-0.26,-0.03) det=2 age=0.05 B1/2 tgt=NED(0.14,33.99) px=(-9,-14)err=17px
+[INFO] [1791331804.291350710] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/3 (阈值8px, 本帧最小边=[18, 17, 1])
+[INFO] [1791331804.292079146] [f_r3_mission]:   TRK-DBG step=TRACK nbox=2 boxes=[(314,193)w18→NED(0.16,33.98) (176,265)w17→NED(2.17,32.98)] trackers=2[#0CNED(0.15,33.99)age7.8s #1CNED(2.15,32.99)age7.8s]
+[INFO] [1791331804.388087370] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/3 (阈值8px, 本帧最小边=[17, 17, 2])
+[INFO] [1791331804.488880249] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/3 (阈值8px, 本帧最小边=[18, 17, 2])
+[INFO] [1791331804.594848946] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/3 (阈值8px, 本帧最小边=[17, 17, 2])
+[INFO] [1791331804.691352317] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/3 (阈值8px, 本帧最小边=[17, 17, 2])
+[INFO] [1791331804.788053498] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/3 (阈值8px, 本帧最小边=[17, 17, 2])
+[INFO] [1791331804.888808088] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/3 (阈值8px, 本帧最小边=[17, 17, 3])
+[INFO] [1791331804.988600228] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/3 (阈值8px, 本帧最小边=[17, 17, 4])
+[INFO] [1791331805.088597311] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/3 (阈值8px, 本帧最小边=[17, 17, 4])
+[INFO] [1791331805.141370346] [f_r3_mission]: [t=   80.8 TRACK           ph=  7.1s] NED(   0.00,  34.14, -5.04) H= 4.98 hdg=  90.9 pit= -0.4 rol= +1.6 vNED=(+0.40,-0.22,-0.02) det=2 age=0.05 B1/2 tgt=NED(0.15,33.98) px=(-1,-10)err=11px
+[INFO] [1791331805.189520755] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/3 (阈值8px, 本帧最小边=[18, 17, 4])
+[INFO] [1791331805.291441340] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/3 (阈值8px, 本帧最小边=[17, 17, 5])
+[INFO] [1791331805.293465346] [f_r3_mission]:   TRK-DBG step=TRACK nbox=2 boxes=[(184,262)w18→NED(2.15,32.98) (322,190)w17→NED(0.15,33.97)] trackers=2[#0CNED(0.15,33.98)age8.8s #1CNED(2.15,32.98)age8.8s]
+[INFO] [1791331805.389129435] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/3 (阈值8px, 本帧最小边=[17, 17, 5])
+[INFO] [1791331805.495869361] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/3 (阈值8px, 本帧最小边=[17, 17, 6])
+[INFO] [1791331805.588998366] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/3 (阈值8px, 本帧最小边=[17, 17, 6])
+[INFO] [1791331805.690531667] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/3 (阈值8px, 本帧最小边=[17, 17, 6])
+[INFO] [1791331805.788159414] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/3 (阈值8px, 本帧最小边=[17, 17, 7])
+[INFO] [1791331805.893600688] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/3 (阈值8px, 本帧最小边=[17, 17, 7])
+[INFO] [1791331805.992907104] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/3 (阈值8px, 本帧最小边=[17, 17, 8])
+[INFO] [1791331806.090490024] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/3 (阈值8px, 本帧最小边=[17, 17, 8])
+[INFO] [1791331806.139846935] [f_r3_mission]: [t=   81.7 TRACK           ph=  8.1s] NED(   0.09,  34.09, -5.04) H= 4.97 hdg=  90.9 pit= -0.5 rol= +1.5 vNED=(+0.25,-0.18,-0.02) det=2 age=0.05 B1/2 tgt=NED(0.15,33.97) px=(+6,-6)err=9px
+[INFO] [1791331806.191308726] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/3 (阈值8px, 本帧最小边=[17, 17, 8])
+[INFO] [1791331806.296972329] [f_r3_mission]:   TRK-NEW #2 NED(-1.34,31.57) from box(cx=434,cy=354,w=17,h=9) alive=3
+[INFO] [1791331806.302332382] [f_r3_mission]:   TRK-DBG step=TRACK nbox=3 boxes=[(190,258)w17→NED(2.13,32.97) (328,186)w17→NED(0.14,33.97) (434,354)w17→NED(-1.34,31.57)] trackers=3[#0CNED(0.15,33.97)age9.8s #1CNED(2.14,32.97)age9.8s #2-NED(-1.34,31.57)age0.0s]
+[INFO] [1791331807.138457039] [f_r3_mission]: [t=   82.7 TRACK           ph=  9.1s] NED(   0.15,  34.04, -5.04) H= 4.98 hdg=  90.9 pit= -0.6 rol= +1.2 vNED=(+0.14,-0.14,-0.02) det=3 age=0.05 B1/2 tgt=NED(0.13,33.96) px=(+10,-2)err=11px
+[INFO] [1791331807.391458221] [f_r3_mission]:   TRK-DBG step=TRACK nbox=3 boxes=[(331,182)w18→NED(0.12,33.96) (194,254)w17→NED(2.12,32.96) (438,353)w17→NED(-1.35,31.54)] trackers=3[#0CNED(0.12,33.96)age10.9s #1CNED(2.12,32.96)age10.9s #2-NED(-1.35,31.54)age1.1s]
+[INFO] [1791331807.890154793] [f_r3_mission]: Tracker confirmed: NED(-1.4,31.5) after 1.6s
+[INFO] [1791331808.139788801] [f_r3_mission]: [t=   83.7 TRACK           ph= 10.1s] NED(   0.18,  34.01, -5.05) H= 4.98 hdg=  91.0 pit= -0.4 rol= +1.2 vNED=(+0.07,-0.10,-0.02) det=3 age=0.05 B1/2 tgt=NED(0.12,33.97) px=(+12,-0)err=13px
+[INFO] [1791331808.289171430] [f_r3_mission]: STEP TRACK->POSITION_REFINE (prev 10.3s) NED(0.18,34.01,-5.05) H=4.98m
+[INFO] [1791331808.338724163] [f_r3_mission]:   REFINE candidates vs target(0.1,34.0): (2.1,33.0)d=2.2, (0.1,34.0)d=0.0, (-1.4,31.5)d=2.8 best_dist=0.0 n=1
+[INFO] [1791331808.396494031] [f_r3_mission]:   TRK-DBG step=POSITION_REFINE nbox=3 boxes=[(196,253)w17→NED(2.10,32.97) (332,180)w17→NED(0.11,33.97) (439,352)w18→NED(-1.36,31.53)] trackers=3[#0CNED(0.12,33.97)age11.9s #1CNED(2.11,32.97)age11.9s #2CNED(-1.36,31.53)age2.1s]
+[INFO] [1791331809.138971959] [f_r3_mission]: [t=   84.7 POSITION_REFINE ph=  0.8s] NED(   0.18,  33.99, -5.05) H= 4.98 hdg=  90.9 pit= -0.6 rol= +0.9 vNED=(+0.01,-0.08,-0.02) det=3 age=0.05 refine_samples=16 elapsed=0.8s
+[INFO] [1791331809.339244758] [f_r3_mission]:   REFINE candidates vs target(0.1,34.0): (2.1,33.0)d=2.2, (0.1,34.0)d=0.0, (-1.4,31.5)d=2.9 best_dist=0.0 n=21
+[INFO] [1791331809.488915567] [f_r3_mission]:   TRK-DBG step=POSITION_REFINE nbox=3 boxes=[(195,252)w18→NED(2.07,32.96) (332,180)w17→NED(0.09,33.95) (438,352)w17→NED(-1.39,31.51)] trackers=3[#0CNED(0.09,33.96)age13.0s #1CNED(2.08,32.96)age13.0s #2CNED(-1.39,31.51)age3.2s]
+[INFO] [1791331810.142227749] [f_r3_mission]: [t=   85.7 POSITION_REFINE ph=  1.9s] NED(   0.17,  33.98, -5.05) H= 4.98 hdg=  90.8 pit= -0.5 rol= +0.7 vNED=(-0.03,-0.05,-0.02) det=3 age=0.05 refine_samples=36 elapsed=1.9s
+[INFO] [1791331810.290520304] [f_r3_mission]: Position refined: (0.08,33.97) -> (0.09,33.96) delta=(0.011,-0.005)m n=40
+[INFO] [1791331810.292179135] [f_r3_mission]: STEP POSITION_REFINE->PRE_SERVO (prev 2.0s) NED(0.16,33.98,-5.05) H=4.98m
+[INFO] [1791331810.345375574] [f_r3_mission]:   PRE-SERVO H= 4.98m target_z-GND=+2.48m cmd_z=-2.57 下降率=-0.01m/s tgt=NED(0.08,33.97) 横向偏差=0.10m
+[INFO] [1791331810.491178453] [f_r3_mission]:   TRK-DBG step=PRE_SERVO nbox=3 boxes=[(194,250)w17→NED(2.04,32.99) (330,178)w17→NED(0.06,33.98) (438,351)w17→NED(-1.42,31.53)] trackers=3[#0CNED(0.07,33.98)age14.0s #1CNED(2.05,32.99)age14.0s #2CNED(-1.41,31.52)age4.2s]
+[INFO] [1791331811.139174814] [f_r3_mission]: [t=   86.7 PRE_SERVO       ph=  0.8s] NED(   0.14,  33.98, -4.85) H= 4.78 hdg=  90.9 pit= -0.3 rol= +0.4 vNED=(-0.05,-0.05,+1.36) det=3 age=0.05 tgt=NED(0.06,33.98) px=(+10,+2)err=10px
+[INFO] [1791331811.291862238] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/3 (阈值9px, 本帧最小边=[18, 18, 7])
+[INFO] [1791331811.388889057] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/3 (阈值9px, 本帧最小边=[18, 18, 5])
+[INFO] [1791331811.395923889] [f_r3_mission]:   PRE-SERVO H= 4.66m target_z-GND=+2.16m cmd_z=-2.57 下降率=1.53m/s tgt=NED(0.06,33.98) 横向偏差=0.10m
+[INFO] [1791331811.488782405] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/3 (阈值9px, 本帧最小边=[19, 18, 3])
+[INFO] [1791331811.589430711] [f_r3_mission]:   TRK-DBG step=PRE_SERVO nbox=2 boxes=[(180,258)w19→NED(2.04,32.97) (330,178)w19→NED(0.05,33.96)] trackers=3[#0CNED(0.05,33.97)age15.1s #1CNED(2.04,32.98)age15.1s #2CNED(-1.43,31.56)age5.3s]
+[INFO] [1791331812.139815366] [f_r3_mission]: [t=   87.7 PRE_SERVO       ph=  1.8s] NED(   0.13,  33.98, -4.38) H= 4.31 hdg=  90.9 pit= -0.6 rol= +0.5 vNED=(-0.05,-0.04,+1.69) det=2 age=0.05 tgt=NED(0.05,33.96) px=(+10,+2)err=10px
+[INFO] [1791331812.439157879] [f_r3_mission]:   PRE-SERVO H= 4.05m target_z-GND=+1.55m cmd_z=-2.57 下降率=1.71m/s tgt=NED(0.05,33.97) 横向偏差=0.09m
+[INFO] [1791331812.589008259] [f_r3_mission]:   TRK-DBG step=PRE_SERVO nbox=2 boxes=[(330,178)w22→NED(0.04,33.98) (158,268)w21→NED(2.01,32.99)] trackers=3[#0CNED(0.04,33.97)age16.1s #1CNED(2.02,32.99)age16.1s #2CNED(-1.43,31.56)age6.3s]
+[INFO] [1791331813.142264795] [f_r3_mission]: [t=   88.7 PRE_SERVO       ph=  2.8s] NED(   0.10,  33.98, -3.61) H= 3.55 hdg=  90.9 pit= -0.4 rol= +0.4 vNED=(-0.05,-0.02,+1.41) det=2 age=0.05 tgt=NED(0.04,33.98) px=(+10,+2)err=10px
+[INFO] [1791331813.488902737] [f_r3_mission]:   PRE-SERVO H= 3.41m target_z-GND=+0.91m cmd_z=-2.57 下降率=1.24m/s tgt=NED(0.04,33.98) 横向偏差=0.08m
+[INFO] [1791331813.588769028] [f_r3_mission]:   TRK-DBG step=PRE_SERVO nbox=2 boxes=[(128,284)w26→NED(2.01,33.00) (330,178)w26→NED(0.04,33.99)] trackers=2[#0CNED(0.04,33.98)age17.1s #1CNED(2.01,33.00)age17.1s]
+[INFO] [1791331814.141900372] [f_r3_mission]: [t=   89.8 PRE_SERVO       ph=  3.8s] NED(   0.08,  34.00, -3.09) H= 3.02 hdg=  90.9 pit= -0.3 rol= +0.1 vNED=(-0.06,-0.02,+0.68) det=2 age=0.05 tgt=NED(0.03,33.99) px=(+10,+1)err=10px
+[INFO] [1791331814.490300577] [f_r3_mission]:   PRE-SERVO H= 2.96m target_z-GND=+0.46m cmd_z=-2.57 下降率=0.58m/s tgt=NED(0.02,33.99) 横向偏差=0.07m
+[INFO] [1791331814.595559409] [f_r3_mission]:   TRK-DBG step=PRE_SERVO nbox=2 boxes=[(100,300)w29→NED(1.98,33.01) (330,180)w29→NED(0.02,33.99)] trackers=2[#0CNED(0.02,33.99)age18.1s #1CNED(1.99,33.01)age18.1s]
+[INFO] [1791331815.139166330] [f_r3_mission]: [t=   90.7 PRE_SERVO       ph=  4.8s] NED(   0.08,  34.00, -2.91) H= 2.85 hdg=  90.8 pit= -0.2 rol= +0.2 vNED=(-0.06,-0.01,+0.42) det=2 age=0.05 tgt=NED(0.02,33.99) px=(+9,+0)err=9px
+[INFO] [1791331815.389689384] [f_r3_mission]: PRE_SERVO update target: (0.02,34.00) H=2.8m
+[INFO] [1791331815.394722235] [f_r3_mission]: STEP PRE_SERVO->VISUAL_SERVO (prev 5.1s) NED(0.07,34.00,-2.86) H=2.79m
+[INFO] [1791331815.438912747] [f_r3_mission]: LOW-SERVO raw=0.016m filtered=0.016m pred=0.029m target_rate=(+0.006,-0.002)m/s vxy=0.055m/s age=0.051s braking=0
+[INFO] [1791331815.692539258] [f_r3_mission]:   TRK-DBG step=VISUAL_SERVO nbox=2 boxes=[(84,308)w31→NED(1.99,33.01) (328,180)w31→NED(0.03,34.00)] trackers=2[#0CNED(0.03,34.00)age19.2s #1CNED(1.99,33.02)age19.2s]
+[INFO] [1791331816.138821435] [f_r3_mission]: [t=   91.7 VISUAL_SERVO    ph=  0.7s] NED(   0.07,  34.01, -2.71) H= 2.65 hdg=  90.7 pit= -0.2 rol= -0.1 vNED=(-0.05,-0.01,+1.09) det=2 age=0.05 B1/2 SERVO tgt=NED(0.02,34.00) px=(+9,-1)err=9px
+[INFO] [1791331816.492271372] [f_r3_mission]: LOW-SERVO raw=0.030m filtered=0.029m pred=0.013m target_rate=(+0.001,-0.008)m/s vxy=0.039m/s age=0.103s braking=0
+[INFO] [1791331816.793949109] [f_r3_mission]:   TRK-DBG step=VISUAL_SERVO nbox=2 boxes=[(330,182)w36→NED(0.00,34.00) (50,328)w35→NED(1.94,33.03)] trackers=2[#0CNED(0.00,34.00)age20.3s #1CNED(1.95,33.03)age20.3s]
+[INFO] [1791331817.144589327] [f_r3_mission]: [t=   92.8 VISUAL_SERVO    ph=  1.8s] NED(   0.08,  34.02, -2.30) H= 2.23 hdg=  90.6 pit= -0.2 rol= -0.2 vNED=(-0.02,-0.02,+1.29) det=2 age=0.06 B1/2 SERVO tgt=NED(0.02,34.00) px=(+12,-2)err=12px
+[INFO] [1791331817.491774248] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/2 (阈值21px, 本帧最小边=[42, 20])
+[INFO] [1791331817.495739810] [f_r3_mission]: LOW-SERVO raw=0.041m filtered=0.040m pred=0.028m target_rate=(-0.009,-0.010)m/s vxy=0.021m/s age=0.002s braking=0
+[INFO] [1791331817.591327436] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/2 (阈值21px, 本帧最小边=[42, 20])
+[INFO] [1791331817.689419869] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/2 (阈值21px, 本帧最小边=[42, 20])
+[INFO] [1791331817.788431458] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/2 (阈值21px, 本帧最小边=[42, 18])
+[INFO] [1791331817.888455733] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/2 (阈值22px, 本帧最小边=[44, 9])
+[INFO] [1791331817.889335525] [f_r3_mission]:   TRK-DBG step=VISUAL_SERVO nbox=1 boxes=[(335,184)w44→NED(0.02,34.00)] trackers=2[#0CNED(0.01,34.00)age21.4s #1CNED(1.93,33.05)age21.4s]
+[INFO] [1791331817.991184580] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/2 (阈值22px, 本帧最小边=[44, 9])
+[INFO] [1791331818.089447073] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/2 (阈值22px, 本帧最小边=[45, 2])
+[INFO] [1791331818.139106051] [f_r3_mission]: [t=   93.7 VISUAL_SERVO    ph=  2.7s] NED(   0.09,  34.02, -1.95) H= 1.88 hdg=  90.6 pit= -0.2 rol= +0.1 vNED=(-0.01,-0.02,+0.87) det=1 age=0.05 B1/2 SERVO tgt=NED(0.02,34.00) px=(+16,-4)err=17px
+[INFO] [1791331818.538706527] [f_r3_mission]: LOW-SERVO raw=0.050m filtered=0.049m pred=0.036m target_rate=(-0.012,-0.010)m/s vxy=0.021m/s age=0.043s braking=0
+[INFO] [1791331818.990578326] [f_r3_mission]:   TRK-DBG step=VISUAL_SERVO nbox=1 boxes=[(342,186)w49→NED(0.02,34.01)] trackers=2[#0CNED(0.02,34.01)age22.5s #1CNED(1.93,33.05)age22.5s]
+[INFO] [1791331819.140296362] [f_r3_mission]: [t=   94.7 VISUAL_SERVO    ph=  3.7s] NED(   0.11,  34.03, -1.72) H= 1.66 hdg=  90.5 pit= +0.0 rol= +0.3 vNED=(-0.03,-0.02,+0.55) det=1 age=0.05 B1/2 SERVO tgt=NED(0.02,34.00) px=(+22,-6)err=23px
+[INFO] [1791331819.540533009] [f_r3_mission]: LOW-SERVO raw=0.056m filtered=0.059m pred=0.036m target_rate=(-0.016,-0.009)m/s vxy=0.039m/s age=0.051s braking=0
+[INFO] [1791331820.093927719] [f_r3_mission]:   TRK-DBG step=VISUAL_SERVO nbox=1 boxes=[(350,188)w56→NED(0.03,34.01)] trackers=1[#0CNED(0.03,34.01)age23.6s]
+[INFO] [1791331820.140568772] [f_r3_mission]: [t=   95.7 VISUAL_SERVO    ph=  4.7s] NED(   0.14,  34.03, -1.58) H= 1.51 hdg=  90.4 pit= +0.2 rol= +0.4 vNED=(-0.05,-0.03,+0.34) det=1 age=0.04 B1/2 SERVO tgt=NED(0.02,34.00) px=(+30,-8)err=31px
+[INFO] [1791331820.589483214] [f_r3_mission]: LOW-SERVO raw=0.068m filtered=0.070m pred=0.034m target_rate=(-0.020,+0.000)m/s vxy=0.068m/s age=0.098s braking=0
+[INFO] [1791331821.138566811] [f_r3_mission]: [t=   96.7 VISUAL_SERVO    ph=  5.7s] NED(   0.16,  34.03, -1.49) H= 1.42 hdg=  90.4 pit= +0.1 rol= +0.6 vNED=(-0.06,-0.04,+0.22) det=1 age=0.05 B1/2 SERVO tgt=NED(0.02,34.00) px=(+38,-6)err=39px
+[INFO] [1791331821.199625894] [f_r3_mission]:   TRK-DBG step=VISUAL_SERVO nbox=1 boxes=[(358,186)w59→NED(0.03,34.01)] trackers=1[#0CNED(0.03,34.01)age24.7s]
+[INFO] [1791331821.539442621] [f_r3_mission]: STEP VISUAL_SERVO->DROP (prev 6.1s) NED(0.17,34.03,-1.46) H=1.39m
+[INFO] [1791331821.590755544] [f_r3_mission]: LOW-SERVO raw=0.088m filtered=0.090m pred=0.044m target_rate=(-0.025,+0.002)m/s vxy=0.085m/s age=0.102s braking=0
+[INFO] [1791331822.138677913] [f_r3_mission]: [t=   97.7 DROP            ph=  0.6s] NED(   0.19,  34.02, -1.42) H= 1.35 hdg=  90.3 pit= -0.0 rol= +0.9 vNED=(-0.09,-0.05,+0.13) det=1 age=0.05 B1/2 tgt=NED(0.02,34.00) px=(+47,-5)err=47px
+[INFO] [1791331822.287974681] [f_r3_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(369,184)w62→NED(0.04,34.01)] trackers=1[#0CNED(0.04,34.01)age25.8s]
+[INFO] [1791331822.639189917] [f_r3_mission]: LOW-SERVO raw=0.111m filtered=0.111m pred=0.047m target_rate=(-0.027,+0.009)m/s vxy=0.122m/s age=0.049s braking=0
+[INFO] [1791331823.139925298] [f_r3_mission]: [t=   98.7 DROP            ph=  1.6s] NED(   0.22,  34.01, -1.37) H= 1.31 hdg=  90.2 pit= -0.3 rol= +0.9 vNED=(-0.12,-0.04,+0.08) det=1 age=0.05 B1/2 tgt=NED(0.02,34.00) px=(+56,-1)err=56px
+[INFO] [1791331823.293090056] [f_r3_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(376,181)w64→NED(0.05,34.00)] trackers=1[#0CNED(0.05,34.00)age26.8s]
+[INFO] [1791331823.643158404] [f_r3_mission]: LOW-SERVO raw=0.134m filtered=0.133m pred=0.059m target_rate=(-0.032,+0.005)m/s vxy=0.128m/s age=0.052s braking=0
+[INFO] [1791331824.138914399] [f_r3_mission]: [t=   99.7 DROP            ph=  2.6s] NED(   0.22,  34.00, -1.35) H= 1.29 hdg=  90.1 pit= -0.3 rol= +1.0 vNED=(-0.14,-0.02,+0.05) det=1 age=0.05 B1/2 tgt=NED(0.02,34.00) px=(+57,+0)err=57px
+[INFO] [1791331824.293867783] [f_r3_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(380,178)w65→NED(0.04,34.00)] trackers=1[#0CNED(0.05,34.00)age27.8s]
+[INFO] [1791331824.690835432] [f_r3_mission]: LOW-SERVO raw=0.143m filtered=0.144m pred=0.054m target_rate=(-0.031,+0.009)m/s vxy=0.155m/s age=0.002s braking=0
+[INFO] [1791331825.139913048] [f_r3_mission]: [t=  100.7 DROP            ph=  3.6s] NED(   0.23,  33.98, -1.33) H= 1.27 hdg=  90.1 pit= -0.3 rol= +0.7 vNED=(-0.16,-0.01,+0.04) det=1 age=0.05 B1/2 tgt=NED(0.02,34.00) px=(+59,+4)err=59px
+[INFO] [1791331825.394265315] [f_r3_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(381,173)w66→NED(0.04,34.00)] trackers=1[#0CNED(0.04,34.00)age28.9s]
+[INFO] [1791331825.693151800] [f_r3_mission]: LOW-SERVO raw=0.151m filtered=0.147m pred=0.048m target_rate=(-0.024,+0.016)m/s vxy=0.175m/s age=0.097s braking=0
+[INFO] [1791331826.139706134] [f_r3_mission]: [t=  101.7 DROP            ph=  4.6s] NED(   0.22,  33.96, -1.32) H= 1.25 hdg=  90.1 pit= -0.5 rol= +0.5 vNED=(-0.17,+0.01,+0.02) det=1 age=0.05 B1/2 tgt=NED(0.02,34.00) px=(+58,+12)err=59px
+[INFO] [1791331826.490462346] [f_r3_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(380,165)w66→NED(0.04,33.99)] trackers=1[#0CNED(0.04,33.99)age30.0s]
+[INFO] [1791331826.738916977] [f_r3_mission]: LOW-SERVO raw=0.153m filtered=0.152m pred=0.052m target_rate=(-0.025,+0.019)m/s vxy=0.176m/s age=0.045s braking=0
+[INFO] [1791331827.141928352] [f_r3_mission]: [t=  102.7 DROP            ph=  5.6s] NED(   0.22,  33.94, -1.31) H= 1.24 hdg=  89.9 pit= -0.6 rol= +0.4 vNED=(-0.17,+0.04,+0.02) det=1 age=0.05 B1/2 tgt=NED(0.02,34.00) px=(+58,+16)err=60px
+[INFO] [1791331827.592915381] [f_r3_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(380,160)w67→NED(0.03,33.99)] trackers=1[#0CNED(0.03,33.99)age31.1s]
+[INFO] [1791331827.744113135] [f_r3_mission]: LOW-SERVO raw=0.155m filtered=0.155m pred=0.059m target_rate=(-0.030,+0.018)m/s vxy=0.162m/s age=0.040s braking=0
+[INFO] [1791331828.138675514] [f_r3_mission]: [t=  103.7 DROP            ph=  6.6s] NED(   0.22,  33.92, -1.30) H= 1.23 hdg=  90.0 pit= -0.6 rol= +0.5 vNED=(-0.16,+0.06,+0.01) det=1 age=0.05 B1/2 tgt=NED(0.02,34.00) px=(+58,+22)err=61px
+[INFO] [1791331828.688214392] [f_r3_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(378,156)w68→NED(0.03,33.99)] trackers=1[#0CNED(0.04,33.99)age32.2s]
+[INFO] [1791331828.789488309] [f_r3_mission]: LOW-SERVO raw=0.155m filtered=0.155m pred=0.057m target_rate=(-0.028,+0.020)m/s vxy=0.164m/s age=0.100s braking=0
+[INFO] [1791331829.138806719] [f_r3_mission]: [t=  104.7 DROP            ph=  7.6s] NED(   0.21,  33.90, -1.29) H= 1.23 hdg=  89.9 pit= -0.6 rol= +0.5 vNED=(-0.15,+0.07,+0.01) det=1 age=0.05 B1/2 tgt=NED(0.02,34.00) px=(+58,+26)err=63px
+[INFO] [1791331829.692725628] [f_r3_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(376,151)w68→NED(0.03,33.98)] trackers=1[#0CNED(0.03,33.99)age33.2s]
+[INFO] [1791331829.788979336] [f_r3_mission]: LOW-SERVO raw=0.158m filtered=0.157m pred=0.064m target_rate=(-0.024,+0.026)m/s vxy=0.160m/s age=0.001s braking=0
+[INFO] [1791331830.142820217] [f_r3_mission]: [t=  105.7 DROP            ph=  8.6s] NED(   0.21,  33.89, -1.29) H= 1.22 hdg=  89.9 pit= -0.8 rol= +0.5 vNED=(-0.14,+0.07,+0.01) det=1 age=0.05 B1/2 tgt=NED(0.02,34.00) px=(+56,+31)err=64px
+[INFO] [1791331830.693668004] [f_r3_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(374,148)w68→NED(0.03,33.98)] trackers=1[#0CNED(0.03,33.98)age34.2s]
+[INFO] [1791331830.792266219] [f_r3_mission]: LOW-SERVO raw=0.155m filtered=0.155m pred=0.058m target_rate=(-0.022,+0.027)m/s vxy=0.165m/s age=0.002s braking=0
+[INFO] [1791331831.139996671] [f_r3_mission]: [t=  106.7 DROP            ph=  9.6s] NED(   0.20,  33.87, -1.29) H= 1.22 hdg=  89.8 pit= -0.8 rol= +0.4 vNED=(-0.14,+0.09,+0.01) det=1 age=0.04 B1/2 tgt=NED(0.02,34.00) px=(+54,+35)err=64px
+[INFO] [1791331831.789197447] [f_r3_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(372,143)w67→NED(0.03,33.99)] trackers=1[#0CNED(0.03,33.98)age35.3s]
+[INFO] [1791331831.792497590] [f_r3_mission]: LOW-SERVO raw=0.162m filtered=0.161m pred=0.060m target_rate=(-0.019,+0.030)m/s vxy=0.173m/s age=0.002s braking=0
+[INFO] [1791331832.139870900] [f_r3_mission]: [t=  107.7 DROP            ph= 10.6s] NED(   0.18,  33.87, -1.28) H= 1.22 hdg=  89.8 pit= -0.8 rol= +0.2 vNED=(-0.13,+0.11,+0.01) det=1 age=0.05 B1/2 tgt=NED(0.02,34.00) px=(+51,+37)err=63px
+[INFO] [1791331832.840040063] [f_r3_mission]: LOW-SERVO raw=0.148m filtered=0.148m pred=0.038m target_rate=(-0.015,+0.017)m/s vxy=0.183m/s age=0.051s braking=0
+[INFO] [1791331832.897051401] [f_r3_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(368,145)w68→NED(0.03,33.98)] trackers=1[#0CNED(0.03,33.98)age36.4s]
+[INFO] [1791331833.139785492] [f_r3_mission]: [t=  108.7 DROP            ph= 11.6s] NED(   0.18,  33.86, -1.28) H= 1.22 hdg=  89.8 pit= -0.7 rol= +0.3 vNED=(-0.13,+0.13,+0.01) det=1 age=0.05 B1/2 tgt=NED(0.02,34.00) px=(+49,+37)err=61px
+[INFO] [1791331833.889442476] [f_r3_mission]: LOW-SERVO raw=0.147m filtered=0.147m pred=0.034m target_rate=(-0.014,+0.015)m/s vxy=0.187m/s age=0.001s braking=0
+[INFO] [1791331833.988268669] [f_r3_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(366,144)w68→NED(0.03,33.99)] trackers=1[#0CNED(0.03,33.99)age37.5s]
+[INFO] [1791331834.142679578] [f_r3_mission]: [t=  109.8 DROP            ph= 12.6s] NED(   0.17,  33.87, -1.28) H= 1.22 hdg=  89.8 pit= -0.5 rol= +0.3 vNED=(-0.12,+0.14,+0.00) det=1 age=0.04 B1/2 tgt=NED(0.02,34.00) px=(+46,+36)err=58px
+[INFO] [1791331834.891260435] [f_r3_mission]: LOW-SERVO raw=0.142m filtered=0.146m pred=0.036m target_rate=(-0.015,+0.015)m/s vxy=0.185m/s age=0.101s braking=0
+[INFO] [1791331834.994093918] [f_r3_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(366,142)w67→NED(0.03,33.99)] trackers=1[#0CNED(0.03,33.99)age38.5s]
+[INFO] [1791331835.139916612] [f_r3_mission]: [t=  110.7 DROP            ph= 13.6s] NED(   0.17,  33.86, -1.28) H= 1.22 hdg=  89.7 pit= -0.5 rol= +0.4 vNED=(-0.11,+0.15,+0.01) det=1 age=0.05 B1/2 tgt=NED(0.02,34.00) px=(+46,+39)err=60px
+[INFO] [1791331835.939098276] [f_r3_mission]: LOW-SERVO raw=0.153m filtered=0.154m pred=0.048m target_rate=(-0.019,+0.022)m/s vxy=0.177m/s age=0.046s braking=0
+[INFO] [1791331836.095134644] [f_r3_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(365,140)w68→NED(0.03,33.99)] trackers=1[#0CNED(0.03,33.99)age39.6s]
+[INFO] [1791331836.141111852] [f_r3_mission]: [t=  111.7 DROP            ph= 14.6s] NED(   0.17,  33.85, -1.29) H= 1.22 hdg=  89.6 pit= -0.6 rol= +0.4 vNED=(-0.10,+0.14,+0.01) det=1 age=0.04 B1/2 tgt=NED(0.02,34.00) px=(+45,+40)err=60px
+[INFO] [1791331836.939339983] [f_r3_mission]: LOW-SERVO raw=0.167m filtered=0.166m pred=0.058m target_rate=(-0.021,+0.028)m/s vxy=0.180m/s age=0.046s braking=0
+[INFO] [1791331837.139446548] [f_r3_mission]: [t=  112.7 DROP            ph= 15.6s] NED(   0.17,  33.83, -1.29) H= 1.22 hdg=  89.7 pit= -0.5 rol= +0.5 vNED=(-0.09,+0.15,+0.01) det=1 age=0.05 B1/2 tgt=NED(0.02,34.00) px=(+46,+46)err=65px
+[INFO] [1791331837.192829511] [f_r3_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(366,134)w67→NED(0.03,33.99)] trackers=1[#0CNED(0.03,33.99)age40.7s]
+[INFO] [1791331837.988826816] [f_r3_mission]: LOW-SERVO raw=0.173m filtered=0.173m pred=0.064m target_rate=(-0.017,+0.033)m/s vxy=0.182m/s age=0.001s braking=0
+[INFO] [1791331838.140042085] [f_r3_mission]: [t=  113.7 DROP            ph= 16.6s] NED(   0.16,  33.83, -1.29) H= 1.22 hdg=  89.6 pit= -0.6 rol= +0.4 vNED=(-0.09,+0.16,+0.02) det=1 age=0.04 B1/2 tgt=NED(0.02,34.00) px=(+43,+46)err=63px
+[INFO] [1791331838.289096430] [f_r3_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(363,132)w68→NED(0.03,33.99)] trackers=1[#0CNED(0.03,33.99)age41.8s]
+[INFO] [1791331838.993330050] [f_r3_mission]: LOW-SERVO raw=0.189m filtered=0.189m pred=0.089m target_rate=(-0.007,+0.038)m/s vxy=0.175m/s age=0.102s braking=0
+[INFO] [1791331839.138463939] [f_r3_mission]: [t=  114.7 DROP            ph= 17.6s] NED(   0.14,  33.80, -1.28) H= 1.22 hdg=  89.6 pit= -0.8 rol= +0.2 vNED=(-0.10,+0.15,+0.01) det=1 age=0.05 B1/2 tgt=NED(0.02,34.00) px=(+39,+54)err=67px
+[INFO] [1791331839.293595422] [f_r3_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(358,126)w68→NED(0.02,33.98)] trackers=1[#0CNED(0.03,33.98)age42.8s]
+[INFO] [1791331840.038952893] [f_r3_mission]: LOW-SERVO raw=0.201m filtered=0.201m pred=0.098m target_rate=(-0.006,+0.040)m/s vxy=0.177m/s age=0.050s braking=0
+[INFO] [1791331840.141126702] [f_r3_mission]: [t=  115.7 DROP            ph= 18.6s] NED(   0.13,  33.78, -1.28) H= 1.21 hdg=  89.5 pit= -0.8 rol= +0.1 vNED=(-0.08,+0.15,+0.01) det=1 age=0.05 B1/2 tgt=NED(0.02,34.00) px=(+37,+61)err=71px
+[INFO] [1791331840.393373841] [f_r3_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(355,118)w68→NED(0.02,33.98)] trackers=1[#0CNED(0.02,33.98)age43.9s]
+[INFO] [1791331841.039971070] [f_r3_mission]: LOW-SERVO raw=0.221m filtered=0.221m pred=0.119m target_rate=(-0.005,+0.042)m/s vxy=0.174m/s age=0.051s braking=0
+[INFO] [1791331841.138563016] [f_r3_mission]: [t=  116.7 DROP            ph= 19.6s] NED(   0.12,  33.75, -1.28) H= 1.21 hdg=  89.5 pit= -0.7 rol= +0.1 vNED=(-0.07,+0.16,+0.01) det=1 age=0.05 B1/2 tgt=NED(0.02,34.00) px=(+34,+67)err=75px
+[INFO] [1791331841.395768596] [f_r3_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(352,110)w68→NED(0.02,33.98)] trackers=1[#0CNED(0.02,33.98)age44.9s]
+[INFO] [1791331842.040051463] [f_r3_mission]: LOW-SERVO raw=0.249m filtered=0.249m pred=0.144m target_rate=(-0.005,+0.044)m/s vxy=0.175m/s age=0.051s braking=0
+[INFO] [1791331842.139431341] [f_r3_mission]: [t=  117.7 DROP            ph= 20.6s] NED(   0.11,  33.72, -1.27) H= 1.21 hdg=  89.4 pit= -0.8 rol= -0.0 vNED=(-0.05,+0.17,+0.01) det=1 age=0.05 B1/2 tgt=NED(0.02,34.00) px=(+30,+77)err=83px
+[INFO] [1791331842.488748880] [f_r3_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(348,104)w69→NED(0.02,33.98)] trackers=1[#0CNED(0.02,33.98)age46.0s]
+[INFO] [1791331843.089993498] [f_r3_mission]: LOW-SERVO raw=0.265m filtered=0.265m pred=0.163m target_rate=(-0.005,+0.045)m/s vxy=0.171m/s age=0.001s braking=0
+[INFO] [1791331843.138985981] [f_r3_mission]: [t=  118.7 DROP            ph= 21.6s] NED(   0.10,  33.70, -1.27) H= 1.21 hdg=  89.4 pit= -0.7 rol= +0.0 vNED=(-0.03,+0.17,+0.00) det=1 age=0.05 B1/2 tgt=NED(0.02,34.00) px=(+28,+81)err=86px
+[INFO] [1791331843.492139231] [f_r3_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(348,97)w69→NED(0.02,33.97)] trackers=1[#0CNED(0.02,33.98)age47.0s]
+[INFO] [1791331844.140702801] [f_r3_mission]: [t=  119.7 DROP            ph= 22.6s] NED(   0.10,  33.69, -1.27) H= 1.21 hdg=  89.4 pit= -0.7 rol= +0.1 vNED=(-0.02,+0.17,+0.01) det=1 age=0.05 B1/2 tgt=NED(0.02,34.00) px=(+27,+84)err=88px
+[INFO] [1791331844.142546681] [f_r3_mission]: LOW-SERVO raw=0.273m filtered=0.275m pred=0.172m target_rate=(-0.005,+0.046)m/s vxy=0.172m/s age=0.051s braking=0
+[INFO] [1791331844.592951108] [f_r3_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(348,92)w68→NED(0.02,33.97)] trackers=1[#0CNED(0.02,33.97)age48.1s]
+[INFO] [1791331845.140650764] [f_r3_mission]: [t=  120.7 DROP            ph= 23.6s] NED(   0.09,  33.67, -1.27) H= 1.20 hdg=  89.3 pit= -0.8 rol= -0.0 vNED=(-0.03,+0.17,+0.00) det=1 age=0.05 B1/2 tgt=NED(0.02,34.00) px=(+27,+90)err=94px
+[INFO] [1791331845.146753083] [f_r3_mission]: LOW-SERVO raw=0.292m filtered=0.294m pred=0.193m target_rate=(-0.003,+0.048)m/s vxy=0.169m/s age=0.051s braking=0
+[INFO] [1791331845.695079379] [f_r3_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(347,86)w68→NED(0.02,33.97)] trackers=1[#0CNED(0.02,33.97)age49.2s]
+[INFO] [1791331846.139497654] [f_r3_mission]: [t=  121.7 DROP            ph= 24.6s] NED(   0.09,  33.66, -1.27) H= 1.20 hdg=  89.3 pit= -0.8 rol= +0.0 vNED=(-0.02,+0.17,+0.00) det=1 age=0.05 B1/2 tgt=NED(0.02,34.00) px=(+26,+94)err=98px
+[INFO] [1791331846.190185502] [f_r3_mission]: LOW-SERVO raw=0.309m filtered=0.309m pred=0.205m target_rate=(-0.005,+0.048)m/s vxy=0.173m/s age=0.001s braking=0
+[INFO] [1791331846.791153392] [f_r3_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(348,84)w69→NED(0.02,33.97)] trackers=1[#0CNED(0.02,33.97)age50.3s]
+[INFO] [1791331847.139928204] [f_r3_mission]: [t=  122.7 DROP            ph= 25.6s] NED(   0.10,  33.66, -1.27) H= 1.20 hdg=  89.2 pit= -0.7 rol= +0.3 vNED=(-0.00,+0.19,-0.00) det=1 age=0.05 B1/2 tgt=NED(0.02,34.00) px=(+28,+94)err=99px
+[INFO] [1791331847.193472930] [f_r3_mission]: LOW-SERVO raw=0.311m filtered=0.310m pred=0.198m target_rate=(-0.007,+0.048)m/s vxy=0.187m/s age=0.003s braking=0
+[INFO] [1791331847.791019928] [f_r3_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(349,84)w68→NED(0.03,33.97)] trackers=1[#0CNED(0.02,33.97)age51.3s]
+[INFO] [1791331848.142612475] [f_r3_mission]: [t=  123.8 DROP            ph= 26.6s] NED(   0.10,  33.65, -1.27) H= 1.20 hdg=  89.2 pit= -0.7 rol= +0.3 vNED=(-0.01,+0.19,-0.01) det=1 age=0.05 B1/2 tgt=NED(0.02,34.00) px=(+28,+96)err=100px
+[INFO] [1791331848.239195624] [f_r3_mission]: LOW-SERVO raw=0.320m filtered=0.318m pred=0.206m target_rate=(-0.006,+0.049)m/s vxy=0.187m/s age=0.047s braking=0
+[INFO] [1791331848.799598033] [f_r3_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(348,82)w69→NED(0.02,33.97)] trackers=1[#0CNED(0.02,33.97)age52.3s]
+[INFO] [1791331849.142534160] [f_r3_mission]: [t=  124.7 DROP            ph= 27.6s] NED(   0.10,  33.65, -1.27) H= 1.20 hdg=  89.1 pit= -0.7 rol= +0.3 vNED=(-0.02,+0.18,-0.01) det=1 age=0.05 B1/2 tgt=NED(0.02,34.00) px=(+28,+96)err=100px
+[INFO] [1791331849.243246279] [f_r3_mission]: LOW-SERVO raw=0.311m filtered=0.310m pred=0.204m target_rate=(-0.005,+0.048)m/s vxy=0.177m/s age=0.053s braking=0
+[INFO] [1791331849.888561655] [f_r3_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(348,82)w69→NED(0.02,33.97)] trackers=1[#0CNED(0.02,33.97)age53.4s]
+[INFO] [1791331850.141997892] [f_r3_mission]: [t=  125.7 DROP            ph= 28.6s] NED(   0.09,  33.65, -1.27) H= 1.20 hdg=  89.0 pit= -0.8 rol= +0.2 vNED=(-0.01,+0.17,+0.00) det=1 age=0.05 B1/2 tgt=NED(0.02,34.00) px=(+28,+96)err=100px
+[INFO] [1791331850.291841245] [f_r3_mission]: LOW-SERVO raw=0.308m filtered=0.307m pred=0.200m target_rate=(-0.004,+0.048)m/s vxy=0.178m/s age=0.102s braking=0
+[INFO] [1791331850.894228608] [f_r3_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(346,84)w69→NED(0.02,33.97)] trackers=1[#0CNED(0.02,33.97)age54.4s]
+[INFO] [1791331851.139618026] [f_r3_mission]: [t=  126.7 DROP            ph= 29.6s] NED(   0.08,  33.66, -1.26) H= 1.19 hdg=  89.0 pit= -0.8 rol= +0.0 vNED=(-0.03,+0.18,-0.00) det=1 age=0.05 B1/2 tgt=NED(0.02,34.00) px=(+24,+94)err=97px
+[INFO] [1791331851.292773464] [f_r3_mission]: LOW-SERVO raw=0.296m filtered=0.296m pred=0.182m target_rate=(-0.001,+0.048)m/s vxy=0.190m/s age=0.103s braking=0
+[INFO] [1791331851.991431216] [f_r3_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(343,88)w70→NED(0.02,33.97)] trackers=1[#0CNED(0.02,33.97)age55.5s]
+[INFO] [1791331852.139982078] [f_r3_mission]: [t=  127.7 DROP            ph= 30.6s] NED(   0.08,  33.68, -1.25) H= 1.19 hdg=  89.0 pit= -0.6 rol= -0.0 vNED=(-0.02,+0.20,-0.01) det=1 age=0.04 B1/2 tgt=NED(0.02,34.00) px=(+23,+91)err=94px
+[INFO] [1791331852.338726022] [f_r3_mission]: LOW-SERVO raw=0.283m filtered=0.283m pred=0.162m target_rate=(-0.001,+0.047)m/s vxy=0.202m/s age=0.050s braking=0
+[INFO] [1791331852.992381504] [f_r3_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(342,93)w69→NED(0.02,33.98)] trackers=1[#0CNED(0.02,33.98)age56.5s]
+[INFO] [1791331853.142496085] [f_r3_mission]: [t=  128.8 DROP            ph= 31.6s] NED(   0.07,  33.69, -1.25) H= 1.18 hdg=  88.9 pit= -0.6 rol= +0.0 vNED=(-0.01,+0.19,-0.01) det=1 age=0.05 B1/2 tgt=NED(0.02,34.00) px=(+21,+87)err=89px
+[INFO] [1791331853.339949150] [f_r3_mission]: LOW-SERVO raw=0.275m filtered=0.274m pred=0.165m target_rate=(+0.000,+0.046)m/s vxy=0.183m/s age=0.042s braking=0
+[INFO] [1791331854.098731314] [f_r3_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(341,98)w70→NED(0.02,33.98)] trackers=1[#0CNED(0.02,33.98)age57.6s]
+[INFO] [1791331854.144200912] [f_r3_mission]: [t=  129.7 DROP            ph= 32.6s] NED(   0.07,  33.71, -1.25) H= 1.18 hdg=  89.0 pit= -0.8 rol= +0.1 vNED=(-0.00,+0.18,-0.01) det=1 age=0.04 B1/2 tgt=NED(0.02,34.00) px=(+21,+82)err=85px
+[INFO] [1791331854.392159311] [f_r3_mission]: LOW-SERVO raw=0.246m filtered=0.247m pred=0.140m target_rate=(-0.002,+0.044)m/s vxy=0.179m/s age=0.001s braking=0
+[INFO] [1791331855.139267951] [f_r3_mission]: [t=  130.7 DROP            ph= 33.6s] NED(   0.07,  33.74, -1.24) H= 1.18 hdg=  88.9 pit= -0.7 rol= +0.2 vNED=(-0.00,+0.18,-0.03) det=1 age=0.04 B1/2 tgt=NED(0.02,34.00) px=(+20,+74)err=77px
+[INFO] [1791331855.189427548] [f_r3_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(340,107)w70→NED(0.02,33.98)] trackers=1[#0CNED(0.02,33.98)age58.7s]
+[INFO] [1791331855.438553455] [f_r3_mission]: LOW-SERVO raw=0.219m filtered=0.220m pred=0.113m target_rate=(+0.000,+0.042)m/s vxy=0.179m/s age=0.050s braking=0
+[INFO] [1791331856.139903563] [f_r3_mission]: [t=  131.7 DROP            ph= 34.6s] NED(   0.06,  33.77, -1.24) H= 1.17 hdg=  88.9 pit= -0.7 rol= +0.1 vNED=(-0.01,+0.18,-0.01) det=1 age=0.05 B1/2 tgt=NED(0.02,34.00) px=(+19,+65)err=68px
+[INFO] [1791331856.192039775] [f_r3_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(339,115)w70→NED(0.02,33.98)] trackers=1[#0CNED(0.02,33.98)age59.7s]
+[INFO] [1791331856.441743355] [f_r3_mission]: LOW-SERVO raw=0.201m filtered=0.198m pred=0.089m target_rate=(+0.001,+0.040)m/s vxy=0.182m/s age=0.053s braking=0
+[INFO] [1791331856.591477147] [f_r3_mission]: >>> DROP B1 outlet=1! PWM=2000us reason=timeout_force H=1.17m vxy=0.184m/s raw=0.196m event=release_command actual_impact=unmeasured
+[INFO] [1791331857.138973762] [f_r3_mission]: [t=  132.7 DROP            ph= 35.6s] NED(   0.06,  33.80, -1.24) H= 1.18 hdg=  88.9 pit= -0.2 rol= +0.0 vNED=(-0.01,+0.18,-0.03) det=1 age=0.55 B1/2 tgt=NED(0.02,34.00) px=(+18,+62)err=65px
+[INFO] [1791331857.295682159] [f_r3_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(338,124)w70→NED(0.02,34.01)] trackers=1[#0CNED(0.02,33.99)age60.8s]
+[INFO] [1791331857.593493693] [f_r3_mission]: DROP pulse complete after 1.00s
+[INFO] [1791331857.596004761] [f_r3_mission]: STEP DROP->CLIMB (prev 36.1s) NED(0.06,33.81,-1.24) H=1.18m
+[INFO] [1791331858.138730092] [f_r3_mission]: [t=  133.7 CLIMB           ph=  0.5s] NED(   0.06,  33.82, -1.26) H= 1.19 hdg=  89.0 pit= +0.9 rol= +0.2 vNED=(-0.01,+0.10,-0.53) det=1 age=1.55
+[INFO] [1791331858.394888667] [f_r3_mission]:   TRK-DBG step=CLIMB nbox=1 boxes=[(334,136)w59→NED(0.02,34.01)] trackers=1[#0CNED(0.02,34.01)age61.9s]
+[INFO] [1791331858.792974165] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/2 (阈值22px, 本帧最小边=[44, 9])
+[INFO] [1791331858.892701913] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/2 (阈值22px, 本帧最小边=[44, 9])
+[INFO] [1791331859.001889587] [f_r3_mission]:   TRK-NEW #1 NED(1.93,33.02) from box(cx=18,cy=323,w=35,h=40) alive=2
+[INFO] [1791331859.141488674] [f_r3_mission]: [t=  134.8 CLIMB           ph=  1.5s] NED(   0.06,  33.81, -2.31) H= 2.24 hdg=  92.1 pit= -0.2 rol= -0.2 vNED=(-0.01,+0.02,-2.30) det=2 age=2.55
+[INFO] [1791331859.489575665] [f_r3_mission]:   TRK-DBG step=CLIMB nbox=2 boxes=[(60,300)w34→NED(1.96,33.02) (327,153)w34→NED(0.01,34.00)] trackers=2[#0CNED(0.01,34.00)age63.0s #1-NED(1.95,33.02)age0.5s]
+[INFO] [1791331860.140059150] [f_r3_mission]: [t=  135.7 CLIMB           ph=  2.5s] NED(   0.06,  33.80, -3.10) H= 3.03 hdg=  91.9 pit= -0.3 rol= +0.1 vNED=(-0.01,+0.01,-1.94) det=2 age=3.55
+[INFO] [1791331860.588917765] [f_r3_mission]: Tracker confirmed: NED(2.0,33.0) after 1.6s
+[INFO] [1791331860.590332728] [f_r3_mission]:   TRK-DBG step=CLIMB nbox=2 boxes=[(325,158)w26→NED(0.02,33.99) (124,268)w26→NED(1.99,33.01)] trackers=2[#0CNED(0.02,33.99)age64.1s #1CNED(1.98,33.01)age1.6s]
+[INFO] [1791331861.138311731] [f_r3_mission]: [t=  136.7 CLIMB           ph=  3.5s] NED(   0.06,  33.79, -3.68) H= 3.61 hdg=  92.0 pit= -0.3 rol= +0.1 vNED=(-0.00,+0.01,-1.62) det=2 age=4.55
+[INFO] [1791331861.595399391] [f_r3_mission]:   TRK-DBG step=CLIMB nbox=2 boxes=[(151,255)w22→NED(2.01,33.00) (325,160)w22→NED(0.02,33.98)] trackers=2[#0CNED(0.02,33.98)age65.1s #1CNED(1.99,33.00)age2.6s]
+[INFO] [1791331861.889256253] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/3 (阈值10px, 本帧最小边=[21, 21, 1])
+[INFO] [1791331861.993793082] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/3 (阈值10px, 本帧最小边=[20, 20, 4])
+[INFO] [1791331862.097371874] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/3 (阈值10px, 本帧最小边=[20, 20, 8])
+[INFO] [1791331862.144036346] [f_r3_mission]: [t=  137.8 CLIMB           ph=  4.5s] NED(   0.06,  33.77, -4.39) H= 4.32 hdg=  92.0 pit= -0.3 rol= +0.1 vNED=(+0.01,+0.02,-1.24) det=2 age=5.55
+[INFO] [1791331862.189135685] [f_r3_mission]:   TRK-NEW #2 NED(-1.45,31.57) from box(cx=450,cy=354,w=20,h=11) alive=3
+[INFO] [1791331862.590225113] [f_r3_mission]: Next bucket 2/2: NED(1.0,33.8)
+[INFO] [1791331862.591532547] [f_r3_mission]: STEP CLIMB->TRACK (prev 5.0s) NED(0.06,33.76,-4.58) H=4.51m
+[INFO] [1791331862.688179283] [f_r3_mission]:   TRK-DBG step=TRACK nbox=3 boxes=[(444,350)w19→NED(-1.45,31.52) (174,244)w19→NED(2.01,33.00) (324,162)w19→NED(0.03,33.98)] trackers=3[#0CNED(0.03,33.98)age66.2s #1CNED(2.01,33.00)age3.7s #2-NED(-1.45,31.54)age0.5s]
+[INFO] [1791331863.139367667] [f_r3_mission]: [t=  138.7 TRACK           ph=  0.5s] NED(   0.06,  33.76, -4.75) H= 4.68 hdg=  92.0 pit= -0.3 rol= -2.4 vNED=(+0.03,+0.01,-0.67) det=3 age=0.05 B2/2 tgt=NED(1.01,33.83) px=(-142,-62)err=154px
+[INFO] [1791331863.692441304] [f_r3_mission]: Tracker confirmed: NED(-1.9,31.4) after 1.5s
+[INFO] [1791331863.696355960] [f_r3_mission]:   TRK-DBG step=TRACK nbox=3 boxes=[(324,162)w19→NED(-0.45,33.95) (440,341)w18→NED(-2.01,31.40) (182,240)w18→NED(1.47,33.00)] trackers=3[#0CNED(-0.33,33.96)age67.2s #1CNED(1.60,33.00)age4.7s #2CNED(-1.87,31.43)age1.5s]
+[INFO] [1791331864.139628589] [f_r3_mission]: [t=  139.7 TRACK           ph=  1.5s] NED(   0.07,  33.75, -4.82) H= 4.76 hdg=  92.1 pit= -0.4 rol= -6.3 vNED=(+0.12,+0.02,-0.35) det=3 age=0.05 B2/2 tgt=NED(1.01,33.83) px=(-137,-60)err=150px
+[INFO] [1791331864.789795030] [f_r3_mission]:   TRK-DBG step=TRACK nbox=3 boxes=[(444,337)w17→NED(-1.99,31.39) (192,238)w18→NED(1.50,32.98) (332,162)w18→NED(-0.44,33.95)] trackers=3[#0CNED(-0.49,33.94)age68.3s #1CNED(1.44,32.98)age5.8s #2CNED(-2.05,31.37)age2.6s]
+[INFO] [1791331865.140272625] [f_r3_mission]: [t=  140.7 TRACK           ph=  2.5s] NED(   0.23,  33.75, -4.93) H= 4.86 hdg=  92.0 pit= -0.5 rol= -4.2 vNED=(+0.55,+0.05,-0.10) det=3 age=0.05 B2/2 tgt=NED(1.01,33.83) px=(-125,-58)err=138px
+[INFO] [1791331865.888052998] [f_r3_mission]:   TRK-DBG step=TRACK nbox=3 boxes=[(204,238)w18→NED(1.78,32.98) (454,336)w17→NED(-1.70,31.45) (342,162)w17→NED(-0.18,33.95)] trackers=3[#0CNED(-0.24,33.95)age69.4s #1CNED(1.71,32.98)age6.9s #2CNED(-1.76,31.43)age3.7s]
+[INFO] [1791331866.138772706] [f_r3_mission]: [t=  141.7 TRACK           ph=  3.5s] NED(   0.35,  33.76, -4.96) H= 4.89 hdg=  92.0 pit= -0.5 rol= -2.0 vNED=(+0.63,+0.05,-0.07) det=3 age=0.05 B2/2 tgt=NED(1.01,33.83) px=(-115,-58)err=129px
+[INFO] [1791331866.891365095] [f_r3_mission]:   TRK-DBG step=TRACK nbox=3 boxes=[(464,336)w18→NED(-1.54,31.48) (215,238)w18→NED(1.92,32.98) (352,162)w17→NED(-0.04,33.97)] trackers=3[#0CNED(-0.07,33.96)age70.4s #1CNED(1.89,32.98)age7.9s #2CNED(-1.58,31.47)age4.7s]
+[INFO] [1791331867.140686470] [f_r3_mission]: [t=  142.7 TRACK           ph=  4.5s] NED(   0.51,  33.77, -4.98) H= 4.91 hdg=  92.0 pit= -0.4 rol= -0.5 vNED=(+0.61,+0.07,-0.05) det=3 age=0.05 B2/2 tgt=NED(1.01,33.83) px=(-104,-58)err=119px
+[INFO] [1791331867.990603407] [f_r3_mission]:   TRK-DBG step=TRACK nbox=3 boxes=[(484,338)w18→NED(-1.34,31.56) (236,241)w17→NED(2.10,33.02) (374,166)w17→NED(0.12,34.01)] trackers=3[#0CNED(0.09,34.00)age71.5s #1CNED(2.07,33.01)age9.0s #2CNED(-1.38,31.55)age5.8s]
+[INFO] [1791331868.138878063] [f_r3_mission]: [t=  143.7 TRACK           ph=  5.5s] NED(   0.79,  33.82, -5.01) H= 4.94 hdg=  91.9 pit= +0.1 rol= +1.2 vNED=(+0.46,+0.05,-0.03) det=3 age=0.05 B2/2 tgt=NED(1.01,33.83) px=(-82,-61)err=103px
+[INFO] [1791331868.992237450] [f_r3_mission]:   TRK-DBG step=TRACK nbox=3 boxes=[(250,243)w17→NED(2.17,33.03) (496,340)w17→NED(-1.25,31.59) (386,168)w17→NED(0.19,34.02)] trackers=3[#0CNED(0.18,34.02)age72.5s #1CNED(2.16,33.03)age10.0s #2CNED(-1.27,31.59)age6.8s]
+[INFO] [1791331869.140351416] [f_r3_mission]: [t=  144.7 TRACK           ph=  6.5s] NED(   1.00,  33.87, -5.03) H= 4.96 hdg=  92.0 pit= +0.1 rol= +2.0 vNED=(+0.27,+0.02,-0.02) det=3 age=0.05 B2/2 tgt=NED(1.01,33.83) px=(-68,-64)err=93px
+[INFO] [1791331870.091475237] [f_r3_mission]:   TRK-DBG step=TRACK nbox=3 boxes=[(257,244)w18→NED(2.19,33.04) (504,341)w17→NED(-1.23,31.61) (394,170)w17→NED(0.21,34.03)] trackers=3[#0CNED(0.21,34.03)age73.6s #1CNED(2.19,33.04)age11.1s #2CNED(-1.23,31.61)age7.9s]
+[INFO] [1791331870.141079529] [f_r3_mission]: [t=  145.8 TRACK           ph=  7.5s] NED(   1.06,  33.88, -5.03) H= 4.96 hdg=  91.9 pit= +0.2 rol= +2.1 vNED=(+0.18,+0.01,-0.01) det=3 age=0.05 B2/2 tgt=NED(1.01,33.83) px=(-63,-64)err=90px
+[INFO] [1791331871.139335498] [f_r3_mission]: [t=  146.7 TRACK           ph=  8.5s] NED(   1.12,  33.89, -5.04) H= 4.97 hdg=  92.0 pit= +0.3 rol= +1.8 vNED=(+0.07,-0.01,-0.02) det=3 age=0.05 B2/2 tgt=NED(1.01,33.83) px=(-59,-64)err=87px
+[INFO] [1791331871.189952847] [f_r3_mission]:   TRK-DBG step=TRACK nbox=3 boxes=[(507,342)w18→NED(-1.25,31.61) (261,244)w18→NED(2.16,33.05) (397,170)w18→NED(0.19,34.04)] trackers=3[#0CNED(0.20,34.04)age74.7s #1CNED(2.17,33.05)age12.2s #2CNED(-1.24,31.61)age9.0s]
+[INFO] [1791331872.139338132] [f_r3_mission]: [t=  147.7 TRACK           ph=  9.5s] NED(   1.14,  33.89, -5.05) H= 4.98 hdg=  92.0 pit= +0.1 rol= +1.2 vNED=(-0.04,-0.04,+0.01) det=3 age=0.05 B2/2 tgt=NED(1.01,33.83) px=(-57,-64)err=86px
+[INFO] [1791331872.189525085] [f_r3_mission]: STEP TRACK->POSITION_REFINE (prev 9.6s) NED(1.14,33.89,-5.05) H=4.98m
+[INFO] [1791331872.239873951] [f_r3_mission]:   REFINE candidates vs target(1.0,33.8): (2.1,33.0)d=1.4, (-1.3,31.6)d=3.2, (0.1,34.0)d=0.9 best_dist=1.4 n=1
+[INFO] [1791331872.289369931] [f_r3_mission]:   TRK-DBG step=POSITION_REFINE nbox=3 boxes=[(263,244)w18→NED(2.11,33.03) (508,340)w17→NED(-1.32,31.58) (398,170)w17→NED(0.14,34.02)] trackers=3[#0CNED(0.15,34.02)age75.8s #1CNED(2.12,33.03)age13.3s #2CNED(-1.31,31.58)age10.1s]
+[INFO] [1791331873.142331086] [f_r3_mission]: [t=  148.7 POSITION_REFINE ph=  0.9s] NED(   1.13,  33.89, -5.06) H= 4.99 hdg=  92.0 pit= +0.1 rol= +0.8 vNED=(-0.08,-0.05,-0.00) det=3 age=0.05 refine_samples=18 elapsed=0.9s
+[INFO] [1791331873.240060288] [f_r3_mission]:   REFINE candidates vs target(1.0,33.8): (-1.4,31.6)d=3.3, (2.1,33.0)d=1.3, (0.1,34.0)d=0.9 best_dist=1.3 n=21
+[INFO] [1791331873.290922680] [f_r3_mission]:   TRK-DBG step=POSITION_REFINE nbox=3 boxes=[(262,244)w18→NED(2.08,33.02) (508,340)w17→NED(-1.36,31.56) (398,170)w17→NED(0.10,34.01)] trackers=3[#0CNED(0.11,34.01)age76.8s #1CNED(2.08,33.03)age14.3s #2CNED(-1.36,31.57)age11.1s]
+[INFO] [1791331874.140240024] [f_r3_mission]: [t=  149.7 POSITION_REFINE ph=  1.9s] NED(   1.09,  33.88, -5.06) H= 5.00 hdg=  92.0 pit= -0.1 rol= +0.4 vNED=(-0.10,-0.05,+0.01) det=3 age=0.05 refine_samples=38 elapsed=1.9s
+[INFO] [1791331874.193225170] [f_r3_mission]: Position refined: (1.01,33.83) -> (2.07,33.02) delta=(1.061,-0.805)m n=40
+[INFO] [1791331874.194938583] [f_r3_mission]:   TARGET-REBIND id #4 -> #6 aim=NED(2.07,33.02) tracker=NED(2.05,33.01) d=0.03m
+[INFO] [1791331874.196381452] [f_r3_mission]: STEP POSITION_REFINE->PRE_SERVO (prev 2.0s) NED(1.09,33.88,-5.06) H=5.00m
+[INFO] [1791331874.239690713] [f_r3_mission]:   PRE-SERVO H= 5.00m target_z-GND=+2.50m cmd_z=-2.57 下降率=0.01m/s tgt=NED(2.04,33.01) 横向偏差=1.28m
+[INFO] [1791331874.391700844] [f_r3_mission]:   TRK-DBG step=PRE_SERVO nbox=3 boxes=[(504,340)w18→NED(-1.42,31.54) (260,244)w17→NED(2.02,33.01) (394,168)w17→NED(0.06,34.00)] trackers=3[#0CNED(0.06,34.00)age77.9s #1CNED(2.03,33.01)age15.4s #2CNED(-1.41,31.54)age12.2s]
+[INFO] [1791331875.138484602] [f_r3_mission]: [t=  150.7 PRE_SERVO       ph=  0.9s] NED(   1.07,  33.87, -4.96) H= 4.89 hdg=  92.0 pit= +3.3 rol= -3.9 vNED=(-0.06,-0.07,+1.09) det=3 age=0.05 tgt=NED(1.81,33.18) px=(-63,-64)err=90px
+[INFO] [1791331875.240288338] [f_r3_mission]:   PRE-SERVO H= 4.87m target_z-GND=+2.37m cmd_z=-2.57 下降率=1.19m/s tgt=NED(1.76,33.22) 横向偏差=0.94m
+[INFO] [1791331875.391850524] [f_r3_mission]:   TRK-DBG step=PRE_SERVO nbox=3 boxes=[(509,345)w18→NED(-1.98,31.86) (256,245)w18→NED(1.51,33.42) (396,168)w18→NED(-0.49,34.39)] trackers=3[#0CNED(-0.35,34.29)age78.9s #1CNED(1.64,33.31)age16.4s #2CNED(-1.84,31.78)age13.2s]
+[INFO] [1791331876.138535749] [f_r3_mission]: [t=  151.7 PRE_SERVO       ph=  1.9s] NED(   1.10,  33.83, -4.46) H= 4.39 hdg=  92.2 pit= +4.0 rol= -4.3 vNED=(+0.22,-0.28,+1.68) det=3 age=0.05 tgt=NED(1.56,33.39) px=(-68,-68)err=97px
+[INFO] [1791331876.289975600] [f_r3_mission]:   PRE-SERVO H= 4.36m target_z-GND=+1.86m cmd_z=-2.57 下降率=1.69m/s tgt=NED(1.61,33.35) 横向偏差=0.70m
+[INFO] [1791331876.392735383] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/3 (阈值10px, 本帧最小边=[20, 20, 8])
+[INFO] [1791331876.396105832] [f_r3_mission]:   TRK-DBG step=PRE_SERVO nbox=2 boxes=[(409,162)w20→NED(-0.23,34.20) (251,249)w20→NED(1.75,33.23)] trackers=3[#0CNED(-0.34,34.29)age79.9s #1CNED(1.66,33.31)age17.4s #2CNED(-1.87,31.85)age14.2s]
+[INFO] [1791331876.493546851] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/3 (阈值10px, 本帧最小边=[21, 21, 5])
+[INFO] [1791331876.589286008] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/3 (阈值10px, 本帧最小边=[21, 21, 2])
+[INFO] [1791331877.138994717] [f_r3_mission]: [t=  152.7 PRE_SERVO       ph=  2.9s] NED(   1.18,  33.73, -3.81) H= 3.74 hdg=  92.0 pit= +1.5 rol= -2.1 vNED=(+0.33,-0.37,+1.60) det=2 age=0.05 tgt=NED(1.84,33.14) px=(-72,-70)err=101px
+[INFO] [1791331877.340301386] [f_r3_mission]:   PRE-SERVO H= 3.66m target_z-GND=+1.16m cmd_z=-2.57 下降率=1.52m/s tgt=NED(1.84,33.13) 横向偏差=0.87m
+[INFO] [1791331877.488633070] [f_r3_mission]:   TRK-DBG step=PRE_SERVO nbox=2 boxes=[(247,251)w24→NED(1.83,33.14) (434,148)w24→NED(-0.15,34.11)] trackers=3[#0CNED(-0.14,34.11)age81.0s #1CNED(1.84,33.13)age18.5s #2CNED(-1.87,31.85)age15.3s]
+[INFO] [1791331878.140926055] [f_r3_mission]: [t=  153.7 PRE_SERVO       ph=  3.9s] NED(   1.31,  33.62, -3.34) H= 3.27 hdg=  92.0 pit= +1.7 rol= -1.9 vNED=(+0.44,-0.43,+1.03) det=2 age=0.04 tgt=NED(1.85,33.13) px=(-70,-68)err=98px
+[INFO] [1791331878.393858845] [f_r3_mission]:   PRE-SERVO H= 3.19m target_z-GND=+0.69m cmd_z=-2.57 下降率=0.92m/s tgt=NED(1.89,33.11) 横向偏差=0.72m
+[INFO] [1791331878.589310485] [f_r3_mission]:   TRK-DBG step=PRE_SERVO nbox=2 boxes=[(255,244)w28→NED(1.94,33.07) (472,124)w28→NED(-0.03,34.04)] trackers=2[#0CNED(-0.06,34.07)age82.1s #1CNED(1.91,33.09)age19.6s]
+[INFO] [1791331879.143652967] [f_r3_mission]: [t=  154.7 PRE_SERVO       ph=  4.9s] NED(   1.50,  33.48, -3.01) H= 2.94 hdg=  92.1 pit= +0.5 rol= -0.5 vNED=(+0.46,-0.42,+0.55) det=2 age=0.05 tgt=NED(1.96,33.05) px=(-56,-60)err=82px
+[INFO] [1791331879.438587132] [f_r3_mission]:   PRE-SERVO H= 2.88m target_z-GND=+0.38m cmd_z=-2.57 下降率=0.45m/s tgt=NED(1.97,33.05) 横向偏差=0.58m
+[INFO] [1791331879.695276848] [f_r3_mission]:   TRK-DBG step=PRE_SERVO nbox=2 boxes=[(272,233)w30→NED(2.00,33.03) (507,103)w30→NED(0.05,34.01)] trackers=2[#0CNED(0.03,34.02)age83.2s #1CNED(1.99,33.04)age20.7s]
+[INFO] [1791331880.094604557] [f_r3_mission]: PRE_SERVO update target: (2.00,33.03) H=2.8m
+[INFO] [1791331880.097751256] [f_r3_mission]: STEP PRE_SERVO->VISUAL_SERVO (prev 5.9s) NED(1.65,33.37,-2.86) H=2.79m
+[INFO] [1791331880.143348096] [f_r3_mission]: [t=  155.8 VISUAL_SERVO    ph=  0.0s] NED(   1.67,  33.36, -2.84) H= 2.78 hdg=  92.1 pit= +0.1 rol= +0.1 vNED=(+0.41,-0.38,+0.31) det=2 age=0.04 B2/2 SERVO tgt=NED(2.00,33.03) px=(-40,-48)err=62px
+[INFO] [1791331880.145455764] [f_r3_mission]: LOW-SERVO raw=0.457m filtered=0.457m pred=0.136m target_rate=(+0.002,-0.007)m/s vxy=0.558m/s age=0.045s braking=0
+[INFO] [1791331880.192510088] [f_r3_mission]: LOW-BRAKE hold NED(1.686,33.353) vxy=0.550m/s
+[INFO] [1791331880.789264661] [f_r3_mission]:   TRK-DBG step=VISUAL_SERVO nbox=2 boxes=[(289,221)w32→NED(2.08,32.97) (540,82)w32→NED(0.17,33.93)] trackers=2[#0CNED(0.12,33.96)age84.3s #1CNED(2.05,32.99)age21.8s]
+[INFO] [1791331881.140003887] [f_r3_mission]: [t=  156.7 VISUAL_SERVO    ph=  1.0s] NED(   1.80,  33.27, -2.55) H= 2.48 hdg=  92.1 pit= -2.5 rol= +2.9 vNED=(+0.32,-0.30,+1.37) det=2 age=0.05 B2/2 SERVO tgt=NED(2.00,33.03) px=(-28,-40)err=48px
+[INFO] [1791331881.189160614] [f_r3_mission]: LOW-SERVO raw=0.474m filtered=0.439m pred=0.201m target_rate=(+0.000,+0.000)m/s vxy=0.415m/s age=0.094s braking=1
+[INFO] [1791331881.791777213] [f_r3_mission]:   TRK-DBG step=VISUAL_SERVO nbox=2 boxes=[(301,217)w40→NED(2.14,32.90) (612,45)w40→NED(0.30,33.83)] trackers=2[#0CNED(0.30,33.83)age85.3s #1CNED(2.15,32.90)age22.8s]
+[INFO] [1791331882.143642509] [f_r3_mission]: [t=  157.7 VISUAL_SERVO    ph=  2.0s] NED(   1.88,  33.22, -2.16) H= 2.09 hdg=  92.2 pit= -3.0 rol= +3.2 vNED=(+0.13,-0.12,+1.14) det=2 age=0.05 B2/2 SERVO tgt=NED(2.00,33.03) px=(-19,-37)err=42px
+[INFO] [1791331882.190537486] [f_r3_mission]: LOW-SERVO raw=0.369m filtered=0.372m pred=0.278m target_rate=(+0.000,+0.000)m/s vxy=0.168m/s age=0.001s braking=1
+[INFO] [1791331882.588328567] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/2 (阈值22px, 本帧最小边=[44, 13])
+[INFO] [1791331882.688732490] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/2 (阈值22px, 本帧最小边=[44, 13])
+[INFO] [1791331882.792623361] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/2 (阈值22px, 本帧最小边=[44, 10])
+[INFO] [1791331882.797709107] [f_r3_mission]:   TRK-DBG step=VISUAL_SERVO nbox=1 boxes=[(303,219)w44→NED(2.10,32.94)] trackers=2[#0CNED(0.32,33.85)age86.3s #1CNED(2.11,32.93)age23.8s]
+[INFO] [1791331882.893742171] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/2 (阈值22px, 本帧最小边=[45, 7])
+[INFO] [1791331882.988013735] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/2 (阈值23px, 本帧最小边=[46, 2])
+[INFO] [1791331883.141830372] [f_r3_mission]: [t=  158.7 VISUAL_SERVO    ph=  3.0s] NED(   1.90,  33.21, -1.87) H= 1.80 hdg=  92.1 pit= -1.8 rol= +2.3 vNED=(-0.02,+0.01,+0.76) det=1 age=0.05 B2/2 SERVO tgt=NED(2.00,33.03) px=(-17,-40)err=43px
+[INFO] [1791331883.147749227] [f_r3_mission]: LOW-BRAKE resume: fresh frames confirm low speed and margin
+[INFO] [1791331883.193755328] [f_r3_mission]: LOW-SERVO raw=0.289m filtered=0.288m pred=0.296m target_rate=(+0.003,-0.006)m/s vxy=0.019m/s age=0.002s braking=0
+[INFO] [1791331883.491121635] [f_r3_mission]: LOW-BRAKE hold NED(1.898,33.218) vxy=0.072m/s
+[INFO] [1791331883.888318435] [f_r3_mission]:   TRK-DBG step=VISUAL_SERVO nbox=1 boxes=[(297,230)w52→NED(2.02,33.01)] trackers=2[#0CNED(0.32,33.85)age87.4s #1CNED(2.05,32.99)age24.9s]
+[INFO] [1791331884.141880704] [f_r3_mission]: [t=  159.7 VISUAL_SERVO    ph=  4.0s] NED(   1.88,  33.24, -1.65) H= 1.58 hdg=  92.2 pit= +0.1 rol= -0.0 vNED=(-0.09,+0.07,+0.45) det=1 age=0.04 B2/2 SERVO tgt=NED(2.00,33.03) px=(-23,-51)err=56px
+[INFO] [1791331884.238615517] [f_r3_mission]: LOW-SERVO raw=0.238m filtered=0.237m pred=0.291m target_rate=(+0.000,+0.000)m/s vxy=0.108m/s age=0.047s braking=1
+[INFO] [1791331884.893174400] [f_r3_mission]:   TRK-DBG step=VISUAL_SERVO nbox=1 boxes=[(291,238)w56→NED(1.99,33.04)] trackers=1[#0CNED(2.00,33.03)age25.9s]
+[INFO] [1791331885.139696355] [f_r3_mission]: [t=  160.7 VISUAL_SERVO    ph=  5.0s] NED(   1.86,  33.26, -1.55) H= 1.48 hdg=  92.2 pit= +0.6 rol= -0.6 vNED=(-0.05,+0.03,+0.32) det=1 age=0.05 B2/2 SERVO tgt=NED(2.00,33.03) px=(-29,-58)err=65px
+[INFO] [1791331885.240201103] [f_r3_mission]: LOW-SERVO raw=0.244m filtered=0.248m pred=0.267m target_rate=(+0.000,+0.000)m/s vxy=0.045m/s age=0.050s braking=1
+[INFO] [1791331885.839489409] [f_r3_mission]: LOW-BRAKE resume: fresh frames confirm low speed and margin
+[INFO] [1791331885.941259357] [f_r3_mission]: STEP VISUAL_SERVO->DROP (prev 5.8s) NED(1.83,33.27,-1.46) H=1.40m
+[INFO] [1791331885.991380118] [f_r3_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(282,247)w60→NED(1.99,33.03)] trackers=1[#0CNED(1.99,33.03)age27.0s]
+[INFO] [1791331886.140031702] [f_r3_mission]: [t=  161.7 DROP            ph=  0.2s] NED(   1.83,  33.27, -1.45) H= 1.38 hdg=  92.2 pit= +0.3 rol= -0.4 vNED=(+0.01,-0.01,+0.18) det=1 age=0.04 B2/2 tgt=NED(2.00,33.03) px=(-38,-67)err=77px
+[INFO] [1791331886.239530257] [f_r3_mission]: LOW-SERVO raw=0.269m filtered=0.269m pred=0.261m target_rate=(+0.016,-0.043)m/s vxy=0.015m/s age=0.049s braking=0
+[INFO] [1791331886.988977638] [f_r3_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(278,250)w61→NED(2.00,33.03)] trackers=1[#0CNED(2.00,33.03)age28.0s]
+[INFO] [1791331887.139535747] [f_r3_mission]: [t=  162.7 DROP            ph=  1.2s] NED(   1.81,  33.28, -1.42) H= 1.36 hdg=  92.3 pit= +0.3 rol= -0.3 vNED=(+0.02,-0.02,+0.14) det=1 age=0.04 B2/2 tgt=NED(2.00,33.03) px=(-42,-70)err=81px
+[INFO] [1791331887.247313336] [f_r3_mission]: LOW-SERVO raw=0.282m filtered=0.281m pred=0.263m target_rate=(+0.018,-0.043)m/s vxy=0.032m/s age=0.049s braking=0
+[INFO] [1791331887.989849169] [f_r3_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(272,252)w63→NED(1.99,33.03)] trackers=1[#0CNED(1.99,33.03)age29.0s]
+[INFO] [1791331888.143306601] [f_r3_mission]: [t=  163.8 DROP            ph=  2.2s] NED(   1.80,  33.27, -1.38) H= 1.31 hdg=  92.2 pit= +0.6 rol= -0.5 vNED=(+0.05,-0.07,+0.08) det=1 age=0.05 B2/2 tgt=NED(2.00,33.03) px=(-48,-72)err=87px
+[INFO] [1791331888.289980263] [f_r3_mission]: LOW-SERVO raw=0.278m filtered=0.277m pred=0.220m target_rate=(+0.018,-0.043)m/s vxy=0.099m/s age=0.093s braking=0
+[INFO] [1791331888.992807766] [f_r3_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(269,250)w64→NED(1.99,33.03)] trackers=1[#0CNED(1.99,33.03)age30.0s]
+[INFO] [1791331889.139297826] [f_r3_mission]: [t=  164.7 DROP            ph=  3.2s] NED(   1.79,  33.26, -1.35) H= 1.28 hdg=  92.2 pit= +0.5 rol= -0.4 vNED=(+0.09,-0.10,+0.05) det=1 age=0.05 B2/2 tgt=NED(2.00,33.03) px=(-52,-70)err=87px
+[INFO] [1791331889.291013542] [f_r3_mission]: LOW-SERVO raw=0.271m filtered=0.269m pred=0.185m target_rate=(+0.018,-0.042)m/s vxy=0.145m/s age=0.094s braking=0
+[INFO] [1791331890.094042670] [f_r3_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(269,244)w66→NED(2.00,33.03)] trackers=1[#0CNED(2.00,33.03)age31.1s]
+[INFO] [1791331890.139736000] [f_r3_mission]: [t=  165.7 DROP            ph=  4.2s] NED(   1.80,  33.23, -1.33) H= 1.26 hdg=  92.3 pit= +0.2 rol= -0.2 vNED=(+0.11,-0.12,+0.04) det=1 age=0.04 B2/2 tgt=NED(2.00,33.03) px=(-51,-64)err=81px
+[INFO] [1791331890.341135103] [f_r3_mission]: LOW-SERVO raw=0.253m filtered=0.251m pred=0.161m target_rate=(+0.020,-0.040)m/s vxy=0.154m/s age=0.049s braking=0
+[INFO] [1791331891.106649680] [f_r3_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(271,239)w66→NED(2.00,33.02)] trackers=1[#0CNED(2.00,33.02)age32.1s]
+[INFO] [1791331891.142263788] [f_r3_mission]: [t=  166.8 DROP            ph=  5.2s] NED(   1.80,  33.21, -1.32) H= 1.26 hdg=  92.3 pit= +0.2 rol= -0.2 vNED=(+0.10,-0.13,+0.03) det=1 age=0.03 B2/2 tgt=NED(2.00,33.03) px=(-49,-59)err=77px
+[INFO] [1791331891.396983564] [f_r3_mission]: LOW-SERVO raw=0.234m filtered=0.234m pred=0.137m target_rate=(+0.019,-0.039)m/s vxy=0.164m/s age=0.104s braking=0
+[INFO] [1791331892.140428945] [f_r3_mission]: [t=  167.7 DROP            ph=  6.2s] NED(   1.80,  33.20, -1.32) H= 1.25 hdg=  92.3 pit= +0.3 rol= -0.2 vNED=(+0.10,-0.12,+0.02) det=1 age=0.05 B2/2 tgt=NED(2.00,33.03) px=(-50,-56)err=75px
+[INFO] [1791331892.193505895] [f_r3_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(270,236)w66→NED(2.00,33.02)] trackers=1[#0CNED(2.00,33.02)age33.2s]
+[INFO] [1791331892.439779660] [f_r3_mission]: LOW-SERVO raw=0.222m filtered=0.223m pred=0.127m target_rate=(+0.021,-0.036)m/s vxy=0.161m/s age=0.046s braking=0
+[INFO] [1791331893.143285885] [f_r3_mission]: [t=  168.7 DROP            ph=  7.2s] NED(   1.81,  33.18, -1.31) H= 1.25 hdg=  92.3 pit= +0.3 rol= -0.2 vNED=(+0.10,-0.12,+0.01) det=1 age=0.05 B2/2 tgt=NED(2.00,33.03) px=(-48,-50)err=69px
+[INFO] [1791331893.194926667] [f_r3_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(271,229)w66→NED(2.00,33.02)] trackers=1[#0CNED(2.00,33.02)age34.2s]
+[INFO] [1791331893.440618822] [f_r3_mission]: LOW-SERVO raw=0.198m filtered=0.197m pred=0.104m target_rate=(+0.024,-0.032)m/s vxy=0.155m/s age=0.046s braking=0
+[INFO] [1791331894.140556949] [f_r3_mission]: [t=  169.7 DROP            ph=  8.2s] NED(   1.82,  33.14, -1.31) H= 1.24 hdg=  92.3 pit= +0.3 rol= -0.3 vNED=(+0.10,-0.13,+0.03) det=1 age=0.05 B2/2 tgt=NED(2.00,33.03) px=(-46,-42)err=62px
+[INFO] [1791331894.291579095] [f_r3_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(274,220)w67→NED(2.00,33.02)] trackers=1[#0CNED(2.00,33.02)age35.3s]
+[INFO] [1791331894.491272528] [f_r3_mission]: LOW-SERVO raw=0.164m filtered=0.153m pred=0.050m target_rate=(+0.021,-0.022)m/s vxy=0.171m/s age=0.101s braking=0
+[INFO] [1791331895.141112848] [f_r3_mission]: [t=  170.7 DROP            ph=  9.2s] NED(   1.84,  33.11, -1.30) H= 1.24 hdg=  92.3 pit= +0.1 rol= -0.3 vNED=(+0.11,-0.12,+0.01) det=1 age=0.05 B2/2 tgt=NED(2.00,33.03) px=(-40,-32)err=51px
+[INFO] [1791331895.390568386] [f_r3_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(282,208)w67→NED(2.00,33.01)] trackers=1[#0CNED(2.00,33.01)age36.4s]
+[INFO] [1791331895.492565422] [f_r3_mission]: LOW-SERVO raw=0.123m filtered=0.123m pred=0.028m target_rate=(+0.009,-0.014)m/s vxy=0.159m/s age=0.100s braking=0
+[INFO] [1791331896.139871359] [f_r3_mission]: [t=  171.7 DROP            ph= 10.2s] NED(   1.86,  33.08, -1.30) H= 1.24 hdg=  92.3 pit= +0.2 rol= -0.2 vNED=(+0.11,-0.12,+0.02) det=1 age=0.05 B2/2 tgt=NED(2.00,33.03) px=(-36,-24)err=43px
+[INFO] [1791331896.439084721] [f_r3_mission]: LOW-BRAKE hold NED(1.872,33.077) vxy=0.161m/s
+[INFO] [1791331896.491908128] [f_r3_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(288,202)w67→NED(2.00,33.01)] trackers=1[#0CNED(2.00,33.01)age37.5s]
+[INFO] [1791331896.495489247] [f_r3_mission]: LOW-SERVO raw=0.091m filtered=0.091m pred=0.010m target_rate=(+0.000,+0.000)m/s vxy=0.160m/s age=0.002s braking=1
+[INFO] [1791331897.139224420] [f_r3_mission]: [t=  172.7 DROP            ph= 11.2s] NED(   1.89,  33.06, -1.30) H= 1.23 hdg=  92.3 pit= -0.3 rol= +0.2 vNED=(+0.11,-0.11,+0.02) det=1 age=0.05 B2/2 tgt=NED(2.00,33.03) px=(-30,-18)err=35px
+[INFO] [1791331897.491224523] [f_r3_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(292,196)w67→NED(2.02,33.00)] trackers=1[#0CNED(2.02,33.00)age38.5s]
+[INFO] [1791331897.539245504] [f_r3_mission]: LOW-SERVO raw=0.086m filtered=0.085m pred=0.008m target_rate=(+0.000,+0.000)m/s vxy=0.140m/s age=0.047s braking=1
+[INFO] [1791331898.145224657] [f_r3_mission]: [t=  173.8 DROP            ph= 12.2s] NED(   1.91,  33.04, -1.30) H= 1.23 hdg=  92.3 pit= -1.0 rol= +1.0 vNED=(+0.06,-0.07,+0.02) det=1 age=0.05 B2/2 tgt=NED(2.00,33.03) px=(-23,-12)err=26px
+[INFO] [1791331898.542300225] [f_r3_mission]: LOW-SERVO raw=0.068m filtered=0.069m pred=0.028m target_rate=(+0.000,+0.000)m/s vxy=0.070m/s age=0.052s braking=1
+[INFO] [1791331898.591906590] [f_r3_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(299,190)w68→NED(2.03,32.99)] trackers=1[#0CNED(2.03,32.99)age39.6s]
+[INFO] [1791331899.138591714] [f_r3_mission]: [t=  174.7 DROP            ph= 13.2s] NED(   1.93,  33.03, -1.29) H= 1.22 hdg=  92.3 pit= -0.8 rol= +0.7 vNED=(+0.02,-0.03,+0.01) det=1 age=0.05 B2/2 tgt=NED(2.00,33.03) px=(-20,-9)err=21px
+[INFO] [1791331899.239870687] [f_r3_mission]: LOW-BRAKE resume: fresh frames confirm low speed and margin
+[INFO] [1791331899.590495698] [f_r3_mission]: LOW-SERVO raw=0.054m filtered=0.054m pred=0.043m target_rate=(+0.009,-0.014)m/s vxy=0.020m/s age=0.001s braking=0
+[INFO] [1791331899.694441364] [f_r3_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(301,189)w68→NED(2.02,32.99)] trackers=1[#0CNED(2.02,32.99)age40.7s]
+[INFO] [1791331899.995975408] [f_r3_mission]: >>> DROP B2 outlet=2! PWM=1000us reason=aligned_fresh_frames H=1.22m vxy=0.016m/s raw=0.049m event=release_command actual_impact=unmeasured
+[INFO] [1791331900.142607534] [f_r3_mission]: [t=  175.8 DROP            ph= 14.2s] NED(   1.93,  33.03, -1.29) H= 1.22 hdg=  92.3 pit= -0.6 rol= +0.5 vNED=(-0.02,-0.01,+0.02) det=1 age=0.15 B2/2 tgt=NED(2.00,33.03) px=(-19,-8)err=21px
+[INFO] [1791331900.788074267] [f_r3_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(300,189)w68→NED(2.01,33.00)] trackers=1[#0CNED(2.01,33.00)age41.8s]
+[INFO] [1791331901.042168403] [f_r3_mission]: DROP pulse complete after 1.05s
+[INFO] [1791331901.043911360] [f_r3_mission]: STEP DROP->CLIMB (prev 15.1s) NED(1.93,33.03,-1.29) H=1.22m
+[INFO] [1791331901.139428375] [f_r3_mission]: [t=  176.7 CLIMB           ph=  0.1s] NED(   1.93,  33.03, -1.29) H= 1.22 hdg=  92.3 pit= -0.2 rol= -0.0 vNED=(-0.02,+0.00,+0.02) det=1 age=1.15
+[INFO] [1791331901.791486027] [f_r3_mission]:   TRK-DBG step=CLIMB nbox=1 boxes=[(302,189)w60→NED(2.01,33.01)] trackers=1[#0CNED(2.01,33.01)age42.8s]
+[INFO] [1791331902.139616826] [f_r3_mission]: [t=  177.7 CLIMB           ph=  1.1s] NED(   1.92,  33.04, -1.60) H= 1.53 hdg=  92.1 pit= -0.2 rol= +0.0 vNED=(-0.00,+0.01,-2.06) det=1 age=2.15
+[INFO] [1791331902.695375302] [f_r3_mission]:   TRK-NEW #1 NED(0.14,33.93) from box(cx=626,cy=14,w=25,h=28) alive=2
+[INFO] [1791331902.888164778] [f_r3_mission]:   TRK-DBG step=CLIMB nbox=2 boxes=[(308,187)w41→NED(2.02,33.00) (622,16)w33→NED(0.11,33.94)] trackers=2[#0CNED(2.01,33.00)age43.9s #1-NED(0.12,33.93)age0.2s]
+[INFO] [1791331903.141983651] [f_r3_mission]: [t=  178.8 CLIMB           ph=  2.1s] NED(   1.92,  33.05, -2.53) H= 2.46 hdg=  92.0 pit= -0.1 rol= +0.1 vNED=(-0.00,-0.00,-2.19) det=2 age=3.15
+[INFO] [1791331903.888735004] [f_r3_mission]:   TRK-DBG step=CLIMB nbox=2 boxes=[(310,186)w29→NED(2.02,33.00) (540,60)w29→NED(0.06,33.98)] trackers=2[#0CNED(2.02,33.00)age44.9s #1-NED(0.06,33.98)age1.2s]
+[INFO] [1791331904.141951254] [f_r3_mission]: [t=  179.7 CLIMB           ph=  3.1s] NED(   1.92,  33.06, -3.31) H= 3.24 hdg=  92.1 pit= -0.1 rol= +0.1 vNED=(+0.01,+0.01,-1.80) det=2 age=4.15
+[INFO] [1791331904.288157561] [f_r3_mission]: Tracker confirmed: NED(0.1,34.0) after 1.6s
+[INFO] [1791331904.688795785] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/3 (阈值12px, 本帧最小边=[24, 24, 2])
+[INFO] [1791331904.793324444] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/3 (阈值12px, 本帧最小边=[24, 23, 4])
+[INFO] [1791331904.892156371] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/3 (阈值12px, 本帧最小边=[24, 23, 4])
+[INFO] [1791331904.892974881] [f_r3_mission]:   TRK-DBG step=CLIMB nbox=2 boxes=[(313,186)w24→NED(2.02,33.01) (498,84)w23→NED(0.05,34.00)] trackers=2[#0CNED(2.02,33.01)age45.9s #1CNED(0.06,33.99)age2.2s]
+[INFO] [1791331904.990871863] [f_r3_mission]:   TRK-NEW #2 NED(-1.36,31.55) from box(cx=632,cy=314,w=13,h=23) alive=3
+[INFO] [1791331905.138540821] [f_r3_mission]: [t=  180.7 CLIMB           ph=  4.1s] NED(   1.92,  33.06, -3.88) H= 3.81 hdg=  91.9 pit= +0.0 rol= +0.1 vNED=(-0.00,+0.01,-1.50) det=3 age=5.15
+[INFO] [1791331905.989897676] [f_r3_mission]:   TRK-DBG step=CLIMB nbox=3 boxes=[(616,304)w21→NED(-1.42,31.53) (314,186)w21→NED(2.02,33.01) (480,94)w21→NED(0.05,33.99)] trackers=3[#0CNED(2.02,33.01)age47.0s #1CNED(0.05,33.99)age3.3s #2-NED(-1.42,31.53)age1.0s]
+[INFO] [1791331906.139163247] [f_r3_mission]: [t=  181.7 CLIMB           ph=  5.1s] NED(   1.92,  33.06, -4.22) H= 4.15 hdg=  92.0 pit= -0.1 rol= +0.1 vNED=(-0.00,+0.00,-1.31) det=3 age=6.15
+[INFO] [1791331906.591897041] [f_r3_mission]: Tracker confirmed: NED(-1.4,31.5) after 1.6s
+[INFO] [1791331907.088022330] [f_r3_mission]:   TRK-DBG step=CLIMB nbox=3 boxes=[(584,290)w19→NED(-1.43,31.54) (314,186)w19→NED(2.02,33.01) (464,104)w19→NED(0.04,33.99)] trackers=3[#0CNED(2.02,33.01)age48.1s #1CNED(0.05,33.99)age4.4s #2CNED(-1.43,31.53)age2.1s]
+[INFO] [1791331907.139535519] [f_r3_mission]: [t=  182.7 CLIMB           ph=  6.1s] NED(   1.93,  33.06, -4.60) H= 4.54 hdg=  92.0 pit= +0.0 rol= +0.0 vNED=(-0.00,+0.00,-1.10) det=3 age=7.15
+[INFO] [1791331907.141351730] [f_r3_mission]: All buckets done, flying to SCOUT zone
+[INFO] [1791331907.143466557] [f_r3_mission]: STEP CLIMB->SCOUT (prev 6.1s) NED(1.93,33.06,-4.60) H=4.54m
+[INFO] [1791331908.094400417] [f_r3_mission]:   TRK-PULL #2 dist=0.87m box(cx=571,cy=287) NED(-1.51,30.15) ← tracker NED(-1.44,31.01)
+[INFO] [1791331908.099094244] [f_r3_mission]:   TRK-DBG step=SCOUT nbox=3 boxes=[(571,287)w18→NED(-1.51,30.15) (315,187)w18→NED(2.23,31.80) (457,109)w18→NED(0.30,32.80)] trackers=3[#0CNED(2.14,32.32)age49.1s #1CNED(0.20,33.30)age5.4s #2CNED(-1.46,30.75)age3.1s]
+[INFO] [1791331908.139108076] [f_r3_mission]: [t=  183.7 SCOUT           ph=  1.0s] NED(   1.93,  33.10, -4.86) H= 4.79 hdg=  92.0 pit=-15.3 rol= +2.1 vNED=(-0.05,+0.34,-0.21) det=3 age=0.04 scout sub=0
+[INFO] [1791331908.192682866] [f_r3_mission]:   TRK-PULL #2 dist=0.86m box(cx=570,cy=288) NED(-1.56,29.89) ← tracker NED(-1.46,30.75)
+[INFO] [1791331909.139137396] [f_r3_mission]: [t=  184.7 SCOUT           ph=  2.0s] NED(   1.88,  33.46, -4.91) H= 4.84 hdg=  92.0 pit=-10.8 rol= +1.5 vNED=(-0.21,+1.29,-0.02) det=3 age=0.05 scout sub=0
+[INFO] [1791331909.188815367] [f_r3_mission]:   TRK-DBG step=SCOUT nbox=3 boxes=[(313,213)w18→NED(2.18,32.08) (566,312)w17→NED(-1.52,30.44) (452,136)w17→NED(0.22,33.09)] trackers=3[#0CNED(2.19,31.97)age50.2s #1CNED(0.24,32.98)age6.5s #2CNED(-1.53,30.31)age4.2s]
+[INFO] [1791331910.141786634] [f_r3_mission]: [t=  185.8 SCOUT           ph=  3.0s] NED(   1.80,  33.94, -4.92) H= 4.85 hdg=  92.0 pit= -6.8 rol= +1.0 vNED=(-0.26,+1.59,-0.01) det=3 age=0.05 scout sub=0
+[INFO] [1791331910.189960748] [f_r3_mission]:   TRK-DBG step=SCOUT nbox=3 boxes=[(447,176)w18→NED(0.14,33.44) (308,252)w18→NED(2.11,32.41) (560,350)w17→NED(-1.52,30.83)] trackers=3[#0CNED(2.13,32.34)age51.2s #1CNED(0.16,33.36)age7.5s #2CNED(-1.52,30.74)age5.2s]
+[INFO] [1791331910.389081907] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/3 (阈值8px, 本帧最小边=[18, 17, 8])
+[INFO] [1791331911.138699492] [f_r3_mission]: [t=  186.7 SCOUT           ph=  4.0s] NED(   1.65,  34.71, -4.94) H= 4.87 hdg=  92.1 pit= -5.4 rol= +0.6 vNED=(-0.31,+1.76,-0.03) det=2 age=0.75 scout sub=0
+[INFO] [1791331911.288831314] [f_r3_mission]:   TRK-DBG step=SCOUT nbox=2 boxes=[(437,234)w18→NED(0.08,33.56) (298,311)w17→NED(2.09,32.51)] trackers=3[#0CNED(2.09,32.50)age52.3s #1CNED(0.09,33.54)age8.6s #2CNED(-1.52,30.77)age6.3s]
+[INFO] [1791331912.140700593] [f_r3_mission]: [t=  187.7 SCOUT           ph=  5.0s] NED(   1.51,  35.42, -4.95) H= 4.88 hdg=  92.0 pit= -4.9 rol= +0.4 vNED=(-0.33,+1.81,-0.02) det=2 age=1.75 scout sub=0
+[INFO] [1791331912.288769141] [f_r3_mission]:   TRK-DBG step=SCOUT nbox=2 boxes=[(430,277)w18→NED(0.04,33.58) (292,352)w17→NED(2.08,32.52)] trackers=3[#0CNED(2.08,32.51)age53.3s #1CNED(0.05,33.57)age9.6s #2CNED(-1.52,30.77)age7.3s]
+[INFO] [1791331912.494389530] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/2 (阈值8px, 本帧最小边=[17, 6])
+[INFO] [1791331912.594252931] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/2 (阈值8px, 本帧最小边=[17, 4])
+[INFO] [1791331912.688463047] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/2 (阈值8px, 本帧最小边=[17, 1])
+[INFO] [1791331913.139550509] [f_r3_mission]: [t=  188.7 SCOUT           ph=  6.0s] NED(   1.40,  35.97, -4.96) H= 4.89 hdg=  92.1 pit= -4.8 rol= +0.2 vNED=(-0.34,+1.83,-0.03) det=1 age=2.75 scout sub=0
+[INFO] [1791331913.390518293] [f_r3_mission]:   TRK-DBG step=SCOUT nbox=1 boxes=[(422,324)w17→NED(0.02,33.54)] trackers=2[#0CNED(2.08,32.52)age54.4s #1CNED(0.02,33.55)age10.7s]
+[INFO] [1791331914.138817872] [f_r3_mission]: [t=  189.7 SCOUT           ph=  7.0s] NED(   1.30,  36.50, -4.96) H= 4.90 hdg=  92.0 pit= -4.6 rol= +0.3 vNED=(-0.33,+1.87,-0.02) det=1 age=3.75 scout sub=0
+[INFO] [1791331914.388245882] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/1 (阈值8px, 本帧最小边=[5])
+[INFO] [1791331914.488223808] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/1 (阈值8px, 本帧最小边=[2])
+[INFO] [1791331914.489062691] [f_r3_mission]:   TRK-DBG step=SCOUT nbox=0 boxes=[] trackers=1[#0CNED(0.01,33.57)age11.8s]
+[INFO] [1791331915.138724586] [f_r3_mission]: [t=  190.7 SCOUT           ph=  8.0s] NED(   1.18,  37.19, -4.97) H= 4.90 hdg=  92.0 pit= -4.5 rol= +0.3 vNED=(-0.33,+1.88,-0.03) det=0 age=4.75 scout sub=0
+[INFO] [1791331916.141286907] [f_r3_mission]: [t=  191.7 SCOUT           ph=  9.0s] NED(   1.04,  38.05, -4.98) H= 4.91 hdg=  92.0 pit= -4.3 rol= +0.3 vNED=(-0.33,+1.90,-0.03) det=0 age=5.75 scout sub=0
+[INFO] [1791331917.139734671] [f_r3_mission]: [t=  192.7 SCOUT           ph= 10.0s] NED(   0.92,  38.87, -4.98) H= 4.91 hdg=  92.0 pit= -4.3 rol= +0.4 vNED=(-0.31,+1.92,-0.03) det=0 age=6.75 scout sub=0
+[INFO] [1791331918.141310677] [f_r3_mission]: [t=  193.8 SCOUT           ph= 11.0s] NED(   0.81,  39.70, -4.99) H= 4.92 hdg=  92.0 pit= -4.3 rol= +0.4 vNED=(-0.32,+1.92,-0.03) det=0 age=7.75 scout sub=0
+[INFO] [1791331919.139597906] [f_r3_mission]: [t=  194.7 SCOUT           ph= 12.0s] NED(   0.69,  40.57, -5.00) H= 4.93 hdg=  92.0 pit= -4.3 rol= +0.4 vNED=(-0.33,+1.93,-0.03) det=0 age=8.75 scout sub=0
+[INFO] [1791331920.140231986] [f_r3_mission]: [t=  195.7 SCOUT           ph= 13.0s] NED(   0.56,  41.60, -5.00) H= 4.94 hdg=  92.0 pit= -4.3 rol= +0.2 vNED=(-0.35,+1.93,-0.02) det=0 age=9.75 scout sub=0
+[INFO] [1791331921.140383752] [f_r3_mission]: [t=  196.7 SCOUT           ph= 14.0s] NED(   0.46,  42.47, -5.01) H= 4.94 hdg=  92.0 pit= -4.3 rol= +0.2 vNED=(-0.34,+1.92,-0.03) det=0 age=10.75 scout sub=0
+[INFO] [1791331922.143529621] [f_r3_mission]: [t=  197.7 SCOUT           ph= 15.0s] NED(   0.37,  43.32, -5.01) H= 4.95 hdg=  92.0 pit= -4.3 rol= +0.4 vNED=(-0.32,+1.93,-0.02) det=0 age=11.75 scout sub=0
+[INFO] [1791331923.138530201] [f_r3_mission]: [t=  198.7 SCOUT           ph= 16.0s] NED(   0.27,  44.31, -5.01) H= 4.95 hdg=  92.1 pit= -4.3 rol= +0.6 vNED=(-0.33,+1.94,-0.02) det=0 age=12.75 scout sub=0
+[INFO] [1791331924.140409706] [f_r3_mission]: [t=  199.7 SCOUT           ph= 17.0s] NED(   0.22,  44.88, -5.01) H= 4.95 hdg=  92.0 pit= -4.2 rol= +0.7 vNED=(-0.33,+1.95,-0.03) det=0 age=13.75 scout sub=0
+[INFO] [1791331925.138900937] [f_r3_mission]: [t=  200.7 SCOUT           ph= 18.0s] NED(   0.12,  45.71, -5.02) H= 4.95 hdg=  92.1 pit= -4.3 rol= +0.6 vNED=(-0.34,+1.93,-0.02) det=0 age=14.75 scout sub=0
+[INFO] [1791331926.139555558] [f_r3_mission]: [t=  201.7 SCOUT           ph= 19.0s] NED(   0.02,  46.43, -5.02) H= 4.95 hdg=  92.1 pit= -4.4 rol= +0.6 vNED=(-0.35,+1.94,-0.03) det=0 age=15.75 scout sub=0
+[INFO] [1791331927.139283282] [f_r3_mission]: [t=  202.7 SCOUT           ph= 20.0s] NED(  -0.13,  47.62, -5.02) H= 4.95 hdg=  92.0 pit= -4.3 rol= +0.7 vNED=(-0.36,+1.95,-0.02) det=0 age=16.75 scout sub=0
+[INFO] [1791331928.140903614] [f_r3_mission]: [t=  203.7 SCOUT           ph= 21.0s] NED(  -0.25,  48.39, -5.02) H= 4.95 hdg=  92.1 pit= -4.2 rol= +0.7 vNED=(-0.37,+1.96,-0.03) det=0 age=17.75 scout sub=0
+[INFO] [1791331929.138716784] [f_r3_mission]: [t=  204.7 SCOUT           ph= 22.0s] NED(  -0.39,  49.25, -5.02) H= 4.95 hdg=  92.0 pit= -4.2 rol= +0.9 vNED=(-0.37,+1.94,-0.02) det=0 age=18.75 scout sub=0
+[INFO] [1791331930.139314560] [f_r3_mission]: [t=  205.7 SCOUT           ph= 23.0s] NED(  -0.53,  50.15, -5.02) H= 4.95 hdg=  92.0 pit= -4.4 rol= +1.0 vNED=(-0.39,+1.93,-0.02) det=0 age=19.75 scout sub=0
+[INFO] [1791331931.138673809] [f_r3_mission]: [t=  206.7 SCOUT           ph= 24.0s] NED(  -0.68,  50.99, -5.02) H= 4.96 hdg=  92.1 pit= -4.3 rol= +0.8 vNED=(-0.41,+1.94,-0.02) det=0 age=20.75 scout sub=0
+[INFO] [1791331932.143256840] [f_r3_mission]: [t=  207.7 SCOUT           ph= 25.0s] NED(  -0.87,  51.94, -5.03) H= 4.96 hdg=  92.0 pit= -4.3 rol= +0.7 vNED=(-0.43,+1.94,-0.02) det=0 age=21.75 scout sub=0
+[INFO] [1791331933.142161960] [f_r3_mission]: [t=  208.8 SCOUT           ph= 26.0s] NED(  -1.03,  52.71, -5.03) H= 4.97 hdg=  92.0 pit= -4.4 rol= +0.7 vNED=(-0.43,+1.93,-0.02) det=0 age=22.75 scout sub=0
+[INFO] [1791331934.142684475] [f_r3_mission]: [t=  209.7 SCOUT           ph= 27.0s] NED(  -1.23,  53.66, -5.03) H= 4.97 hdg=  92.0 pit= -4.4 rol= +0.9 vNED=(-0.43,+1.92,-0.02) det=0 age=23.75 scout sub=0
+[INFO] [1791331935.139926092] [f_r3_mission]: [t=  210.7 SCOUT           ph= 28.0s] NED(  -1.38,  54.39, -5.04) H= 4.97 hdg=  92.0 pit= -4.1 rol= +0.9 vNED=(-0.44,+1.94,-0.02) det=0 age=24.75 scout sub=0
+[INFO] [1791331936.143640361] [f_r3_mission]: [t=  211.7 SCOUT           ph= 29.0s] NED(  -1.53,  55.05, -5.04) H= 4.97 hdg=  92.0 pit= -1.3 rol= +0.4 vNED=(-0.43,+1.85,-0.01) det=0 age=25.75 scout sub=0
+[INFO] [1791331937.139491985] [f_r3_mission]: [t=  212.7 SCOUT           ph= 30.0s] NED(  -1.68,  55.72, -5.04) H= 4.97 hdg=  92.1 pit= +2.1 rol= -0.3 vNED=(-0.39,+1.61,-0.01) det=0 age=26.75 scout sub=0
+[INFO] [1791331938.139461962] [f_r3_mission]: [t=  213.7 SCOUT           ph= 31.0s] NED(  -1.84,  56.37, -5.03) H= 4.97 hdg=  92.0 pit= +3.9 rol= -0.8 vNED=(-0.31,+1.25,-0.01) det=0 age=27.75 scout sub=0
+[INFO] [1791331938.440932461] [f_r3_mission]: Scout: arrived at zone near edge, descending 1m first
+[INFO] [1791331939.140060757] [f_r3_mission]: [t=  214.7 SCOUT           ph= 32.0s] NED(  -1.93,  56.75, -5.01) H= 4.94 hdg=  92.1 pit= +3.7 rol= -0.7 vNED=(-0.25,+1.01,+0.47) det=0 age=28.75 scout sub=1
+[INFO] [1791331940.138293025] [f_r3_mission]: [t=  215.7 SCOUT           ph= 33.0s] NED(  -2.03,  57.17, -4.67) H= 4.60 hdg=  92.0 pit= +5.4 rol= -1.3 vNED=(-0.17,+0.57,+0.81) det=0 age=29.75 scout sub=1
+[INFO] [1791331941.140199016] [f_r3_mission]: [t=  216.7 SCOUT           ph= 34.0s] NED(  -2.07,  57.37, -4.40) H= 4.34 hdg=  92.1 pit= +4.4 rol= -1.0 vNED=(-0.06,+0.14,+0.46) det=0 age=30.75 scout sub=1
+[INFO] [1791331941.451305415] [f_r3_mission]: Scout: descended 1m, slow moving 10s to zone center
+[INFO] [1791331942.141465597] [f_r3_mission]: [t=  217.7 SCOUT           ph= 35.0s] NED(  -2.06,  57.43, -4.28) H= 4.22 hdg=  92.1 pit= +3.1 rol= -0.5 vNED=(+0.01,-0.07,+0.28) det=0 age=31.75 scout sub=2
+[INFO] [1791331943.139978841] [f_r3_mission]: [t=  218.7 SCOUT           ph= 36.0s] NED(  -2.02,  57.42, -4.19) H= 4.12 hdg=  92.2 pit= -0.4 rol= +0.1 vNED=(+0.04,-0.14,+0.14) det=0 age=32.75 scout sub=2
+[INFO] [1791331944.139292489] [f_r3_mission]: [t=  219.7 SCOUT           ph= 37.0s] NED(  -1.98,  57.40, -4.14) H= 4.08 hdg=  92.0 pit= -2.2 rol= +0.5 vNED=(+0.02,-0.04,+0.07) det=0 age=33.75 scout sub=2
+[INFO] [1791331945.139687904] [f_r3_mission]: [t=  220.7 SCOUT           ph= 38.0s] NED(  -1.95,  57.43, -4.12) H= 4.05 hdg=  91.9 pit= -2.7 rol= +0.6 vNED=(-0.01,+0.16,+0.03) det=0 age=34.75 scout sub=2
+[INFO] [1791331946.139032248] [f_r3_mission]: [t=  221.7 SCOUT           ph= 39.0s] NED(  -1.94,  57.50, -4.11) H= 4.04 hdg=  92.0 pit= -3.2 rol= +0.6 vNED=(-0.04,+0.30,+0.03) det=0 age=35.75 scout sub=2
+[INFO] [1791331947.145909527] [f_r3_mission]: [t=  222.7 SCOUT           ph= 40.0s] NED(  -1.95,  57.64, -4.10) H= 4.04 hdg=  92.1 pit= -3.2 rol= +0.5 vNED=(-0.05,+0.48,+0.02) det=0 age=36.75 scout sub=2
+[INFO] [1791331948.139811657] [f_r3_mission]: [t=  223.7 SCOUT           ph= 41.0s] NED(  -1.99,  57.87, -4.10) H= 4.03 hdg=  91.9 pit= -2.6 rol= +0.2 vNED=(-0.07,+0.59,+0.02) det=0 age=37.75 scout sub=2
+[INFO] [1791331949.140591923] [f_r3_mission]: [t=  224.7 SCOUT           ph= 42.0s] NED(  -2.01,  58.01, -4.10) H= 4.03 hdg=  92.1 pit= -2.7 rol= +0.0 vNED=(-0.08,+0.62,+0.02) det=0 age=38.75 scout sub=2
+[INFO] [1791331950.140365734] [f_r3_mission]: [t=  225.7 SCOUT           ph= 43.0s] NED(  -2.04,  58.17, -4.10) H= 4.03 hdg=  92.0 pit= -3.1 rol= -0.1 vNED=(-0.07,+0.68,+0.02) det=0 age=39.75 scout sub=2
+[INFO] [1791331951.142788757] [f_r3_mission]: [t=  226.8 SCOUT           ph= 44.0s] NED(  -2.06,  58.31, -4.10) H= 4.03 hdg=  92.1 pit= -3.6 rol= -0.2 vNED=(-0.07,+0.73,+0.02) det=0 age=40.75 scout sub=2
+[INFO] [1791331951.490357207] [f_r3_mission]: Scout: slow move done, moving left 1.5m
+[INFO] [1791331952.139375493] [f_r3_mission]: [t=  227.7 SCOUT           ph= 45.0s] NED(  -2.08,  58.68, -4.11) H= 4.04 hdg=  92.0 pit= -2.6 rol= -9.9 vNED=(+0.15,+0.86,-0.03) det=0 age=41.75 scout sub=3
+[INFO] [1791331953.140199494] [f_r3_mission]: [t=  228.7 SCOUT           ph= 46.0s] NED(  -2.01,  58.89, -4.11) H= 4.04 hdg=  91.8 pit= -0.6 rol=-10.9 vNED=(+0.55,+0.85,+0.03) det=0 age=42.75 scout sub=3
+[INFO] [1791331954.139463526] [f_r3_mission]: [t=  229.7 SCOUT           ph= 47.0s] NED(  -1.85,  59.12, -4.10) H= 4.03 hdg=  91.8 pit= +1.1 rol= -6.9 vNED=(+0.88,+0.76,+0.05) det=0 age=43.75 scout sub=3
+[INFO] [1791331955.141655015] [f_r3_mission]: [t=  230.8 SCOUT           ph= 48.0s] NED(  -1.56,  59.41, -4.09) H= 4.03 hdg=  92.2 pit= +2.5 rol= -2.4 vNED=(+1.01,+0.59,+0.03) det=0 age=44.75 scout sub=3
+[INFO] [1791331956.139765744] [f_r3_mission]: [t=  231.7 SCOUT           ph= 49.0s] NED(  -1.18,  59.66, -4.09) H= 4.02 hdg=  92.1 pit= +3.2 rol= +0.7 vNED=(+0.90,+0.33,+0.02) det=0 age=45.75 scout sub=3
+[INFO] [1791331957.141302681] [f_r3_mission]: [t=  232.7 SCOUT           ph= 50.0s] NED(  -0.91,  59.77, -4.09) H= 4.02 hdg=  92.0 pit= +3.1 rol= +2.1 vNED=(+0.74,+0.14,+0.02) det=0 age=46.75 scout sub=3
+[INFO] [1791331958.140153228] [f_r3_mission]: [t=  233.7 SCOUT           ph= 51.0s] NED(  -0.65,  59.83, -4.09) H= 4.02 hdg=  92.1 pit= +2.5 rol= +2.9 vNED=(+0.53,-0.01,+0.02) det=0 age=47.75 scout sub=3
+[INFO] [1791331959.142179499] [f_r3_mission]: [t=  234.8 SCOUT           ph= 52.0s] NED(  -0.41,  59.81, -4.08) H= 4.02 hdg=  91.9 pit= +1.6 rol= +3.3 vNED=(+0.23,-0.15,+0.02) det=0 age=48.75 scout sub=3
+[INFO] [1791331960.139837802] [f_r3_mission]: [t=  235.7 SCOUT           ph= 53.0s] NED(  -0.31,  59.72, -4.08) H= 4.02 hdg=  91.9 pit= +0.4 rol= +2.8 vNED=(+0.02,-0.21,+0.02) det=0 age=49.75 scout sub=3
+[INFO] [1791331961.140973329] [f_r3_mission]: [t=  236.8 SCOUT           ph= 54.0s] NED(  -0.30,  59.61, -4.08) H= 4.01 hdg=  92.0 pit= -0.5 rol= +1.9 vNED=(-0.14,-0.19,+0.01) det=0 age=50.75 scout sub=3
+[INFO] [1791331961.389394305] [f_r3_mission]: Scout: left 1.5m done, pausing 5s
+[INFO] [1791331962.139528010] [f_r3_mission]: [t=  237.7 SCOUT           ph= 55.0s] NED(  -0.32,  59.56, -4.08) H= 4.01 hdg=  92.0 pit= -0.8 rol= +1.5 vNED=(-0.16,-0.16,+0.02) det=0 age=51.75 scout sub=4
+[INFO] [1791331963.138571029] [f_r3_mission]: [t=  238.7 SCOUT           ph= 56.0s] NED(  -0.38,  59.48, -4.08) H= 4.01 hdg=  92.1 pit= -1.0 rol= +0.8 vNED=(-0.19,-0.10,+0.01) det=0 age=52.75 scout sub=4
+[INFO] [1791331964.142808506] [f_r3_mission]: [t=  239.7 SCOUT           ph= 57.0s] NED(  -0.46,  59.42, -4.08) H= 4.01 hdg=  92.1 pit= -1.0 rol= +0.2 vNED=(-0.17,-0.02,+0.01) det=0 age=53.75 scout sub=4
+[INFO] [1791331965.143009786] [f_r3_mission]: [t=  240.8 SCOUT           ph= 58.0s] NED(  -0.54,  59.38, -4.08) H= 4.01 hdg=  92.1 pit= -1.1 rol= -0.3 vNED=(-0.14,+0.03,+0.01) det=0 age=54.75 scout sub=4
+[INFO] [1791331966.139090972] [f_r3_mission]: [t=  241.7 SCOUT           ph= 59.0s] NED(  -0.59,  59.36, -4.08) H= 4.01 hdg=  92.0 pit= -1.0 rol= -0.6 vNED=(-0.10,+0.07,+0.01) det=0 age=55.75 scout sub=4
+[INFO] [1791331966.444894827] [f_r3_mission]: Scout: pause done, moving right 3m
+[INFO] [1791331967.140771331] [f_r3_mission]: [t=  242.7 SCOUT           ph= 60.0s] NED(  -0.67,  59.35, -4.09) H= 4.03 hdg=  92.1 pit= -0.9 rol=+10.9 vNED=(-0.20,+0.09,-0.19) det=0 age=56.75 scout sub=5
+[INFO] [1791331968.141303594] [f_r3_mission]: [t=  243.7 SCOUT           ph= 61.0s] NED(  -0.84,  59.34, -4.12) H= 4.06 hdg=  92.1 pit= -0.8 rol=+20.5 vNED=(-0.95,+0.07,-0.00) det=0 age=57.75 scout sub=5
+[INFO] [1791331969.139804650] [f_r3_mission]: [t=  244.7 SCOUT           ph= 62.0s] NED(  -1.26,  59.34, -4.11) H= 4.04 hdg=  92.1 pit= -0.7 rol=+12.8 vNED=(-1.69,+0.06,+0.08) det=0 age=58.75 scout sub=5
+[INFO] [1791331970.139591923] [f_r3_mission]: [t=  245.7 SCOUT           ph= 63.0s] NED(  -1.84,  59.34, -4.09) H= 4.02 hdg=  92.0 pit= -0.5 rol= +4.4 vNED=(-1.93,+0.06,+0.06) det=0 age=59.75 scout sub=5
+[INFO] [1791331971.141940041] [f_r3_mission]: [t=  246.7 SCOUT           ph= 64.0s] NED(  -2.49,  59.31, -4.08) H= 4.01 hdg=  92.2 pit= -0.6 rol= -1.2 vNED=(-1.77,+0.04,+0.03) det=0 age=60.75 scout sub=5
+[INFO] [1791331972.143026295] [f_r3_mission]: [t=  247.8 SCOUT           ph= 65.0s] NED(  -3.24,  59.30, -4.08) H= 4.01 hdg=  92.1 pit= -0.6 rol= -5.1 vNED=(-1.24,+0.07,+0.02) det=0 age=61.75 scout sub=5
+[INFO] [1791331972.539387948] [f_r3_mission]: Scout: right 3m done, pausing 5s
+[INFO] [1791331973.138486016] [f_r3_mission]: [t=  248.7 SCOUT           ph= 66.0s] NED(  -3.71,  59.31, -4.07) H= 4.01 hdg=  92.0 pit= -0.3 rol= -6.1 vNED=(-0.74,+0.09,+0.02) det=0 age=62.75 scout sub=6
+[INFO] [1791331974.138395224] [f_r3_mission]: [t=  249.7 SCOUT           ph= 67.0s] NED(  -3.93,  59.32, -4.08) H= 4.01 hdg=  92.0 pit= -0.1 rol= -5.8 vNED=(-0.41,+0.10,+0.02) det=0 age=63.75 scout sub=6
+[INFO] [1791331975.139924654] [f_r3_mission]: [t=  250.7 SCOUT           ph= 68.0s] NED(  -4.05,  59.34, -4.08) H= 4.01 hdg=  92.0 pit= -0.0 rol= -5.1 vNED=(-0.12,+0.09,+0.02) det=0 age=64.75 scout sub=6
+[INFO] [1791331976.139738839] [f_r3_mission]: [t=  251.7 SCOUT           ph= 69.0s] NED(  -4.10,  59.36, -4.08) H= 4.01 hdg=  92.1 pit= +0.1 rol= -4.4 vNED=(+0.06,+0.07,+0.02) det=0 age=65.75 scout sub=6
+[INFO] [1791331977.139586364] [f_r3_mission]: [t=  252.7 SCOUT           ph= 70.0s] NED(  -4.10,  59.37, -4.08) H= 4.01 hdg=  92.1 pit= +0.1 rol= -3.4 vNED=(+0.21,+0.06,+0.02) det=0 age=66.75 scout sub=6
+[INFO] [1791331977.545809837] [f_r3_mission]: Scout maneuver complete (70.4s, 7 sub-phases), returning home
+[INFO] [1791331977.547423495] [f_r3_mission]: STEP SCOUT->RETURN (prev 70.4s) NED(-4.08,59.38,-4.08) H=4.01m
+[INFO] [1791331978.139313596] [f_r3_mission]: [t=  253.7 RETURN          ph=  0.6s] NED(  -4.04,  59.38, -4.10) H= 4.04 hdg=  91.8 pit= +7.5 rol= -1.1 vNED=(+0.33,-0.07,-0.45) det=0 age=67.75 ->home dist=59.5m
+[INFO] [1791331979.141871036] [f_r3_mission]: [t=  254.7 RETURN          ph=  1.6s] NED(  -3.95,  59.21, -4.30) H= 4.24 hdg=  91.9 pit=+22.2 rol= +1.4 vNED=(+0.28,-1.13,-0.46) det=0 age=68.75 ->home dist=59.3m
+[INFO] [1791331980.138513351] [f_r3_mission]: [t=  255.7 RETURN          ph=  2.6s] NED(  -3.88,  58.87, -4.41) H= 4.35 hdg=  92.1 pit=+16.3 rol= +0.8 vNED=(+0.23,-1.86,-0.33) det=0 age=69.75 ->home dist=59.0m
+[INFO] [1791331981.140180595] [f_r3_mission]: [t=  256.7 RETURN          ph=  3.6s] NED(  -3.79,  58.14, -4.54) H= 4.47 hdg=  92.2 pit=+10.6 rol= +0.3 vNED=(+0.20,-2.37,-0.27) det=0 age=70.75 ->home dist=58.3m
+[INFO] [1791331982.140057132] [f_r3_mission]: [t=  257.7 RETURN          ph=  4.6s] NED(  -3.68,  57.18, -4.65) H= 4.58 hdg=  92.2 pit= +8.3 rol= +0.1 vNED=(+0.19,-2.63,-0.21) det=0 age=71.75 ->home dist=57.3m
+[INFO] [1791331983.139776371] [f_r3_mission]: [t=  258.7 RETURN          ph=  5.6s] NED(  -3.57,  56.21, -4.73) H= 4.66 hdg=  92.1 pit= +7.4 rol= +0.2 vNED=(+0.21,-2.74,-0.17) det=0 age=72.75 ->home dist=56.3m
+[INFO] [1791331984.139326983] [f_r3_mission]: [t=  259.7 RETURN          ph=  6.6s] NED(  -3.50,  55.47, -4.78) H= 4.71 hdg=  92.1 pit= +7.0 rol= +0.2 vNED=(+0.20,-2.80,-0.15) det=0 age=73.75 ->home dist=55.6m
+[INFO] [1791331985.139659696] [f_r3_mission]: [t=  260.7 RETURN          ph=  7.6s] NED(  -3.39,  54.25, -4.84) H= 4.78 hdg=  92.0 pit= +6.5 rol= +0.1 vNED=(+0.20,-2.86,-0.10) det=0 age=74.75 ->home dist=54.4m
+[INFO] [1791331986.140368854] [f_r3_mission]: [t=  261.7 RETURN          ph=  8.6s] NED(  -3.29,  53.19, -4.89) H= 4.82 hdg=  92.0 pit= +6.4 rol= +0.2 vNED=(+0.20,-2.89,-0.08) det=0 age=75.75 ->home dist=53.3m
+[INFO] [1791331987.142882341] [f_r3_mission]: [t=  262.7 RETURN          ph=  9.6s] NED(  -3.21,  52.11, -4.92) H= 4.86 hdg=  92.1 pit= +6.2 rol= +0.2 vNED=(+0.20,-2.91,-0.06) det=0 age=76.75 ->home dist=52.2m
+[INFO] [1791331988.139635637] [f_r3_mission]: [t=  263.7 RETURN          ph= 10.6s] NED(  -3.13,  51.15, -4.95) H= 4.89 hdg=  92.0 pit= +6.2 rol= +0.2 vNED=(+0.19,-2.92,-0.05) det=0 age=77.75 ->home dist=51.2m
+[INFO] [1791331989.140387292] [f_r3_mission]: [t=  264.7 RETURN          ph= 11.6s] NED(  -3.08,  50.31, -4.98) H= 4.91 hdg=  92.0 pit= +6.1 rol= +0.1 vNED=(+0.17,-2.93,-0.04) det=0 age=78.75 ->home dist=50.4m
+[INFO] [1791331990.139297237] [f_r3_mission]: [t=  265.7 RETURN          ph= 12.6s] NED(  -3.01,  49.23, -5.01) H= 4.94 hdg=  92.0 pit= +6.2 rol= -0.0 vNED=(+0.17,-2.93,-0.03) det=0 age=79.75 ->home dist=49.3m
+[INFO] [1791331991.140288508] [f_r3_mission]: [t=  266.7 RETURN          ph= 13.6s] NED(  -2.92,  47.91, -5.04) H= 4.97 hdg=  92.0 pit= +6.1 rol= +0.0 vNED=(+0.18,-2.94,-0.01) det=0 age=80.75 ->home dist=48.0m
+[INFO] [1791331992.140722046] [f_r3_mission]: [t=  267.7 RETURN          ph= 14.6s] NED(  -2.83,  46.65, -5.06) H= 4.99 hdg=  92.0 pit= +6.2 rol= -0.1 vNED=(+0.17,-2.95,+0.00) det=0 age=81.75 ->home dist=46.7m
+[INFO] [1791331993.139640376] [f_r3_mission]: [t=  268.7 RETURN          ph= 15.6s] NED(  -2.78,  45.82, -5.08) H= 5.01 hdg=  92.0 pit= +6.1 rol= -0.0 vNED=(+0.18,-2.95,-0.00) det=0 age=82.75 ->home dist=45.9m
+[INFO] [1791331994.141052975] [f_r3_mission]: [t=  269.8 RETURN          ph= 16.6s] NED(  -2.66,  44.12, -5.10) H= 5.03 hdg=  92.0 pit= +6.3 rol= +0.3 vNED=(+0.20,-2.94,+0.02) det=0 age=83.75 ->home dist=44.2m
+[INFO] [1791331995.138442964] [f_r3_mission]: [t=  270.7 RETURN          ph= 17.6s] NED(  -2.58,  42.81, -5.11) H= 5.04 hdg=  91.9 pit= +6.3 rol= +0.2 vNED=(+0.19,-2.94,+0.02) det=0 age=84.75 ->home dist=42.9m
+[INFO] [1791331996.138766811] [f_r3_mission]: [t=  271.7 RETURN          ph= 18.6s] NED(  -2.53,  41.63, -5.12) H= 5.05 hdg=  92.0 pit= +6.1 rol= +0.1 vNED=(+0.18,-2.96,+0.03) det=0 age=85.75 ->home dist=41.7m
+[INFO] [1791331997.138930955] [f_r3_mission]: [t=  272.7 RETURN          ph= 19.6s] NED(  -2.47,  39.97, -5.13) H= 5.06 hdg=  92.0 pit= +6.3 rol= +0.2 vNED=(+0.19,-2.95,+0.03) det=0 age=86.75 ->home dist=40.0m
+[INFO] [1791331998.141397150] [f_r3_mission]: [t=  273.7 RETURN          ph= 20.6s] NED(  -2.42,  38.66, -5.14) H= 5.07 hdg=  92.0 pit= +6.3 rol= +0.1 vNED=(+0.19,-2.97,+0.04) det=0 age=87.75 ->home dist=38.7m
+[INFO] [1791331999.140408445] [f_r3_mission]: [t=  274.7 RETURN          ph= 21.6s] NED(  -2.39,  37.63, -5.14) H= 5.07 hdg=  92.0 pit= +6.1 rol= -0.0 vNED=(+0.18,-2.98,+0.04) det=0 age=88.75 ->home dist=37.7m
+[INFO] [1791331999.391759481] [f_r3_mission]:   TRK-DBG step=RETURN nbox=0 boxes=[] trackers=0[]
+[INFO] [1791331999.794365466] [f_r3_mission]:   TRK-NEW #0 NED(-0.13,34.68) from box(cx=168,cy=352,w=17,h=15) alive=1
+[INFO] [1791332000.142827684] [f_r3_mission]: [t=  275.7 RETURN          ph= 22.6s] NED(  -2.32,  35.83, -5.15) H= 5.08 hdg=  92.1 pit= +6.2 rol= +0.1 vNED=(+0.20,-2.98,+0.04) det=1 age=0.05 ->home dist=35.9m
+[INFO] [1791332000.291599516] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/2 (阈值8px, 本帧最小边=[17, 2])
+[INFO] [1791332000.389367921] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/2 (阈值8px, 本帧最小边=[17, 7])
+[INFO] [1791332000.493418398] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/2 (阈值8px, 本帧最小边=[17, 7])
+[INFO] [1791332000.495350126] [f_r3_mission]:   TRK-DBG step=RETURN nbox=1 boxes=[(168,286)w17→NED(-0.08,34.61)] trackers=1[#0-NED(-0.09,34.62)age0.7s]
+[INFO] [1791332000.600570091] [f_r3_mission]:   TRK-NEW #1 NED(1.78,33.61) from box(cx=34,cy=344,w=17,h=17) alive=2
+[INFO] [1791332001.139093438] [f_r3_mission]: [t=  276.7 RETURN          ph= 23.6s] NED(  -2.27,  34.36, -5.15) H= 5.08 hdg=  91.9 pit= +6.3 rol= +0.1 vNED=(+0.20,-2.96,+0.05) det=2 age=0.05 ->home dist=34.4m
+[INFO] [1791332001.398762660] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/3 (阈值8px, 本帧最小边=[17, 17, 3])
+[INFO] [1791332001.404469850] [f_r3_mission]: Tracker confirmed: NED(-0.0,34.6) after 1.6s
+[INFO] [1791332001.495802742] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/3 (阈值8px, 本帧最小边=[17, 17, 6])
+[INFO] [1791332001.497249268] [f_r3_mission]:   TRK-DBG step=RETURN nbox=2 boxes=[(34,266)w17→NED(1.87,33.59) (168,194)w17→NED(-0.03,34.56)] trackers=2[#0CNED(-0.03,34.57)age1.7s #1-NED(1.85,33.61)age0.9s]
+[INFO] [1791332001.596124792] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/3 (阈值8px, 本帧最小边=[17, 17, 6])
+[INFO] [1791332001.698453608] [f_r3_mission]:   TRK-NEW #2 NED(-1.55,32.24) from box(cx=274,cy=354,w=17,h=11) alive=3
+[INFO] [1791332002.142599906] [f_r3_mission]: [t=  277.7 RETURN          ph= 24.6s] NED(  -2.24,  33.52, -5.15) H= 5.09 hdg=  92.1 pit= +6.3 rol= +0.0 vNED=(+0.18,-2.97,+0.04) det=3 age=0.05 ->home dist=33.6m
+[INFO] [1791332002.192565503] [f_r3_mission]: Tracker confirmed: NED(1.9,33.6) after 1.6s
+[INFO] [1791332002.497579237] [f_r3_mission]:   TRK-DBG step=RETURN nbox=3 boxes=[(274,282)w17→NED(-1.53,32.11) (34,188)w17→NED(1.94,33.56) (168,114)w17→NED(0.01,34.59)] trackers=3[#0CNED(0.00,34.58)age2.7s #1CNED(1.92,33.57)age1.9s #2-NED(-1.54,32.14)age0.8s]
+[INFO] [1791332003.139241830] [f_r3_mission]: [t=  278.7 RETURN          ph= 25.6s] NED(  -2.20,  32.13, -5.15) H= 5.09 hdg=  92.1 pit= +6.2 rol= -0.0 vNED=(+0.19,-2.98,+0.05) det=3 age=0.05 ->home dist=32.2m
+[INFO] [1791332003.292817360] [f_r3_mission]: Tracker confirmed: NED(-1.5,32.1) after 1.6s
+[INFO] [1791332003.591242045] [f_r3_mission]:   TRK-DBG step=RETURN nbox=3 boxes=[(274,184)w17→NED(-1.51,32.06) (34,90)w17→NED(2.09,33.60) (166,16)w17→NED(0.10,34.69)] trackers=3[#0CNED(0.08,34.66)age3.8s #1CNED(2.06,33.59)age3.0s #2CNED(-1.52,32.07)age1.9s]
+[INFO] [1791332003.688729636] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/3 (阈值8px, 本帧最小边=[17, 17, 8])
+[INFO] [1791332003.794285135] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/3 (阈值8px, 本帧最小边=[17, 17, 8])
+[INFO] [1791332003.888695912] [f_r3_mission]:   DET-FILTER 剔除残缺框 1/3 (阈值8px, 本帧最小边=[17, 17, 8])
+[INFO] [1791332004.144554148] [f_r3_mission]: [t=  279.7 RETURN          ph= 26.6s] NED(  -2.15,  30.88, -5.15) H= 5.09 hdg=  92.0 pit= +6.3 rol= -0.1 vNED=(+0.19,-2.97,+0.05) det=2 age=0.05 ->home dist=31.0m
+[INFO] [1791332004.689061323] [f_r3_mission]:   TRK-DBG step=RETURN nbox=2 boxes=[(274,122)w17→NED(-1.51,32.09) (34,28)w17→NED(2.16,33.68)] trackers=3[#0CNED(0.08,34.66)age4.9s #1CNED(2.15,33.67)age4.1s #2CNED(-1.51,32.08)age3.0s]
+[INFO] [1791332005.145473430] [f_r3_mission]: [t=  280.8 RETURN          ph= 27.6s] NED(  -2.13,  30.09, -5.15) H= 5.09 hdg=  92.1 pit= +6.3 rol= -0.1 vNED=(+0.18,-2.97,+0.04) det=2 age=0.06 ->home dist=30.2m
+[INFO] [1791332005.691632743] [f_r3_mission]:   TRK-DBG step=RETURN nbox=1 boxes=[(274,48)w17→NED(-1.50,32.15)] trackers=2[#0CNED(2.17,33.68)age5.1s #1CNED(-1.50,32.13)age4.0s]
+[INFO] [1791332006.141720673] [f_r3_mission]: [t=  281.7 RETURN          ph= 28.6s] NED(  -2.10,  29.24, -5.16) H= 5.09 hdg=  92.0 pit= +6.3 rol= -0.2 vNED=(+0.18,-2.98,+0.05) det=1 age=0.05 ->home dist=29.3m
+[INFO] [1791332006.695513304] [f_r3_mission]:   TRK-DBG step=RETURN nbox=0 boxes=[] trackers=2[#0CNED(2.17,33.68)age6.1s #1CNED(-1.50,32.16)age5.0s]
+[INFO] [1791332007.139404094] [f_r3_mission]: [t=  282.7 RETURN          ph= 29.6s] NED(  -2.03,  27.79, -5.15) H= 5.08 hdg=  92.0 pit= +6.2 rol= -0.1 vNED=(+0.21,-2.98,+0.04) det=0 age=0.75 ->home dist=27.9m
+[INFO] [1791332008.140939709] [f_r3_mission]: [t=  283.7 RETURN          ph= 30.6s] NED(  -1.97,  26.71, -5.15) H= 5.08 hdg=  92.0 pit= +6.3 rol= -0.1 vNED=(+0.21,-2.97,+0.04) det=0 age=1.75 ->home dist=26.8m
+[INFO] [1791332009.139116604] [f_r3_mission]: [t=  284.7 RETURN          ph= 31.6s] NED(  -1.86,  25.02, -5.14) H= 5.07 hdg=  91.9 pit= +6.4 rol= -0.1 vNED=(+0.21,-2.98,+0.04) det=0 age=2.75 ->home dist=25.1m
+[INFO] [1791332010.141509184] [f_r3_mission]: [t=  285.7 RETURN          ph= 32.6s] NED(  -1.74,  23.20, -5.13) H= 5.06 hdg=  92.0 pit= +6.3 rol= -0.4 vNED=(+0.20,-2.98,+0.04) det=0 age=3.75 ->home dist=23.3m
+[INFO] [1791332011.138799077] [f_r3_mission]: [t=  286.7 RETURN          ph= 33.6s] NED(  -1.65,  21.98, -5.12) H= 5.05 hdg=  92.0 pit= +6.3 rol= -0.2 vNED=(+0.21,-2.97,+0.03) det=0 age=4.75 ->home dist=22.0m
+[INFO] [1791332012.144481368] [f_r3_mission]: [t=  287.8 RETURN          ph= 34.6s] NED(  -1.55,  20.83, -5.11) H= 5.04 hdg=  92.1 pit= +6.3 rol= -0.1 vNED=(+0.21,-2.98,+0.03) det=0 age=5.75 ->home dist=20.9m
+[INFO] [1791332013.142864978] [f_r3_mission]: [t=  288.8 RETURN          ph= 35.6s] NED(  -1.42,  19.50, -5.10) H= 5.04 hdg=  92.0 pit= +6.3 rol= -0.1 vNED=(+0.22,-2.98,+0.02) det=0 age=6.75 ->home dist=19.6m
+[INFO] [1791332014.140202224] [f_r3_mission]: [t=  289.7 RETURN          ph= 36.6s] NED(  -1.28,  18.09, -5.10) H= 5.03 hdg=  92.0 pit= +6.3 rol= +0.1 vNED=(+0.23,-2.98,+0.02) det=0 age=7.75 ->home dist=18.1m
+[INFO] [1791332015.138827213] [f_r3_mission]: [t=  290.7 RETURN          ph= 37.6s] NED(  -1.14,  16.63, -5.09) H= 5.02 hdg=  92.0 pit= +6.4 rol= +0.0 vNED=(+0.22,-2.97,+0.01) det=0 age=8.75 ->home dist=16.7m
+[INFO] [1791332016.141532362] [f_r3_mission]: [t=  291.7 RETURN          ph= 38.6s] NED(  -1.02,  15.35, -5.08) H= 5.02 hdg=  92.0 pit= +6.3 rol= +0.0 vNED=(+0.21,-2.99,+0.01) det=0 age=9.75 ->home dist=15.4m
+[INFO] [1791332017.138383026] [f_r3_mission]: [t=  292.7 RETURN          ph= 39.6s] NED(  -0.92,  14.25, -5.08) H= 5.01 hdg=  92.0 pit= +6.2 rol= +0.1 vNED=(+0.20,-3.00,+0.01) det=0 age=10.75 ->home dist=14.3m
+[INFO] [1791332018.141278158] [f_r3_mission]: [t=  293.7 RETURN          ph= 40.6s] NED(  -0.83,  13.18, -5.07) H= 5.01 hdg=  92.0 pit= +6.2 rol= +0.1 vNED=(+0.19,-2.99,+0.01) det=0 age=11.75 ->home dist=13.2m
+[INFO] [1791332019.141940517] [f_r3_mission]: [t=  294.7 RETURN          ph= 41.6s] NED(  -0.73,  12.15, -5.07) H= 5.00 hdg=  92.0 pit= +6.3 rol= +0.1 vNED=(+0.19,-2.99,-0.00) det=0 age=12.75 ->home dist=12.2m
+[INFO] [1791332020.143397752] [f_r3_mission]: [t=  295.7 RETURN          ph= 42.6s] NED(  -0.66,  11.29, -5.07) H= 5.00 hdg=  92.0 pit= +6.3 rol= +0.1 vNED=(+0.19,-2.99,-0.00) det=0 age=13.75 ->home dist=11.3m
+[INFO] [1791332021.141705875] [f_r3_mission]: [t=  296.7 RETURN          ph= 43.6s] NED(  -0.55,   9.93, -5.06) H= 5.00 hdg=  92.0 pit= +6.2 rol= +0.0 vNED=(+0.17,-3.00,+0.01) det=0 age=14.75 ->home dist=10.0m
+[INFO] [1791332022.139081887] [f_r3_mission]: [t=  297.7 RETURN          ph= 44.6s] NED(  -0.46,   8.82, -5.06) H= 4.99 hdg=  92.0 pit= +6.2 rol= +0.1 vNED=(+0.18,-3.00,-0.00) det=0 age=15.75 ->home dist=8.8m
+[INFO] [1791332023.143093390] [f_r3_mission]: [t=  298.7 RETURN          ph= 45.6s] NED(  -0.37,   7.59, -5.06) H= 4.99 hdg=  92.0 pit= +6.4 rol= +0.2 vNED=(+0.16,-2.99,-0.01) det=0 age=16.75 ->home dist=7.6m
+[INFO] [1791332024.138855547] [f_r3_mission]: [t=  299.7 RETURN          ph= 46.6s] NED(  -0.30,   6.49, -5.06) H= 4.99 hdg=  91.9 pit= +6.3 rol= +0.2 vNED=(+0.16,-3.00,-0.01) det=0 age=17.75 ->home dist=6.5m
+[INFO] [1791332025.142248382] [f_r3_mission]: [t=  300.7 RETURN          ph= 47.6s] NED(  -0.21,   5.13, -5.06) H= 5.00 hdg=  92.0 pit= +6.1 rol= +0.3 vNED=(+0.14,-3.01,+0.00) det=0 age=18.75 ->home dist=5.1m
+[INFO] [1791332026.139464324] [f_r3_mission]: [t=  301.7 RETURN          ph= 48.6s] NED(  -0.13,   3.54, -5.07) H= 5.00 hdg=  92.0 pit= +6.1 rol= +0.4 vNED=(+0.14,-3.00,-0.01) det=0 age=19.75 ->home dist=3.6m
+[INFO] [1791332027.141732074] [f_r3_mission]: [t=  302.7 RETURN          ph= 49.6s] NED(  -0.09,   2.26, -5.07) H= 5.00 hdg=  92.0 pit= +5.1 rol= +0.3 vNED=(+0.12,-2.98,+0.01) det=0 age=20.75 ->home dist=2.3m
+[INFO] [1791332028.139391286] [f_r3_mission]: [t=  303.7 RETURN          ph= 50.6s] NED(  -0.05,   1.06, -5.06) H= 5.00 hdg=  92.0 pit= -4.1 rol= +0.3 vNED=(+0.09,-2.61,+0.00) det=0 age=21.75 ->home dist=1.1m
+[INFO] [1791332028.742815364] [f_r3_mission]: Return: over home, stabilizing before land
+[INFO] [1791332029.142467825] [f_r3_mission]: [t=  304.7 RETURN          ph= 51.6s] NED(  -0.03,  -0.09, -5.06) H= 4.99 hdg=  91.9 pit= -9.3 rol= -0.0 vNED=(+0.06,-1.59,-0.01) det=0 age=22.75 stabilizing dist=0.09m drift=0.33m
+[INFO] [1791332030.140440591] [f_r3_mission]: [t=  305.7 RETURN          ph= 52.6s] NED(  -0.03,  -0.65, -5.06) H= 4.99 hdg=  92.0 pit=-10.3 rol= -0.0 vNED=(+0.05,-0.69,-0.01) det=0 age=23.75 stabilizing dist=0.64m drift=0.97m
+[INFO] [1791332031.139592163] [f_r3_mission]: [t=  306.7 RETURN          ph= 53.6s] NED(  -0.04,  -0.89, -5.07) H= 5.00 hdg=  92.0 pit= -7.6 rol= -0.1 vNED=(+0.03,+0.03,-0.01) det=0 age=24.75 stabilizing dist=0.89m drift=1.23m
+[INFO] [1791332032.139525575] [f_r3_mission]: [t=  307.7 RETURN          ph= 54.6s] NED(  -0.06,  -0.83, -5.06) H= 5.00 hdg=  92.0 pit= -4.6 rol= -0.2 vNED=(+0.03,+0.42,-0.00) det=0 age=25.75 stabilizing dist=0.83m drift=0.81m
+[INFO] [1791332033.138790766] [f_r3_mission]: [t=  308.7 RETURN          ph= 55.6s] NED(  -0.07,  -0.57, -5.06) H= 4.99 hdg=  92.0 pit= -1.1 rol= -0.0 vNED=(+0.05,+0.55,-0.00) det=0 age=26.75 stabilizing dist=0.56m drift=0.32m
+[INFO] [1791332034.139728272] [f_r3_mission]: [t=  309.7 RETURN          ph= 56.6s] NED(  -0.07,  -0.37, -5.05) H= 4.98 hdg=  92.0 pit= +0.5 rol= +0.1 vNED=(+0.06,+0.51,-0.01) det=0 age=27.75 stabilizing dist=0.36m drift=0.51m
+[INFO] [1791332035.141914802] [f_r3_mission]: [t=  310.7 RETURN          ph= 57.6s] NED(  -0.06,  -0.22, -5.05) H= 4.98 hdg=  92.0 pit= +1.3 rol= +0.3 vNED=(+0.06,+0.43,-0.01) det=0 age=28.75 stabilizing dist=0.22m drift=0.60m
+[INFO] [1791332036.140289813] [f_r3_mission]: [t=  311.7 RETURN          ph= 58.6s] NED(  -0.06,  -0.01, -5.04) H= 4.98 hdg=  92.0 pit= +2.0 rol= +0.2 vNED=(+0.05,+0.24,-0.02) det=0 age=29.75 stabilizing dist=0.05m drift=0.55m
+[INFO] [1791332037.142232355] [f_r3_mission]: [t=  312.7 RETURN          ph= 59.6s] NED(  -0.06,   0.11, -5.04) H= 4.98 hdg=  92.0 pit= +1.8 rol= +0.2 vNED=(+0.05,+0.07,-0.02) det=0 age=30.75 stabilizing dist=0.12m drift=0.47m
+[INFO] [1791332038.139425735] [f_r3_mission]: [t=  313.7 RETURN          ph= 60.6s] NED(  -0.06,   0.15, -5.04) H= 4.98 hdg=  91.9 pit= +1.5 rol= +0.2 vNED=(+0.05,-0.05,-0.02) det=0 age=31.75 stabilizing dist=0.16m drift=0.36m
+[INFO] [1791332038.440547755] [f_r3_mission]: Return: stable (drift 0.29m over 3s), landing
+[INFO] [1791332038.441950530] [f_r3_mission]: STEP RETURN->LAND (prev 60.9s) NED(-0.06,0.15,-5.05) H=4.98m
+[INFO] [1791332039.142594216] [f_r3_mission]: [t=  314.7 LAND            ph=  0.7s] NED(  -0.07,   0.14, -5.03) H= 4.97 hdg=  91.9 pit= +0.9 rol= -0.0 vNED=(+0.03,-0.11,+0.15) det=0 age=32.75
+[INFO] [1791332040.138549232] [f_r3_mission]: [t=  315.7 LAND            ph=  1.7s] NED(  -0.08,   0.13, -4.98) H= 4.91 hdg=  92.0 pit= +0.7 rol= -0.2 vNED=(+0.03,-0.13,+0.37) det=0 age=33.75
+[INFO] [1791332041.141267744] [f_r3_mission]: [t=  316.7 LAND            ph=  2.7s] NED(  -0.08,   0.10, -4.69) H= 4.62 hdg=  92.0 pit= +0.2 rol= -0.2 vNED=(+0.04,-0.15,+0.77) det=0 age=34.75
+[INFO] [1791332042.139560998] [f_r3_mission]: [t=  317.7 LAND            ph=  3.7s] NED(  -0.07,   0.05, -4.33) H= 4.27 hdg=  92.0 pit= -0.1 rol= +0.0 vNED=(+0.05,-0.13,+0.78) det=0 age=35.75
+[INFO] [1791332043.138540902] [f_r3_mission]: [t=  318.7 LAND            ph=  4.7s] NED(  -0.06,   0.03, -4.07) H= 4.00 hdg=  91.9 pit= -0.2 rol= +0.1 vNED=(+0.05,-0.10,+0.89) det=0 age=36.75
+[INFO] [1791332044.141478648] [f_r3_mission]: [t=  319.7 LAND            ph=  5.7s] NED(  -0.05,   0.00, -3.71) H= 3.65 hdg=  92.0 pit= -0.3 rol= +0.0 vNED=(+0.04,-0.08,+0.91) det=0 age=37.75
+[INFO] [1791332045.138549804] [f_r3_mission]: [t=  320.7 LAND            ph=  6.7s] NED(  -0.02,  -0.01, -3.32) H= 3.25 hdg=  92.0 pit= -0.2 rol= +0.3 vNED=(+0.04,-0.04,+0.96) det=0 age=38.75
+[INFO] [1791332046.142552536] [f_r3_mission]: [t=  321.8 LAND            ph=  7.7s] NED(  -0.00,  -0.02, -2.89) H= 2.82 hdg=  92.0 pit= -0.1 rol= +0.5 vNED=(+0.03,-0.03,+1.02) det=0 age=39.75
+[INFO] [1791332047.138648406] [f_r3_mission]: [t=  322.7 LAND            ph=  8.7s] NED(   0.01,  -0.02, -2.59) H= 2.53 hdg=  92.0 pit= -0.2 rol= +0.5 vNED=(+0.03,-0.02,+0.99) det=0 age=40.75
+[INFO] [1791332048.138695378] [f_r3_mission]: [t=  323.7 LAND            ph=  9.7s] NED(   0.02,  -0.02, -2.14) H= 2.08 hdg=  91.9 pit= -0.1 rol= +0.4 vNED=(-0.00,-0.02,+0.95) det=0 age=41.75
+[INFO] [1791332049.142910150] [f_r3_mission]: [t=  324.7 LAND            ph= 10.7s] NED(   0.02,  -0.02, -1.80) H= 1.73 hdg=  92.0 pit= -0.1 rol= +0.3 vNED=(-0.02,-0.00,+1.04) det=0 age=42.75
+[INFO] [1791332050.139270561] [f_r3_mission]: [t=  325.7 LAND            ph= 11.7s] NED(   0.01,  -0.02, -1.43) H= 1.36 hdg=  92.0 pit= +0.1 rol= +0.3 vNED=(-0.02,-0.00,+0.98) det=0 age=43.75
+[INFO] [1791332051.141061313] [f_r3_mission]: [t=  326.7 LAND            ph= 12.7s] NED(   0.01,  -0.01, -1.13) H= 1.07 hdg=  92.0 pit= +0.1 rol= +0.3 vNED=(-0.01,+0.01,+0.68) det=0 age=44.75
+[INFO] [1791332051.339010547] [f_r3_mission]: Sending MAV_CMD_NAV_LAND at NED(0.01,-0.01,-1.05) H=0.98m (下降用时 12.9s, 实测 0.58m/s, 限速 0.40m/s)
+[INFO] [1791332052.138587134] [f_r3_mission]: [t=  327.7 LAND            ph= 13.7s] NED(   0.01,  -0.01, -0.93) H= 0.87 hdg=  91.9 pit= +0.2 rol= +0.1 vNED=(-0.02,-0.00,+0.34) det=0 age=45.75
+[INFO] [1791332053.142539526] [f_r3_mission]: [t=  328.8 LAND            ph= 14.7s] NED(   0.01,  -0.01, -0.82) H= 0.75 hdg=  91.9 pit= +0.1 rol= +0.1 vNED=(+0.01,-0.01,+0.48) det=0 age=46.75
+[INFO] [1791332054.139876279] [f_r3_mission]: [t=  329.7 LAND            ph= 15.7s] NED(   0.02,  -0.02, -0.52) H= 0.45 hdg=  91.9 pit= +0.1 rol= +0.4 vNED=(-0.00,+0.00,+0.69) det=0 age=47.75
+[INFO] [1791332055.141751292] [f_r3_mission]: [t=  330.7 LAND            ph= 16.7s] NED(   0.02,  -0.02, -0.26) H= 0.20 hdg=  92.0 pit= +0.1 rol= +0.3 vNED=(-0.00,-0.00,+0.65) det=0 age=48.75
+[INFO] [1791332056.138799658] [f_r3_mission]: [t=  331.7 LAND            ph= 17.7s] NED(   0.09,   0.05, -0.14) H= 0.08 hdg=  92.0 pit= -0.2 rol= +0.2 vNED=(+0.37,+0.44,+0.17) det=0 age=49.75
+[INFO] [1791332057.142564059] [f_r3_mission]: [t=  332.7 LAND            ph= 18.7s] NED(   0.12,   0.08, -0.03) H=-0.04 hdg=  91.7 pit= -0.2 rol= +0.4 vNED=(+0.29,+0.36,+0.17) det=0 age=50.75
+[INFO] [1791332058.140123685] [f_r3_mission]: [t=  333.7 LAND            ph= 19.7s] NED(   0.10,   0.08,  0.06) H=-0.13 hdg=  91.5 pit= -0.1 rol= +0.5 vNED=(+0.19,+0.27,+0.18) det=0 age=51.75
+[INFO] [1791332058.391095029] [f_r3_mission]: Landed (vehicle_land_detected), NED(0.10,0.07,0.09) dist_from_home=0.14m
+[INFO] [1791332058.392526047] [f_r3_mission]: ========================================================================
+[INFO] [1791332058.393434953] [f_r3_mission]: MISSION SUMMARY (project f)
+[INFO] [1791332058.394417712] [f_r3_mission]:   End reason: normal
+[INFO] [1791332058.395210285] [f_r3_mission]:   Total time: 334.0s
+[INFO] [1791332058.395781265] [f_r3_mission]:   Home: NED(-0.01,-0.01,-0.07) HEADING_DEG=92deg
+[INFO] [1791332058.396604952] [f_r3_mission]:   Selection: 2/2 chosen: NED(-0.65,34.67), NED(1.01,33.83)  [lat=-0.56m, lat=-2.19m]
+[INFO] [1791332058.397244192] [f_r3_mission]:   Buckets dropped: 2/2
+[INFO] [1791332058.397828367] [f_r3_mission]:   Drop B1 via outlet 1: aim NED(0.01,33.99) at NED(0.061,33.780) H=1.17m vehicle_to_anchor=0.215m actual_impact=unmeasured reason=timeout_force last_err=59px(ex=1,ey=59@H=1.17m)
+[INFO] [1791332058.398595201] [f_r3_mission]:   Drop B2 via outlet 2: aim NED(1.99,33.02) at NED(1.928,33.028) H=1.22m vehicle_to_anchor=0.062m actual_impact=unmeasured reason=aligned_fresh_frames last_err=14px(ex=-6,ey=-13@H=1.22m)
+[INFO] [1791332058.399280267] [f_r3_mission]:   Scout: completed (70.4s, 7 sub-phases)
+[INFO] [1791332058.399848708] [f_r3_mission]:   Return: stabilized in 9.7s (drift 0.29m)
+[INFO] [1791332058.400497772] [f_r3_mission]:   Landing: NED(0.10,0.07) dist_from_home=0.14m
+[INFO] [1791332058.401056755] [f_r3_mission]: ========================================================================
+[INFO] [1791332058.401627825] [f_r3_mission]: Mission complete, shutting down

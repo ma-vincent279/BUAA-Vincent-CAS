@@ -1,0 +1,512 @@
+[2026年 10月 06日 星期二 17:17:48 CST] 日志文件: /home/nvidia/fly_logs/i_mission_20261006_171748.log
+=== 检查环境 ===
+  ROS 2 Humble       : OK
+  DDS Agent          : MicroXRCEAgent
+  DDS Device         : /dev/ttyTHS1 @ 921600 baud
+  Conda env          : yolov8
+  Workspace          : /home/nvidia/fly
+
+=== 1/3 启动 DDS Agent ===
+  DDS Agent PID=4833
+[35m[1791278268.803394][m info     | [34mTermiosAgentLinux.cpp[m | [37minit                    [m | [32mrunning...[m             | fd: 3
+[35m[1791278268.804076][m info     | [34mRoot.cpp          [m | [37mset_verbose_level       [m | [32mlogger setup[m           | verbose_level: 4
+[35m[1791278269.672978][m info     | [34mRoot.cpp          [m | [37mcreate_client           [m | [32mcreate[m                 | client_key: 0x00000001, session_id: 0x81
+[35m[1791278269.673092][m info     | [34mSessionManager.hpp[m | [37mestablish_session       [m | [32msession established[m    | client_key: 0x00000001, address: 1
+[35m[1791278269.683280][m info     | [34mProxyClient.cpp   [m | [37mcreate_participant      [m | [32mparticipant created[m    | client_key: 0x00000001, participant_id: 0x001(1)
+  DDS Agent 运行正常
+
+=== 2/3 启动 see 多桶检测节点 ===
+[35m[1791278275.291148][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x800(2), participant_id: 0x001(1)
+[35m[1791278275.291418][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x800(4), participant_id: 0x001(1)
+[35m[1791278275.292169][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x800(6), subscriber_id: 0x800(4)
+[35m[1791278275.296493][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x801(2), participant_id: 0x001(1)
+[35m[1791278275.296560][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x801(4), participant_id: 0x001(1)
+[35m[1791278275.296906][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x801(6), subscriber_id: 0x801(4)
+[35m[1791278275.299999][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x802(2), participant_id: 0x001(1)
+[35m[1791278275.300099][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x802(4), participant_id: 0x001(1)
+[35m[1791278275.300471][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x802(6), subscriber_id: 0x802(4)
+[35m[1791278275.303711][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x803(2), participant_id: 0x001(1)
+[35m[1791278275.303785][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x803(4), participant_id: 0x001(1)
+[35m[1791278275.304151][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x803(6), subscriber_id: 0x803(4)
+[35m[1791278275.307564][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x804(2), participant_id: 0x001(1)
+[35m[1791278275.307675][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x804(4), participant_id: 0x001(1)
+[35m[1791278275.308062][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x804(6), subscriber_id: 0x804(4)
+[35m[1791278275.310860][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x805(2), participant_id: 0x001(1)
+[35m[1791278275.310927][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x805(4), participant_id: 0x001(1)
+[35m[1791278275.311243][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x805(6), subscriber_id: 0x805(4)
+[35m[1791278275.314468][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x806(2), participant_id: 0x001(1)
+[35m[1791278275.314547][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x806(4), participant_id: 0x001(1)
+[35m[1791278275.314878][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x806(6), subscriber_id: 0x806(4)
+[35m[1791278275.320917][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x807(2), participant_id: 0x001(1)
+[35m[1791278275.321019][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x807(4), participant_id: 0x001(1)
+[35m[1791278275.321415][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x807(6), subscriber_id: 0x807(4)
+[35m[1791278275.324484][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x808(2), participant_id: 0x001(1)
+[35m[1791278275.324588][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x808(4), participant_id: 0x001(1)
+[35m[1791278275.324980][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x808(6), subscriber_id: 0x808(4)
+[35m[1791278275.328017][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x809(2), participant_id: 0x001(1)
+[35m[1791278275.328127][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x809(4), participant_id: 0x001(1)
+[35m[1791278275.328631][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x809(6), subscriber_id: 0x809(4)
+[35m[1791278275.332118][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x80A(2), participant_id: 0x001(1)
+[35m[1791278275.332230][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x80A(4), participant_id: 0x001(1)
+[35m[1791278275.332712][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x80A(6), subscriber_id: 0x80A(4)
+[35m[1791278275.336271][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x80B(2), participant_id: 0x001(1)
+[35m[1791278275.336486][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x80B(4), participant_id: 0x001(1)
+[35m[1791278275.337012][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x80B(6), subscriber_id: 0x80B(4)
+[35m[1791278275.343366][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x80C(2), participant_id: 0x001(1)
+[35m[1791278275.343608][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x80C(4), participant_id: 0x001(1)
+[35m[1791278275.344166][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x80C(6), subscriber_id: 0x80C(4)
+[35m[1791278275.347186][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x80D(2), participant_id: 0x001(1)
+[35m[1791278275.347404][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x80D(4), participant_id: 0x001(1)
+[35m[1791278275.347883][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x80D(6), subscriber_id: 0x80D(4)
+[35m[1791278275.352188][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x80E(2), participant_id: 0x001(1)
+[35m[1791278275.352453][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x80E(4), participant_id: 0x001(1)
+[35m[1791278275.353061][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x80E(6), subscriber_id: 0x80E(4)
+[35m[1791278275.356441][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x80F(2), participant_id: 0x001(1)
+[35m[1791278275.356824][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x80F(4), participant_id: 0x001(1)
+[35m[1791278275.357489][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x80F(6), subscriber_id: 0x80F(4)
+[35m[1791278275.360833][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x810(2), participant_id: 0x001(1)
+[35m[1791278275.361029][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x810(4), participant_id: 0x001(1)
+[35m[1791278275.361533][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x810(6), subscriber_id: 0x810(4)
+[35m[1791278275.364459][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x811(2), participant_id: 0x001(1)
+[35m[1791278275.364659][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x811(4), participant_id: 0x001(1)
+[35m[1791278275.365162][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x811(6), subscriber_id: 0x811(4)
+[35m[1791278275.368251][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x812(2), participant_id: 0x001(1)
+[35m[1791278275.368480][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x812(4), participant_id: 0x001(1)
+[35m[1791278275.368958][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x812(6), subscriber_id: 0x812(4)
+[35m[1791278275.371963][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x813(2), participant_id: 0x001(1)
+[35m[1791278275.372190][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x813(4), participant_id: 0x001(1)
+[35m[1791278275.372675][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x813(6), subscriber_id: 0x813(4)
+[35m[1791278275.375932][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x814(2), participant_id: 0x001(1)
+[35m[1791278275.376189][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x814(4), participant_id: 0x001(1)
+[35m[1791278275.376670][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x814(6), subscriber_id: 0x814(4)
+[35m[1791278275.379761][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x815(2), participant_id: 0x001(1)
+[35m[1791278275.380045][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x815(4), participant_id: 0x001(1)
+[35m[1791278275.382921][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x815(6), subscriber_id: 0x815(4)
+[35m[1791278275.386319][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x816(2), participant_id: 0x001(1)
+[35m[1791278275.386508][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x816(4), participant_id: 0x001(1)
+[35m[1791278275.387156][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x816(6), subscriber_id: 0x816(4)
+[35m[1791278275.390177][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x817(2), participant_id: 0x001(1)
+[35m[1791278275.390314][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x817(4), participant_id: 0x001(1)
+[35m[1791278275.390830][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x817(6), subscriber_id: 0x817(4)
+[35m[1791278275.393997][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x818(2), participant_id: 0x001(1)
+[35m[1791278275.394262][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x818(4), participant_id: 0x001(1)
+[35m[1791278275.394802][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x818(6), subscriber_id: 0x818(4)
+[35m[1791278275.399556][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x819(2), participant_id: 0x001(1)
+[35m[1791278275.399695][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x819(4), participant_id: 0x001(1)
+[35m[1791278275.400205][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x819(6), subscriber_id: 0x819(4)
+[35m[1791278275.403405][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x81A(2), participant_id: 0x001(1)
+[35m[1791278275.403507][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x81A(4), participant_id: 0x001(1)
+[35m[1791278275.403896][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x81A(6), subscriber_id: 0x81A(4)
+[35m[1791278275.407127][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x81B(2), participant_id: 0x001(1)
+[35m[1791278275.407234][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x81B(4), participant_id: 0x001(1)
+[35m[1791278275.407588][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x81B(6), subscriber_id: 0x81B(4)
+[35m[1791278275.410585][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x81C(2), participant_id: 0x001(1)
+[35m[1791278275.410683][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x81C(4), participant_id: 0x001(1)
+[35m[1791278275.411047][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x81C(6), subscriber_id: 0x81C(4)
+[35m[1791278275.414447][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x81D(2), participant_id: 0x001(1)
+[35m[1791278275.414731][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x81D(4), participant_id: 0x001(1)
+[35m[1791278275.415325][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x81D(6), subscriber_id: 0x81D(4)
+[35m[1791278275.419763][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x81E(2), participant_id: 0x001(1)
+[35m[1791278275.420180][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x81E(4), participant_id: 0x001(1)
+[35m[1791278275.420807][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x81E(6), subscriber_id: 0x81E(4)
+[35m[1791278275.424073][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x81F(2), participant_id: 0x001(1)
+[35m[1791278275.424317][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x81F(4), participant_id: 0x001(1)
+[35m[1791278275.424863][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x81F(6), subscriber_id: 0x81F(4)
+[35m[1791278275.428055][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x820(2), participant_id: 0x001(1)
+[35m[1791278275.428320][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x820(4), participant_id: 0x001(1)
+[35m[1791278275.428890][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x820(6), subscriber_id: 0x820(4)
+[35m[1791278275.431919][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x821(2), participant_id: 0x001(1)
+[35m[1791278275.432127][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x821(4), participant_id: 0x001(1)
+[35m[1791278275.432622][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x821(6), subscriber_id: 0x821(4)
+[35m[1791278275.435522][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x822(2), participant_id: 0x001(1)
+[35m[1791278275.435717][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x822(4), participant_id: 0x001(1)
+[35m[1791278275.436208][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x822(6), subscriber_id: 0x822(4)
+[35m[1791278275.439431][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x823(2), participant_id: 0x001(1)
+[35m[1791278275.439641][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x823(4), participant_id: 0x001(1)
+[35m[1791278275.440123][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x823(6), subscriber_id: 0x823(4)
+[35m[1791278275.444782][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x824(2), participant_id: 0x001(1)
+[35m[1791278275.445053][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x824(4), participant_id: 0x001(1)
+[35m[1791278275.445638][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x824(6), subscriber_id: 0x824(4)
+[35m[1791278275.451296][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x825(2), participant_id: 0x001(1)
+[35m[1791278275.451421][m info     | [34mProxyClient.cpp   [m | [37mcreate_subscriber       [m | [32msubscriber created[m     | client_key: 0x00000001, subscriber_id: 0x825(4), participant_id: 0x001(1)
+[35m[1791278275.451881][m info     | [34mProxyClient.cpp   [m | [37mcreate_datareader       [m | [32mdatareader created[m     | client_key: 0x00000001, datareader_id: 0x825(6), subscriber_id: 0x825(4)
+[35m[1791278275.455014][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x0CD(2), participant_id: 0x001(1)
+[35m[1791278275.455136][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x0CD(3), participant_id: 0x001(1)
+[35m[1791278275.455726][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x0CD(5), publisher_id: 0x0CD(3)
+[35m[1791278275.460588][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x010(2), participant_id: 0x001(1)
+[35m[1791278275.460690][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x010(3), participant_id: 0x001(1)
+[35m[1791278275.461122][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x010(5), publisher_id: 0x010(3)
+[35m[1791278275.463606][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x09D(2), participant_id: 0x001(1)
+[35m[1791278275.463736][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x09D(3), participant_id: 0x001(1)
+[35m[1791278275.464084][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x09D(5), publisher_id: 0x09D(3)
+[35m[1791278275.466661][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x014(2), participant_id: 0x001(1)
+[35m[1791278275.466791][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x014(3), participant_id: 0x001(1)
+[35m[1791278275.467088][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x014(5), publisher_id: 0x014(3)
+[35m[1791278275.469915][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x01B(2), participant_id: 0x001(1)
+[35m[1791278275.470057][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x01B(3), participant_id: 0x001(1)
+[35m[1791278275.470377][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x01B(5), publisher_id: 0x01B(3)
+[35m[1791278275.473088][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x055(2), participant_id: 0x001(1)
+[35m[1791278275.474020][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x055(3), participant_id: 0x001(1)
+[35m[1791278275.474299][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x055(5), publisher_id: 0x055(3)
+[35m[1791278275.476900][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x05B(2), participant_id: 0x001(1)
+[35m[1791278275.476981][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x05B(3), participant_id: 0x001(1)
+[35m[1791278275.477399][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x05B(5), publisher_id: 0x05B(3)
+[35m[1791278275.480617][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x094(2), participant_id: 0x001(1)
+[35m[1791278275.480753][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x094(3), participant_id: 0x001(1)
+[35m[1791278275.481402][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x094(5), publisher_id: 0x094(3)
+[35m[1791278275.484309][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x09A(2), participant_id: 0x001(1)
+[35m[1791278275.484520][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x09A(3), participant_id: 0x001(1)
+[35m[1791278275.485103][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x09A(5), publisher_id: 0x09A(3)
+[35m[1791278275.488046][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x0C0(2), participant_id: 0x001(1)
+[35m[1791278275.488274][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x0C0(3), participant_id: 0x001(1)
+[35m[1791278275.488885][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x0C0(5), publisher_id: 0x0C0(3)
+[35m[1791278275.492017][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x0E1(2), participant_id: 0x001(1)
+[35m[1791278275.492284][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x0E1(3), participant_id: 0x001(1)
+[35m[1791278275.492869][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x0E1(5), publisher_id: 0x0E1(3)
+[35m[1791278275.495396][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x0F9(2), participant_id: 0x001(1)
+[35m[1791278275.495558][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x0F9(3), participant_id: 0x001(1)
+[35m[1791278275.495995][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x0F9(5), publisher_id: 0x0F9(3)
+[35m[1791278275.498623][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x0FC(2), participant_id: 0x001(1)
+[35m[1791278275.498803][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x0FC(3), participant_id: 0x001(1)
+[35m[1791278275.499203][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x0FC(5), publisher_id: 0x0FC(3)
+[35m[1791278275.501761][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x115(2), participant_id: 0x001(1)
+[35m[1791278275.501897][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x115(3), participant_id: 0x001(1)
+[35m[1791278275.502183][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x115(5), publisher_id: 0x115(3)
+[35m[1791278275.505566][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x108(2), participant_id: 0x001(1)
+[35m[1791278275.505666][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x108(3), participant_id: 0x001(1)
+[35m[1791278275.506091][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x108(5), publisher_id: 0x108(3)
+[35m[1791278275.508859][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x10F(2), participant_id: 0x001(1)
+[35m[1791278275.509045][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x10F(3), participant_id: 0x001(1)
+[35m[1791278275.509501][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x10F(5), publisher_id: 0x10F(3)
+[35m[1791278275.547457][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x10C(2), participant_id: 0x001(1)
+[35m[1791278275.547630][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x10C(3), participant_id: 0x001(1)
+[35m[1791278275.548149][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x10C(5), publisher_id: 0x10C(3)
+[35m[1791278275.550823][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x110(2), participant_id: 0x001(1)
+[35m[1791278275.550961][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x110(3), participant_id: 0x001(1)
+[35m[1791278275.551421][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x110(5), publisher_id: 0x110(3)
+[35m[1791278275.554133][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x112(2), participant_id: 0x001(1)
+[35m[1791278275.554231][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x112(3), participant_id: 0x001(1)
+[35m[1791278275.554588][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x112(5), publisher_id: 0x112(3)
+[35m[1791278275.557361][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x116(2), participant_id: 0x001(1)
+[35m[1791278275.557457][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x116(3), participant_id: 0x001(1)
+[35m[1791278275.557746][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x116(5), publisher_id: 0x116(3)
+  conda: /home/nvidia/miniforge3/envs/yolov8/bin/python3
+  PYTHONPATH 已设置
+  see PID=4896
+[35m[1791278275.735894][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x11B(2), participant_id: 0x001(1)
+[35m[1791278275.736057][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x11B(3), participant_id: 0x001(1)
+[35m[1791278275.736538][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x11B(5), publisher_id: 0x11B(3)
+[35m[1791278275.739248][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x120(2), participant_id: 0x001(1)
+[35m[1791278275.739318][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x120(3), participant_id: 0x001(1)
+[35m[1791278275.739596][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x120(5), publisher_id: 0x120(3)
+[35m[1791278275.742361][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x00D(2), participant_id: 0x001(1)
+[35m[1791278275.742403][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x00D(3), participant_id: 0x001(1)
+[35m[1791278275.742618][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x00D(5), publisher_id: 0x00D(3)
+[35m[1791278275.745372][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x129(2), participant_id: 0x001(1)
+[35m[1791278275.745412][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x129(3), participant_id: 0x001(1)
+[35m[1791278275.745618][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x129(5), publisher_id: 0x129(3)
+[35m[1791278275.748648][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x080(2), participant_id: 0x001(1)
+[35m[1791278275.748735][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x080(3), participant_id: 0x001(1)
+[35m[1791278275.749000][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x080(5), publisher_id: 0x080(3)
+[35m[1791278275.752137][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x12B(2), participant_id: 0x001(1)
+[35m[1791278275.752199][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x12B(3), participant_id: 0x001(1)
+[35m[1791278275.752455][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x12B(5), publisher_id: 0x12B(3)
+[35m[1791278275.755685][m info     | [34mProxyClient.cpp   [m | [37mcreate_topic            [m | [32mtopic created[m          | client_key: 0x00000001, topic_id: 0x06E(2), participant_id: 0x001(1)
+[35m[1791278275.755755][m info     | [34mProxyClient.cpp   [m | [37mcreate_publisher        [m | [32mpublisher created[m      | client_key: 0x00000001, publisher_id: 0x06E(3), participant_id: 0x001(1)
+[35m[1791278275.756077][m info     | [34mProxyClient.cpp   [m | [37mcreate_datawriter       [m | [32mdatawriter created[m     | client_key: 0x00000001, datawriter_id: 0x06E(5), publisher_id: 0x06E(3)
+[35m[1791278275.760587][m info     | [34mProxyClient.cpp   [m | [37mcreate_replier          [m | [32mreplier created[m        | client_key: 0x00000001, requester_id: 0x800(7), participant_id: 0x001(1)
+WARNING ⚠️ Unable to automatically guess model task, assuming 'task=detect'. Explicitly define task for your model, i.e. 'task=detect', 'segment', 'classify', 'pose', 'obb' or 'semantic'.
+Loading /home/nvidia/d.engine for TensorRT inference...
+[10/06/2026-17:17:59] [TRT] [I] Loaded engine size: 21 MiB
+[10/06/2026-17:18:00] [TRT] [W] Using an engine plan file across different models of devices is not recommended and is likely to affect performance or even cause errors.
+[10/06/2026-17:18:00] [TRT] [I] [MemUsageChange] TensorRT-managed allocation in IExecutionContext creation: CPU +0, GPU +88, now: CPU 0, GPU 106 (MiB)
+[INFO] [1791278282.025943740] [see]: Model warm-up: 2225ms
+[INFO] [1791278282.026912966] [see]: Target 'bucket' -> cls_idx=0
+[INFO] [1791278283.549067107] [see]: Camera opened: /dev/video0 (1920x1080) -> resize to 640x360
+[INFO] [1791278283.551035634] [see]: see ready [Multi-Bucket Detector] model={0: 'bucket'} conf=0.5 infer=10.0Hz image=640x360 crop_fov=120.0->136.0 r=0.7
+  see 节点运行正常
+
+=== 3/3 启动 i 双桶投水+侦察任务节点 (前台) ===
+    按 Ctrl+C 停止所有节点
+
+  i PID=4925
+[INFO] [1791278284.880074756] [i_mission]: F Mission ready. HEADING=161deg offset_横_B1=0.250m B2=0.120m offset_前_B1=0.040m B2=0.040m FORWARD_DIST=34.0m SCOUT_DIST=59.5m cruise=5.0m drop=1.2m (no flight boundary)
+[INFO] [1791278284.881678156] [i_mission]: Build revision=competition-water-20260924-r1-f-i source=/home/nvidia/fly/install/fly/lib/python3.10/site-packages/fly/i.py sha256=d5cc6f18e3a005850b9dbe2f82b9b7c248219eb2b281048f7647a80cc675520e drop_gate=5cm(米制, 原 10px≈3cm) dwell=0.50s detect_age_max=0.50s camera=down_fixed(top=forward,right=right) geometry=FRD-ray-ground
+[INFO] [1791278285.359616521] [i_mission]: Takeoff ref: NED(-0.24,6.11,323.78) HEADING_DEG=161deg (hardcoded)
+[INFO] [1791278286.098310326] [i_mission]:   TRK-DBG step=TAKEOFF nbox=0 boxes=[] trackers=0[]
+[INFO] [1791278286.319896096] [i_mission]: [t=    1.5 TAKEOFF         ph=  0.0s] NED(  -0.25,   6.11,323.78) H=   -- hdg= 165.0 pit= +1.1 rol= +0.3 vNED=(-0.01,+0.00,-0.00) det=0 age=1.50
+[INFO] [1791278287.250980031] [i_mission]:   TRK-DBG step=TAKEOFF nbox=0 boxes=[] trackers=0[]
+[INFO] [1791278287.319916969] [i_mission]: [t=    2.5 TAKEOFF         ph=  0.0s] NED(  -0.25,   6.11,323.78) H=   -- hdg= 165.0 pit= +1.1 rol= +0.3 vNED=(-0.00,-0.00,-0.00) det=0 age=2.50
+[INFO] [1791278288.257507214] [i_mission]:   TRK-DBG step=TAKEOFF nbox=0 boxes=[] trackers=0[]
+[INFO] [1791278288.319917194] [i_mission]: [t=    3.5 TAKEOFF         ph=  0.0s] NED(  -0.25,   6.11,323.77) H=   -- hdg= 164.9 pit= +1.1 rol= +0.3 vNED=(-0.01,-0.00,-0.01) det=0 age=3.50
+[INFO] [1791278288.419890850] [i_mission]: Requesting ARM... (t=0.0s)
+[INFO] [1791278288.470871892] [i_mission]: ARM OK, requesting OFFBOARD mode... (t=0.1s)
+[INFO] [1791278288.519857570] [i_mission]: ARM + OFFBOARD active (t=0.1s), entering mission
+[INFO] [1791278289.320237751] [i_mission]: [t=    0.8 TAKEOFF         ph=  0.8s] NED(  -0.25,   6.11,323.77) H=   -- hdg= 164.9 pit= +1.1 rol= +0.3 vNED=(-0.03,-0.00,-0.01) det=0 age=4.50
+[INFO] [1791278289.348944209] [i_mission]:   TRK-DBG step=TAKEOFF nbox=0 boxes=[] trackers=0[]
+[INFO] [1791278290.320396600] [i_mission]: [t=    1.8 TAKEOFF         ph=  1.8s] NED(  -0.27,   6.11,323.79) H=   -- hdg= 164.9 pit= +1.1 rol= +0.3 vNED=(-0.05,+0.00,-0.01) det=0 age=5.50
+[INFO] [1791278290.364740828] [i_mission]:   TRK-DBG step=TAKEOFF nbox=0 boxes=[] trackers=0[]
+[INFO] [1791278291.319981872] [i_mission]: [t=    2.8 TAKEOFF         ph=  2.8s] NED(  -0.30,   6.10,323.73) H=   -- hdg= 164.9 pit= +1.1 rol= +0.3 vNED=(-0.13,-0.01,-0.03) det=0 age=6.50
+[INFO] [1791278291.452298995] [i_mission]:   TRK-DBG step=TAKEOFF nbox=0 boxes=[] trackers=0[]
+[INFO] [1791278292.319924846] [i_mission]: [t=    3.8 TAKEOFF         ph=  3.8s] NED(  -0.35,   6.10,323.69) H=   -- hdg= 165.0 pit= +1.5 rol= +0.4 vNED=(-0.17,-0.01,-0.04) det=0 age=7.50
+[INFO] [1791278292.608966864] [i_mission]:   TRK-DBG step=TAKEOFF nbox=0 boxes=[] trackers=0[]
+[INFO] [1791278293.320032984] [i_mission]: [t=    4.8 TAKEOFF         ph=  4.8s] NED(  -0.19,   6.13,323.44) H=   -- hdg= 166.3 pit= +0.3 rol= +0.1 vNED=(+0.15,+0.07,-0.62) det=0 age=8.50
+[INFO] [1791278293.658183918] [i_mission]:   TRK-DBG step=TAKEOFF nbox=0 boxes=[] trackers=0[]
+[INFO] [1791278294.320009149] [i_mission]: [t=    5.8 TAKEOFF         ph=  5.8s] NED(   0.06,   6.16,322.51) H=   -- hdg= 164.2 pit= -1.3 rol= +0.5 vNED=(-0.09,-0.02,-0.91) det=0 age=9.50
+[INFO] [1791278294.663389825] [i_mission]:   TRK-DBG step=TAKEOFF nbox=0 boxes=[] trackers=0[]
+[INFO] [1791278295.320005127] [i_mission]: [t=    6.8 TAKEOFF         ph=  6.8s] NED(   0.05,   6.13,321.51) H=   -- hdg= 162.2 pit= -0.1 rol= -0.2 vNED=(-0.27,-0.01,-1.02) det=0 age=10.50
+[INFO] [1791278295.754424516] [i_mission]:   TRK-DBG step=TAKEOFF nbox=0 boxes=[] trackers=0[]
+[INFO] [1791278296.319999995] [i_mission]: [t=    7.8 TAKEOFF         ph=  7.8s] NED(  -0.10,   6.12,320.40) H=   -- hdg= 162.1 pit= +1.2 rol= -0.3 vNED=(-0.27,-0.01,-0.97) det=0 age=11.50
+[INFO] [1791278296.756920570] [i_mission]:   TRK-DBG step=TAKEOFF nbox=0 boxes=[] trackers=0[]
+[INFO] [1791278297.320046522] [i_mission]: [t=    8.8 TAKEOFF         ph=  8.8s] NED(  -0.21,   6.11,319.49) H=   -- hdg= 162.2 pit= +1.3 rol= -0.4 vNED=(-0.15,-0.00,-0.65) det=0 age=12.50
+[INFO] [1791278297.756941774] [i_mission]:   TRK-DBG step=TAKEOFF nbox=0 boxes=[] trackers=0[]
+[INFO] [1791278297.771004968] [i_mission]: Reached cruise height, entering STABILIZE
+[INFO] [1791278298.320053880] [i_mission]: [t=    9.8 STABILIZE       ph=  0.5s] NED(  -0.26,   6.10,319.14) H=   -- hdg= 161.3 pit= +1.3 rol= -0.6 vNED=(-0.07,+0.01,-0.23) det=0 age=13.50 stabilizing 0.5s/3.0s
+[INFO] [1791278298.761150010] [i_mission]:   TRK-DBG step=STABILIZE nbox=0 boxes=[] trackers=0[]
+[INFO] [1791278299.320388031] [i_mission]: [t=   10.8 STABILIZE       ph=  1.5s] NED(  -0.28,   6.09,319.01) H=   -- hdg= 160.7 pit= +1.6 rol= -0.2 vNED=(-0.04,+0.03,-0.14) det=0 age=14.50 stabilizing 1.5s/3.0s
+[INFO] [1791278299.946166410] [i_mission]:   TRK-DBG step=STABILIZE nbox=0 boxes=[] trackers=0[]
+[INFO] [1791278300.320086645] [i_mission]: [t=   11.8 STABILIZE       ph=  2.5s] NED(  -0.31,   6.12,318.94) H=   -- hdg= 161.3 pit= +1.8 rol= -0.2 vNED=(-0.01,+0.06,-0.06) det=0 age=15.50 stabilizing 2.5s/3.0s
+[INFO] [1791278300.820693534] [i_mission]: Home locked: NED(-0.24,6.11,323.78) heading0=161deg (hardcoded) target NED(-32.1,11.1)
+[INFO] [1791278300.821580940] [i_mission]: STEP STABILIZE->FORWARD (prev 3.0s) NED(-0.33,6.15,318.93) H=4.85m
+[INFO] [1791278300.947301968] [i_mission]:   TRK-DBG step=FORWARD nbox=0 boxes=[] trackers=0[]
+[INFO] [1791278301.320056970] [i_mission]: [t=   12.8 FORWARD         ph=  0.5s] NED(  -0.42,   6.20,318.94) H= 4.84 hdg= 161.1 pit=-14.9 rol= +0.4 vNED=(-0.57,+0.26,-0.05) det=0 age=16.50 dist_to_target=33.8m
+[INFO] [1791278301.814345138] [i_mission]:   TRK-NEW #0 NED(1.39,-3.44) from box(cx=520,cy=352,w=11,h=11) alive=1
+[INFO] [1791278302.019560682] [i_mission]:   TRK-DBG step=FORWARD nbox=0 boxes=[] trackers=1[#0-NED(1.39,-3.44)age0.2s]
+[INFO] [1791278302.320039399] [i_mission]: [t=   13.8 FORWARD         ph=  1.5s] NED(  -1.71,   6.69,318.92) H= 4.86 hdg= 162.6 pit= -3.2 rol= +0.5 vNED=(-1.74,+0.60,-0.07) det=0 age=0.50 dist_to_target=32.4m
+[INFO] [1791278303.048031004] [i_mission]:   TRK-DBG step=FORWARD nbox=0 boxes=[] trackers=1[#0-NED(1.39,-3.44)age1.2s]
+[INFO] [1791278303.320003248] [i_mission]: [t=   14.8 FORWARD         ph=  2.5s] NED(  -3.65,   7.36,319.30) H= 4.48 hdg= 161.7 pit= -1.6 rol= +0.0 vNED=(-1.91,+0.64,-0.27) det=0 age=1.50 dist_to_target=30.4m
+[INFO] [1791278304.129462448] [i_mission]:   TRK-DBG step=FORWARD nbox=0 boxes=[] trackers=0[]
+[INFO] [1791278304.319971290] [i_mission]: [t=   15.8 FORWARD         ph=  3.5s] NED(  -5.71,   8.05,319.38) H= 4.40 hdg= 161.4 pit= -1.3 rol= -0.3 vNED=(-1.96,+0.66,-0.50) det=0 age=2.50 dist_to_target=28.2m
+[INFO] [1791278305.148061135] [i_mission]:   TRK-DBG step=FORWARD nbox=0 boxes=[] trackers=0[]
+[INFO] [1791278305.320010163] [i_mission]: [t=   16.8 FORWARD         ph=  4.5s] NED(  -7.77,   8.73,319.17) H= 4.61 hdg= 160.4 pit= -0.7 rol= +0.0 vNED=(-1.99,+0.65,-0.31) det=0 age=3.50 dist_to_target=26.0m
+[INFO] [1791278306.251991439] [i_mission]:   TRK-DBG step=FORWARD nbox=0 boxes=[] trackers=0[]
+[INFO] [1791278306.320996576] [i_mission]: [t=   17.8 FORWARD         ph=  5.5s] NED(  -9.80,   9.36,318.97) H= 4.81 hdg= 161.4 pit= -1.1 rol= -0.3 vNED=(-1.96,+0.64,-0.15) det=0 age=4.50 dist_to_target=23.9m
+[INFO] [1791278307.320816066] [i_mission]: [t=   18.8 FORWARD         ph=  6.5s] NED( -11.80,   9.98,318.75) H= 5.03 hdg= 160.9 pit= -0.9 rol= -0.4 vNED=(-1.93,+0.64,+0.02) det=0 age=5.50 dist_to_target=21.8m
+[INFO] [1791278307.347584756] [i_mission]:   TRK-DBG step=FORWARD nbox=0 boxes=[] trackers=0[]
+[INFO] [1791278308.320015950] [i_mission]: [t=   19.8 FORWARD         ph=  7.5s] NED( -13.75,  10.58,318.59) H= 5.19 hdg= 160.9 pit= -1.1 rol= -0.4 vNED=(-1.95,+0.59,+0.06) det=0 age=6.50 dist_to_target=19.8m
+[INFO] [1791278308.358022154] [i_mission]:   TRK-DBG step=FORWARD nbox=0 boxes=[] trackers=0[]
+[INFO] [1791278309.320016776] [i_mission]: [t=   20.8 FORWARD         ph=  8.5s] NED( -15.70,  11.16,318.57) H= 5.21 hdg= 161.0 pit= -0.8 rol= -0.8 vNED=(-1.94,+0.63,+0.14) det=0 age=7.50 dist_to_target=17.7m
+[INFO] [1791278309.459182265] [i_mission]:   TRK-DBG step=FORWARD nbox=0 boxes=[] trackers=0[]
+[INFO] [1791278310.320186727] [i_mission]: [t=   21.8 FORWARD         ph=  9.5s] NED( -17.66,  11.79,318.66) H= 5.12 hdg= 160.4 pit= -0.6 rol= -0.4 vNED=(-1.93,+0.68,+0.10) det=0 age=8.50 dist_to_target=15.7m
+[INFO] [1791278310.557778396] [i_mission]:   TRK-DBG step=FORWARD nbox=0 boxes=[] trackers=0[]
+[INFO] [1791278311.320003318] [i_mission]: [t=   22.8 FORWARD         ph= 10.5s] NED( -19.59,  12.44,318.67) H= 5.11 hdg= 161.4 pit= -0.9 rol= -0.3 vNED=(-1.92,+0.66,+0.05) det=0 age=9.50 dist_to_target=13.6m
+[INFO] [1791278311.561278981] [i_mission]:   TRK-DBG step=FORWARD nbox=0 boxes=[] trackers=0[]
+[INFO] [1791278312.320000284] [i_mission]: [t=   23.8 FORWARD         ph= 11.5s] NED( -21.53,  13.08,318.72) H= 5.06 hdg= 160.6 pit= -0.6 rol= -0.4 vNED=(-1.92,+0.65,+0.05) det=0 age=10.50 dist_to_target=11.6m
+[INFO] [1791278312.746547700] [i_mission]:   TRK-DBG step=FORWARD nbox=0 boxes=[] trackers=0[]
+[INFO] [1791278313.320051308] [i_mission]: [t=   24.8 FORWARD         ph= 12.5s] NED( -23.49,  13.73,318.66) H= 5.12 hdg= 160.9 pit= -0.5 rol= -0.4 vNED=(-1.94,+0.66,+0.07) det=0 age=11.50 dist_to_target=9.5m
+[INFO] [1791278313.850024429] [i_mission]:   TRK-DBG step=FORWARD nbox=0 boxes=[] trackers=0[]
+[INFO] [1791278314.320000528] [i_mission]: [t=   25.8 FORWARD         ph= 13.5s] NED( -25.42,  14.37,318.66) H= 5.12 hdg= 161.3 pit= -0.8 rol= -0.8 vNED=(-1.91,+0.60,+0.05) det=0 age=12.50 dist_to_target=7.5m
+[INFO] [1791278314.863375919] [i_mission]:   TRK-DBG step=FORWARD nbox=0 boxes=[] trackers=0[]
+[INFO] [1791278315.320036559] [i_mission]: [t=   26.8 FORWARD         ph= 14.5s] NED( -27.38,  14.98,318.74) H= 5.04 hdg= 161.1 pit= -0.7 rol= -1.2 vNED=(-1.92,+0.63,+0.11) det=0 age=13.50 dist_to_target=5.5m
+[INFO] [1791278315.953720593] [i_mission]:   TRK-DBG step=FORWARD nbox=0 boxes=[] trackers=0[]
+[INFO] [1791278316.320055497] [i_mission]: [t=   27.8 FORWARD         ph= 15.5s] NED( -29.32,  15.63,318.89) H= 4.89 hdg= 160.5 pit= -0.7 rol= -0.9 vNED=(-1.90,+0.65,-0.05) det=0 age=14.50 dist_to_target=3.4m
+[INFO] [1791278316.849636323] [i_mission]:   TRK-NEW #0 NED(-32.06,11.25) from box(cx=266,cy=16,w=24,h=27) alive=1
+[INFO] [1791278316.961744378] [i_mission]:   TRK-DBG step=FORWARD nbox=1 boxes=[(266,34)w24→NED(-32.11,11.27)] trackers=1[#0-NED(-32.07,11.25)age0.1s]
+[INFO] [1791278317.058590009] [i_mission]:   TRK-NEW #1 NED(-33.27,9.51) from box(cx=408,cy=21,w=16,h=18) alive=2
+[INFO] [1791278317.249929506] [i_mission]:   TRK-NEW #2 NED(-32.39,13.25) from box(cx=141,cy=34,w=28,h=25) alive=3
+[INFO] [1791278317.320034877] [i_mission]: [t=   28.8 FORWARD         ph= 16.5s] NED( -31.20,  16.23,318.84) H= 4.94 hdg= 160.7 pit= +4.9 rol= -1.2 vNED=(-1.62,+0.53,-0.08) det=3 age=0.07 dist_to_target=1.5m
+[INFO] [1791278318.051889399] [i_mission]:   TRK-DBG step=FORWARD nbox=3 boxes=[(134,164)w27→NED(-31.87,13.19) (256,232)w23→NED(-31.55,11.18) (398,192)w16→NED(-32.76,9.42)] trackers=3[#0-NED(-31.69,11.22)age1.2s #1-NED(-32.89,9.46)age1.0s #2-NED(-32.01,13.23)age0.8s]
+[INFO] [1791278318.320072617] [i_mission]: [t=   29.8 FORWARD         ph= 17.5s] NED( -32.48,  16.61,318.69) H= 5.09 hdg= 160.4 pit= +4.5 rol= -1.1 vNED=(-0.76,+0.22,+0.08) det=3 age=0.07 dist_to_target=0.6m
+[INFO] [1791278318.352589554] [i_mission]: Tracker confirmed: NED(-31.5,11.2) after 1.5s
+[INFO] [1791278318.647379500] [i_mission]: Tracker confirmed: NED(-32.6,9.4) after 1.6s
+[INFO] [1791278318.847589773] [i_mission]: Tracker confirmed: NED(-31.8,13.2) after 1.6s
+[INFO] [1791278319.056669907] [i_mission]:   TRK-DBG step=FORWARD nbox=3 boxes=[(242,268)w25→NED(-31.42,11.21) (112,197)w30→NED(-31.76,13.23) (388,227)w16→NED(-32.62,9.44)] trackers=3[#0CNED(-31.42,11.20)age2.2s #1CNED(-32.62,9.44)age2.0s #2CNED(-31.76,13.23)age1.8s]
+[INFO] [1791278319.320478534] [i_mission]: [t=   30.8 FORWARD         ph= 18.5s] NED( -33.13,  16.76,318.86) H= 4.91 hdg= 160.8 pit= +1.8 rol= -1.2 vNED=(-0.52,+0.14,+0.01) det=3 age=0.05 dist_to_target=0.9m
+[INFO] [1791278319.421057852] [i_mission]: Overshot target travel=34.62m > 34.0m, entering HOVER_SEARCH
+[INFO] [1791278319.422400301] [i_mission]: STEP FORWARD->HOVER_SEARCH (prev 18.6s) NED(-33.19,16.77,318.89) H=4.89m
+[INFO] [1791278319.457058733] [i_mission]:   TRK-NEW #0 NED(-31.76,13.27) from box(cx=104,cy=212,w=29,h=22) alive=1
+[INFO] [1791278319.457932628] [i_mission]:   TRK-NEW #1 NED(-31.42,11.25) from box(cx=235,cy=284,w=26,h=24) alive=2
+[INFO] [1791278319.458696179] [i_mission]:   TRK-NEW #2 NED(-32.61,9.49) from box(cx=383,cy=243,w=16,h=16) alive=3
+[INFO] [1791278320.057134942] [i_mission]:   TRK-DBG step=HOVER_SEARCH nbox=2 boxes=[(47,308)w34→NED(-31.53,13.37) (353,330)w16→NED(-32.36,9.59)] trackers=3[#0-NED(-31.75,13.29)age0.6s #1-NED(-31.71,11.20)age0.6s #2-NED(-32.56,9.53)age0.6s]
+[INFO] [1791278320.320599253] [i_mission]: [t=   31.8 HOVER_SEARCH    ph=  0.9s] NED( -33.31,  16.90,318.88) H= 4.90 hdg= 161.7 pit= +7.5 rol= -3.3 vNED=(+0.50,+0.24,-0.13) det=2 age=0.06 search 0.9s confirmed=0/3
+[INFO] [1791278320.959752043] [i_mission]: Tracker confirmed: NED(-31.6,13.2) after 1.5s
+[INFO] [1791278320.960790936] [i_mission]: Tracker confirmed: NED(-31.3,11.2) after 1.5s
+[INFO] [1791278320.961546532] [i_mission]: Tracker confirmed: NED(-32.4,9.5) after 1.5s
+[INFO] [1791278320.970487734] [i_mission]: Selected 2 buckets: NED(-31.3,11.2), NED(-32.4,9.5)  [lat=-0.43m, lat=+1.57m]
+[INFO] [1791278320.971264177] [i_mission]:   Selection basis (all 3 confirmed, |lateral| asc): NED(-31.28,11.23)[lat=-0.43m,area=552], NED(-32.42,9.51)[lat=+1.57m,area=256], NED(-31.56,13.23)[lat=-2.23m,area=638]
+[INFO] [1791278320.972174979] [i_mission]: STEP HOVER_SEARCH->TRACK (prev 1.6s) NED(-32.90,17.04,319.01) H=4.77m
+[INFO] [1791278321.066772767] [i_mission]:   TRK-DBG step=TRACK nbox=3 boxes=[(138,206)w29→NED(-31.63,13.15) (268,275)w24→NED(-31.32,11.20) (412,234)w16→NED(-32.46,9.53)] trackers=3[#0CNED(-31.58,13.21)age1.6s #1CNED(-31.29,11.22)age1.6s #2CNED(-32.43,9.51)age1.6s]
+[INFO] [1791278321.320755272] [i_mission]: [t=   32.8 TRACK           ph=  0.3s] NED( -32.63,  17.11,319.04) H= 4.74 hdg= 161.8 pit= +5.4 rol= -2.9 vNED=(+0.77,+0.19,-0.24) det=3 age=0.14 B1/2 tgt=NED(-31.40,11.19) px=(-46,-86)err=98px
+[INFO] [1791278322.243622543] [i_mission]:   TRK-DBG step=TRACK nbox=3 boxes=[(198,145)w25→NED(-31.66,13.08) (322,204)w20→NED(-31.38,11.13) (455,162)w16→NED(-32.50,9.47)] trackers=3[#0CNED(-31.69,13.06)age2.8s #1CNED(-31.38,11.12)age2.8s #2CNED(-32.51,9.45)age2.8s]
+[INFO] [1791278322.320197051] [i_mission]: [t=   33.8 TRACK           ph=  1.3s] NED( -31.86,  17.30,318.74) H= 5.04 hdg= 163.0 pit= +0.4 rol= +1.3 vNED=(+0.65,+0.17,-0.01) det=3 age=0.08 B1/2 tgt=NED(-31.38,11.12) px=(+2,-24)err=24px
+[INFO] [1791278323.255001259] [i_mission]:   TRK-DBG step=TRACK nbox=3 boxes=[(240,104)w23→NED(-31.85,12.88) (360,166)w20→NED(-31.57,10.96) (496,129)w17→NED(-32.67,9.30)] trackers=3[#0CNED(-31.81,12.93)age3.8s #1CNED(-31.53,11.00)age3.8s #2CNED(-32.64,9.37)age3.8s]
+[INFO] [1791278323.319978286] [i_mission]: [t=   34.8 TRACK           ph=  2.3s] NED( -31.48,  17.41,318.74) H= 5.04 hdg= 161.2 pit= +0.1 rol= +1.5 vNED=(+0.01,-0.05,-0.04) det=3 age=0.06 B1/2 tgt=NED(-31.54,10.99) px=(+40,+14)err=43px
+[INFO] [1791278324.320048142] [i_mission]: [t=   35.8 TRACK           ph=  3.3s] NED( -31.65,  17.34,318.64) H= 5.14 hdg= 161.2 pit= +2.6 rol= +0.4 vNED=(-0.25,-0.18,+0.12) det=3 age=0.16 B1/2 tgt=NED(-31.62,10.94) px=(+30,-4)err=31px
+[INFO] [1791278324.355374110] [i_mission]:   TRK-DBG step=TRACK nbox=3 boxes=[(224,128)w24→NED(-31.90,12.93) (344,191)w19→NED(-31.59,10.96) (478,154)w16→NED(-32.75,9.25)] trackers=3[#0CNED(-31.91,12.91)age4.9s #1CNED(-31.62,10.95)age4.9s #2CNED(-32.76,9.27)age4.9s]
+[INFO] [1791278325.320035410] [i_mission]: [t=   36.8 TRACK           ph=  4.3s] NED( -31.90,  17.20,318.70) H= 5.08 hdg= 160.6 pit= +3.8 rol= -1.2 vNED=(-0.09,-0.18,+0.15) det=3 age=0.16 B1/2 tgt=NED(-31.55,10.97) px=(+1,-32)err=32px
+[INFO] [1791278325.358722740] [i_mission]:   TRK-DBG step=TRACK nbox=3 boxes=[(192,148)w26→NED(-31.82,12.99) (316,215)w20→NED(-31.52,10.98) (455,177)w16→NED(-32.71,9.23)] trackers=3[#0CNED(-31.85,12.98)age5.9s #1CNED(-31.54,10.97)age5.9s #2CNED(-32.73,9.23)age5.9s]
+[INFO] [1791278326.320637974] [i_mission]: [t=   37.8 TRACK           ph=  5.3s] NED( -31.92,  17.10,318.85) H= 4.93 hdg= 160.9 pit= +3.5 rol= -1.6 vNED=(+0.14,-0.05,-0.07) det=3 age=0.16 B1/2 tgt=NED(-31.46,11.05) px=(-20,-37)err=42px
+[INFO] [1791278326.358894539] [i_mission]:   TRK-DBG step=TRACK nbox=3 boxes=[(172,146)w27→NED(-31.77,13.09) (298,214)w21→NED(-31.45,11.09) (440,177)w17→NED(-32.61,9.35)] trackers=3[#0CNED(-31.78,13.07)age6.9s #1CNED(-31.46,11.06)age6.9s #2CNED(-32.63,9.32)age6.9s]
+[INFO] [1791278327.021136213] [i_mission]: STEP TRACK->POSITION_REFINE (prev 6.0s) NED(-31.83,17.09,318.89) H=4.89m
+[INFO] [1791278327.070444265] [i_mission]:   REFINE candidates vs target(-31.4,11.1): (-31.8,13.0)d=2.0, (-31.4,11.1)d=0.0, (-32.6,9.4)d=2.1 best_dist=0.0 n=1
+[INFO] [1791278327.320971407] [i_mission]: [t=   38.8 POSITION_REFINE ph=  0.3s] NED( -31.78,  17.11,318.89) H= 4.89 hdg= 162.3 pit= +2.2 rol= -0.9 vNED=(+0.17,+0.05,-0.13) det=3 age=0.07 refine_samples=5 elapsed=0.3s
+[INFO] [1791278327.450889943] [i_mission]:   TRK-DBG step=POSITION_REFINE nbox=3 boxes=[(182,132)w26→NED(-31.75,13.05) (308,197)w20→NED(-31.43,11.09) (446,156)w17→NED(-32.57,9.39)] trackers=3[#0CNED(-31.75,13.05)age8.0s #1CNED(-31.44,11.08)age8.0s #2CNED(-32.58,9.37)age8.0s]
+[INFO] [1791278328.071244678] [i_mission]:   REFINE candidates vs target(-31.5,11.1): (-31.8,12.9)d=1.9, (-31.5,11.1)d=0.0, (-32.6,9.4)d=2.0 best_dist=0.0 n=21
+[INFO] [1791278328.319981844] [i_mission]: [t=   39.8 POSITION_REFINE ph=  1.3s] NED( -31.69,  17.19,318.88) H= 4.90 hdg= 163.6 pit= +2.0 rol= +0.0 vNED=(+0.03,+0.08,-0.15) det=3 age=0.16 refine_samples=25 elapsed=1.3s
+[INFO] [1791278328.462980313] [i_mission]:   TRK-DBG step=POSITION_REFINE nbox=3 boxes=[(202,130)w25→NED(-31.83,12.95) (325,188)w20→NED(-31.52,11.04) (458,146)w16→NED(-32.62,9.39)] trackers=3[#0CNED(-31.81,12.96)age9.0s #1CNED(-31.50,11.05)age9.0s #2CNED(-32.60,9.40)age9.0s]
+[INFO] [1791278329.070589359] [i_mission]:   REFINE candidates vs target(-31.5,11.0): (-31.9,13.0)d=1.9, (-31.6,11.0)d=0.0, (-32.6,9.4)d=2.0 best_dist=0.0 n=41
+[INFO] [1791278329.071672839] [i_mission]: Position refined: (-31.53,11.05) -> (-31.48,11.06) delta=(0.050,0.013)m n=41
+[INFO] [1791278329.072491741] [i_mission]: STEP POSITION_REFINE->PRE_SERVO (prev 2.1s) NED(-31.70,17.27,318.73) H=5.05m
+[INFO] [1791278329.120461607] [i_mission]:   PRE-SERVO H= 5.05m target_z-GND=+2.55m cmd_z=+321.28 下降率=0.01m/s tgt=NED(-31.53,11.05) 横向偏差=0.13m
+[INFO] [1791278329.320064250] [i_mission]: [t=   40.8 PRE_SERVO       ph=  0.2s] NED( -31.72,  17.29,318.76) H= 5.02 hdg= 165.2 pit= +3.1 rol= +0.9 vNED=(-0.06,+0.05,+0.60) det=3 age=0.06 tgt=NED(-31.53,11.04) px=(+18,-18)err=26px
+[INFO] [1791278329.556491645] [i_mission]:   TRK-DBG step=PRE_SERVO nbox=3 boxes=[(216,148)w23→NED(-31.80,12.89) (338,202)w19→NED(-31.51,11.06) (468,156)w15→NED(-32.57,9.50)] trackers=3[#0CNED(-31.82,12.90)age10.1s #1CNED(-31.52,11.02)age10.1s #2CNED(-32.60,9.41)age10.1s]
+[INFO] [1791278330.170866457] [i_mission]:   PRE-SERVO H= 3.98m target_z-GND=+1.48m cmd_z=+321.28 下降率=1.62m/s tgt=NED(-31.47,11.04) 横向偏差=0.17m
+[INFO] [1791278330.320065425] [i_mission]: [t=   41.8 PRE_SERVO       ph=  1.2s] NED( -31.77,  17.31,320.01) H= 3.77 hdg= 168.0 pit= +3.0 rol= +1.0 vNED=(-0.01,-0.11,+1.59) det=3 age=0.06 tgt=NED(-31.45,11.04) px=(+17,-32)err=37px
+[INFO] [1791278330.651810374] [i_mission]:   TRK-DBG step=PRE_SERVO nbox=3 boxes=[(140,141)w37→NED(-31.67,12.99) (323,211)w28→NED(-31.39,11.10) (512,132)w24→NED(-32.52,9.46)] trackers=3[#0CNED(-31.71,12.91)age11.2s #1CNED(-31.41,11.08)age11.2s #2CNED(-32.48,9.47)age11.2s]
+[INFO] [1791278331.172537005] [i_mission]:   PRE-SERVO H= 2.91m target_z-GND=+0.41m cmd_z=+321.28 下降率=0.67m/s tgt=NED(-31.39,11.15) 横向偏差=0.13m
+[INFO] [1791278331.320005363] [i_mission]: [t=   42.8 PRE_SERVO       ph=  2.2s] NED( -31.75,  17.20,320.96) H= 2.82 hdg= 165.9 pit= +3.2 rol= -1.2 vNED=(+0.06,-0.07,+0.49) det=3 age=0.04 tgt=NED(-31.39,11.18) px=(-30,-30)err=42px
+[INFO] [1791278331.420684104] [i_mission]: PRE_SERVO update target: (-31.38,11.25) H=2.8m
+[INFO] [1791278331.421555333] [i_mission]: STEP PRE_SERVO->VISUAL_SERVO (prev 2.3s) NED(-31.74,17.20,321.00) H=2.78m
+[INFO] [1791278331.658115734] [i_mission]:   TRK-DBG step=VISUAL_SERVO nbox=3 boxes=[(26,102)w52→NED(-31.71,13.35) (277,213)w44→NED(-31.34,11.30) (548,110)w34→NED(-32.60,9.41)] trackers=3[#0CNED(-31.70,13.30)age12.2s #1CNED(-31.35,11.27)age12.2s #2CNED(-32.60,9.42)age12.2s]
+[INFO] [1791278331.674013140] [i_mission]:   SERVO err=68px ex=-65 ey=-18 v_fwd=-0.052 v_lat=-0.192 H=2.68m 下降率=0.74m/s drop_z剩余=-1.48m target=(-31.38,11.25) px_raw=(-43,-33,err=54px) dec=5x
+[INFO] [1791278332.320717159] [i_mission]: [t=   43.8 VISUAL_SERVO    ph=  0.9s] NED( -31.69,  17.23,321.83) H= 1.95 hdg= 166.7 pit= +2.7 rol= -0.3 vNED=(+0.10,+0.11,+1.03) det=2 age=0.07 B1/2 SERVO tgt=NED(-31.38,11.25) px=(-58,-34)err=68px
+[INFO] [1791278332.360637225] [i_mission]:   DET-FILTER 剔除残缺框 1/2 (阈值30px, 本帧最小边=[60, 14])
+[INFO] [1791278332.660253455] [i_mission]:   TRK-DBG step=VISUAL_SERVO nbox=1 boxes=[(254,213)w80→NED(-31.26,11.45)] trackers=3[#0CNED(-31.69,13.27)age13.2s #1CNED(-31.28,11.41)age13.2s #2CNED(-32.56,9.51)age13.2s]
+[INFO] [1791278332.920076251] [i_mission]:   SERVO err=133px ex=-130 ey=-27 v_fwd=-0.014 v_lat=-0.074 H=1.54m 下降率=0.49m/s drop_z剩余=-0.34m target=(-31.38,11.25) px_raw=(-70,-34,err=78px) dec=5x
+[INFO] [1791278333.272201712] [i_mission]: STEP VISUAL_SERVO->DROP (prev 1.8s) NED(-31.61,17.34,322.38) H=1.40m
+[INFO] [1791278333.320071617] [i_mission]: [t=   44.8 DROP            ph=  0.0s] NED( -31.60,  17.35,322.41) H= 1.37 hdg= 167.4 pit= +2.5 rol= +0.6 vNED=(+0.07,+0.09,+0.23) det=1 age=0.16 B1/2 tgt=NED(-31.38,11.25) px=(-75,-36)err=83px
+[INFO] [1791278333.756557937] [i_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(246,212)w155→NED(-31.22,11.55)] trackers=3[#0CNED(-31.69,13.27)age14.3s #1CNED(-31.22,11.54)age14.3s #2CNED(-32.56,9.51)age14.3s]
+[INFO] [1791278334.320076797] [i_mission]: [t=   45.8 DROP            ph=  1.0s] NED( -31.56,  17.43,322.39) H= 1.39 hdg= 168.4 pit= +2.4 rol= +0.6 vNED=(+0.04,+0.05,+0.09) det=1 age=0.06 B1/2 tgt=NED(-31.38,11.25) px=(-72,-26)err=77px
+[WARN] [1791278334.670338036] [i_mission]: i模式: 1.2m 一次性修正 delta=(+0.096,+0.251)m (桶估计=(-31.20899363640248, 11.59135642185508)) → 冻结保持点 (-31.192,+11.734) 补偿B1=(+0.250,+0.040)
+[INFO] [1791278334.852488353] [i_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(256,214)w230→NED(-31.19,11.56)] trackers=1[#0CNED(-31.20,11.58)age15.4s]
+[WARN] [1791278335.270525068] [i_mission]: i模式: 已到达保持点 err=34.5cm → 开始停留 5s
+[INFO] [1791278335.320335077] [i_mission]: [t=   46.8 DROP            ph=  2.0s] NED( -31.54,  17.53,322.54) H= 1.24 hdg= 167.0 pit= +2.9 rol= -1.6 vNED=(+0.05,+0.20,+0.01) det=0 age=0.36 B1/2 tgt=NED(-31.38,11.25) px=(-54,-36)err=65px
+[INFO] [1791278335.952659020] [i_mission]:   TRK-DBG step=DROP nbox=0 boxes=[] trackers=1[#0CNED(-31.20,11.54)age16.5s]
+[INFO] [1791278336.320044102] [i_mission]: [t=   47.8 DROP            ph=  3.0s] NED( -31.49,  17.76,322.72) H= 1.06 hdg= 167.1 pit= +2.7 rol= +0.5 vNED=(+0.06,+0.20,-0.23) det=0 age=1.36 B1/2 tgt=NED(-31.38,11.25) px=(-54,-36)err=65px
+[INFO] [1791278336.952579689] [i_mission]:   TRK-DBG step=DROP nbox=0 boxes=[] trackers=1[#0CNED(-31.23,11.20)age17.5s]
+[INFO] [1791278337.320040961] [i_mission]: [t=   48.8 DROP            ph=  4.0s] NED( -31.47,  17.91,322.50) H= 1.28 hdg= 166.2 pit= +3.1 rol= +1.0 vNED=(+0.01,+0.04,+0.04) det=0 age=0.57 B1/2 tgt=NED(-31.38,11.25) px=(+221,-62)err=230px
+[INFO] [1791278337.953956030] [i_mission]:   TRK-DBG step=DROP nbox=0 boxes=[] trackers=1[#0CNED(-31.23,11.20)age18.5s]
+[INFO] [1791278338.320003141] [i_mission]: [t=   49.8 DROP            ph=  5.0s] NED( -31.46,  17.92,322.62) H= 1.16 hdg= 165.9 pit= +2.8 rol= +0.7 vNED=(+0.05,-0.05,-0.07) det=0 age=1.57 B1/2 tgt=NED(-31.38,11.25) px=(+221,-62)err=230px
+[INFO] [1791278338.952918107] [i_mission]:   TRK-NEW #0 NED(-31.27,10.93) from box(cx=552,cy=236,w=174,h=195) alive=1
+[INFO] [1791278338.961882886] [i_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(552,236)w174→NED(-31.27,10.93)] trackers=1[#0-NED(-31.27,10.93)age0.0s]
+[INFO] [1791278339.319982054] [i_mission]: [t=   50.8 DROP            ph=  6.0s] NED( -31.44,  17.87,322.56) H= 1.22 hdg= 165.9 pit= +2.2 rol= +0.2 vNED=(+0.05,-0.03,+0.07) det=1 age=0.05 B1/2 tgt=NED(-31.38,11.25) px=(+238,-44)err=242px
+[INFO] [1791278340.049165615] [i_mission]:   TRK-DBG step=DROP nbox=0 boxes=[] trackers=1[#0-NED(-31.29,10.93)age1.1s]
+[INFO] [1791278340.272150429] [i_mission]: >>> DROP #1! PWM=2000us NED(-31.441,17.835,322.705) 触发方式=i模式(1.2m一次性修正 [平静帧中值(校准5帧)] 到位err=1.5cm pred=3.0cm 停留5.6s vxy=0.023m/s hold=(-31.192,+11.734))
+[INFO] [1791278340.320129500] [i_mission]: [t=   51.8 DROP            ph=  7.0s] NED( -31.44,  17.83,322.70) H= 1.08 hdg= 163.6 pit= +2.6 rol= +0.1 vNED=(-0.01,-0.02,-0.15) det=1 age=0.16 B1/2 tgt=NED(-31.38,11.25) px=(+219,-30)err=221px
+[INFO] [1791278340.455962002] [i_mission]: Tracker confirmed: NED(-31.3,11.0) after 1.5s
+[INFO] [1791278341.057469320] [i_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(473,216)w148→NED(-31.30,11.19)] trackers=1[#0CNED(-31.31,11.15)age2.1s]
+[INFO] [1791278341.320057978] [i_mission]: [t=   52.8 DROP            ph=  8.0s] NED( -31.46,  17.84,322.53) H= 1.25 hdg= 163.4 pit= +2.9 rol= -0.0 vNED=(+0.00,+0.05,-0.14) det=1 age=0.56 B1/2 tgt=NED(-31.38,11.25) px=(+176,-38)err=180px
+[INFO] [1791278341.321623164] [i_mission]: DROP signal reset after 1.05s (command hold)
+[INFO] [1791278341.322516199] [i_mission]: STEP DROP->CLIMB (prev 8.1s) NED(-31.46,17.84,322.53) H=1.25m
+[INFO] [1791278342.058016374] [i_mission]:   TRK-DBG step=CLIMB nbox=1 boxes=[(448,222)w83→NED(-31.33,11.09)] trackers=1[#0CNED(-31.32,11.13)age3.1s]
+[INFO] [1791278342.320036784] [i_mission]: [t=   53.8 CLIMB           ph=  1.0s] NED( -31.44,  17.88,321.56) H= 2.22 hdg= 160.3 pit= +2.5 rol= +0.1 vNED=(+0.05,+0.03,-1.79) det=1 age=0.05
+[INFO] [1791278342.458163186] [i_mission]:   TRK-NEW #1 NED(-31.78,13.83) from box(cx=82,cy=24,w=75,h=49) alive=2
+[INFO] [1791278343.056385665] [i_mission]:   TRK-NEW #2 NED(-32.78,9.04) from box(cx=622,cy=136,w=30,h=25) alive=3
+[INFO] [1791278343.152967197] [i_mission]:   TRK-DBG step=CLIMB nbox=3 boxes=[(212,100)w36→NED(-31.82,13.34) (400,197)w31→NED(-31.46,11.03) (603,140)w28→NED(-32.76,9.10)] trackers=3[#0CNED(-31.42,11.05)age4.2s #1-NED(-31.81,13.51)age0.7s #2-NED(-32.77,9.06)age0.1s]
+[INFO] [1791278343.320043817] [i_mission]: [t=   54.8 CLIMB           ph=  2.0s] NED( -31.45,  17.92,319.68) H= 4.10 hdg= 161.4 pit= +3.2 rol= +0.7 vNED=(-0.02,+0.03,-1.48) det=3 age=0.03
+[INFO] [1791278343.669926276] [i_mission]: Next bucket 2/2: NED(-32.4,9.5)
+[INFO] [1791278343.670875575] [i_mission]: STEP CLIMB->TRACK (prev 2.3s) NED(-31.46,17.93,319.20) H=4.58m
+[INFO] [1791278344.038342407] [i_mission]:   TRK-PULL #1 dist=1.01m box(cx=257,cy=131) NED(-31.33,14.25) ← tracker NED(-31.74,13.33)
+[INFO] [1791278344.039223626] [i_mission]: Tracker confirmed: NED(-31.6,13.6) after 1.6s
+[INFO] [1791278344.040061031] [i_mission]:   TRK-PULL #0 dist=1.01m box(cx=390,cy=200) NED(-30.91,12.04) ← tracker NED(-31.39,11.14)
+[INFO] [1791278344.040795716] [i_mission]:   TRK-PULL #0 dist=1.17m box(cx=536,cy=160) NED(-31.93,10.46) ← tracker NED(-31.24,11.41)
+[INFO] [1791278344.057563144] [i_mission]:   TRK-PULL #1 dist=0.90m box(cx=257,cy=131) NED(-31.26,14.43) ← tracker NED(-31.62,13.61)
+[INFO] [1791278344.058352164] [i_mission]:   TRK-PULL #0 dist=1.21m box(cx=390,cy=200) NED(-30.83,12.17) ← tracker NED(-31.45,11.12)
+[INFO] [1791278344.059073896] [i_mission]:   TRK-PULL #0 dist=1.02m box(cx=536,cy=160) NED(-31.85,10.60) ← tracker NED(-31.26,11.44)
+[INFO] [1791278344.262354982] [i_mission]:   TRK-PULL #2 dist=0.81m box(cx=630,cy=137) NED(-32.08,9.98) ← tracker NED(-32.58,9.35)
+[INFO] [1791278344.263351298] [i_mission]:   TRK-DBG step=TRACK nbox=3 boxes=[(470,186)w25→NED(-31.10,11.47) (336,125)w24→NED(-31.49,13.50) (630,137)w18→NED(-32.08,9.98)] trackers=3[#0CNED(-31.34,11.27)age5.3s #1CNED(-31.50,13.75)age1.8s #2-NED(-32.43,9.54)age1.2s]
+[INFO] [1791278344.320125033] [i_mission]: [t=   55.8 TRACK           ph=  0.6s] NED( -31.55,  17.80,318.74) H= 5.04 hdg= 165.5 pit= -1.8 rol=+19.8 vNED=(-0.41,-0.80,-0.04) det=3 age=0.06 B2/2 tgt=NED(-32.42,9.51) px=(+310,+43)err=313px
+[INFO] [1791278344.361521812] [i_mission]:   TRK-PULL #1 dist=1.18m box(cx=379,cy=117) NED(-31.83,12.61) ← tracker NED(-31.50,13.75)
+[INFO] [1791278344.477868202] [i_mission]:   TRK-PULL #2 dist=0.86m box(cx=528,cy=168) NED(-31.80,10.13) ← tracker NED(-32.43,9.54)
+[INFO] [1791278344.478714018] [i_mission]:   TRK-PULL #0 dist=1.20m box(cx=388,cy=113) NED(-32.13,12.04) ← tracker NED(-31.38,11.09)
+[INFO] [1791278344.576211378] [i_mission]: Tracker confirmed: NED(-32.1,9.8) after 1.5s
+[INFO] [1791278344.577082331] [i_mission]:   TRK-PULL #0 dist=0.87m box(cx=365,cy=116) NED(-32.25,11.97) ← tracker NED(-31.60,11.38)
+[INFO] [1791278344.746664469] [i_mission]:   TRK-NEW #3 NED(-33.14,8.42) from box(cx=594,cy=126,w=21,h=17) alive=4
+[INFO] [1791278345.319988739] [i_mission]: [t=   56.8 TRACK           ph=  1.6s] NED( -32.31,  16.46,318.79) H= 4.99 hdg= 163.8 pit= +3.9 rol= -2.7 vNED=(-0.86,-1.40,+0.06) det=3 age=0.16 B2/2 tgt=NED(-32.42,9.51) px=(+134,+18)err=135px
+[INFO] [1791278345.361998480] [i_mission]:   TRK-DBG step=TRACK nbox=3 boxes=[(145,163)w28→NED(-32.07,12.54) (268,223)w22→NED(-31.74,10.65) (404,177)w15→NED(-32.91,8.94)] trackers=4[#0CNED(-32.09,12.34)age6.4s #1CNED(-31.60,13.41)age2.9s #2CNED(-31.83,10.46)age2.3s #3-NED(-33.00,8.76)age0.6s]
+[INFO] [1791278346.320083207] [i_mission]: [t=   57.8 TRACK           ph=  2.6s] NED( -32.98,  15.49,318.64) H= 5.14 hdg= 162.7 pit= +6.8 rol= -5.6 vNED=(-0.31,-0.41,+0.15) det=3 age=0.15 B2/2 tgt=NED(-32.42,9.51) px=(-36,-42)err=55px
+[INFO] [1791278346.352289980] [i_mission]:   DET-FILTER 剔除残缺框 1/3 (阈值8px, 本帧最小边=[24, 14, 7])
+[INFO] [1791278346.353433387] [i_mission]: Tracker confirmed: NED(-32.7,9.4) after 1.6s
+[INFO] [1791278346.453406277] [i_mission]:   TRK-DBG step=TRACK nbox=2 boxes=[(116,272)w30→NED(-31.47,11.36) (266,225)w16→NED(-32.66,9.61)] trackers=3[#0CNED(-31.91,12.99)age7.5s #1CNED(-31.51,11.23)age3.4s #2CNED(-32.69,9.49)age1.7s]
+[INFO] [1791278347.166143697] [i_mission]:   DET-FILTER 剔除残缺框 1/3 (阈值8px, 本帧最小边=[24, 15, 7])
+[INFO] [1791278347.173978318] [i_mission]:   DET-FILTER 剔除残缺框 1/3 (阈值8px, 本帧最小边=[24, 15, 7])
+[INFO] [1791278347.320077635] [i_mission]: [t=   58.8 TRACK           ph=  3.6s] NED( -33.01,  15.35,318.71) H= 5.07 hdg= 161.8 pit= +5.4 rol= -1.5 vNED=(+0.23,+0.19,+0.14) det=2 age=0.14 B2/2 tgt=NED(-32.42,9.51) px=(-54,-44)err=70px
+[INFO] [1791278347.359390177] [i_mission]:   同帧重复框合并: 4 -> 3 (相距 < 0.8m 视为同一个桶)
+[INFO] [1791278347.461260718] [i_mission]:   同帧重复框合并: 3 -> 3 (相距 < 0.8m 视为同一个桶)
+[INFO] [1791278347.462415453] [i_mission]:   TRK-DBG step=TRACK nbox=3 boxes=[(130,256)w30→NED(-31.27,11.53) (11,186)w22→NED(-31.64,13.51) (280,212)w17→NED(-32.54,9.73)] trackers=3[#0CNED(-31.78,13.24)age8.5s #1CNED(-31.30,11.52)age4.4s #2CNED(-32.53,9.72)age2.7s]
+[INFO] [1791278348.320047150] [i_mission]: [t=   59.8 TRACK           ph=  4.6s] NED( -32.70,  15.51,318.86) H= 4.92 hdg= 157.4 pit= +3.1 rol= +1.0 vNED=(+0.22,+0.19,-0.06) det=3 age=0.06 B2/2 tgt=NED(-32.42,9.51) px=(-4,+4)err=6px
+[INFO] [1791278348.558377358] [i_mission]:   TRK-DBG step=TRACK nbox=3 boxes=[(62,126)w30→NED(-31.90,13.42) (179,202)w28→NED(-31.54,11.39) (329,172)w16→NED(-32.75,9.57)] trackers=3[#0CNED(-31.83,13.44)age9.6s #1CNED(-31.49,11.42)age5.5s #2CNED(-32.71,9.62)age3.8s]
+[INFO] [1791278349.320081176] [i_mission]: [t=   60.8 TRACK           ph=  5.6s] NED( -32.51,  15.66,318.89) H= 4.89 hdg= 158.7 pit= +2.4 rol= +1.8 vNED=(+0.01,+0.06,-0.08) det=3 age=0.05 B2/2 tgt=NED(-32.42,9.51) px=(+24,+17)err=29px
+[INFO] [1791278349.659631500] [i_mission]:   TRK-DBG step=TRACK nbox=3 boxes=[(84,125)w29→NED(-31.90,13.18) (200,198)w27→NED(-31.59,11.22) (347,166)w16→NED(-32.77,9.48)] trackers=3[#0CNED(-31.88,13.28)age10.7s #1CNED(-31.56,11.28)age6.6s #2CNED(-32.76,9.52)age4.9s]
+[INFO] [1791278350.320724431] [i_mission]: [t=   61.8 TRACK           ph=  6.6s] NED( -32.59,  15.66,318.91) H= 4.87 hdg= 155.1 pit= +4.1 rol= -0.3 vNED=(-0.14,-0.08,-0.13) det=3 age=0.06 B2/2 tgt=NED(-32.42,9.51) px=(+13,+3)err=13px
+[INFO] [1791278350.672276859] [i_mission]: STEP TRACK->POSITION_REFINE (prev 7.0s) NED(-32.64,15.63,318.85) H=4.93m
+[INFO] [1791278350.720592037] [i_mission]:   REFINE candidates vs target(-32.4,9.5): (-31.9,13.2)d=3.7, (-31.6,11.2)d=1.9, (-32.7,9.5)d=0.3 best_dist=0.3 n=1
+[INFO] [1791278350.752594021] [i_mission]:   TRK-DBG step=POSITION_REFINE nbox=3 boxes=[(68,128)w30→NED(-31.90,13.13) (179,208)w26→NED(-31.57,11.21) (325,186)w16→NED(-32.74,9.50)] trackers=3[#0CNED(-31.90,13.16)age11.8s #1CNED(-31.57,11.22)age7.7s #2CNED(-32.74,9.51)age6.0s]
+[INFO] [1791278351.320691689] [i_mission]: [t=   62.8 POSITION_REFINE ph=  0.6s] NED( -32.73,  15.58,318.80) H= 4.98 hdg= 154.7 pit= +4.1 rol= -1.7 vNED=(-0.05,-0.07,-0.01) det=3 age=0.06 refine_samples=12 elapsed=0.6s
+[INFO] [1791278351.720636644] [i_mission]:   REFINE candidates vs target(-32.4,9.5): (-31.9,13.1)d=3.7, (-31.6,11.2)d=1.9, (-32.7,9.5)d=0.3 best_dist=0.3 n=21
+[INFO] [1791278351.753674685] [i_mission]:   TRK-DBG step=POSITION_REFINE nbox=3 boxes=[(56,134)w30→NED(-31.89,13.10) (166,213)w27→NED(-31.56,11.21) (310,191)w16→NED(-32.69,9.53)] trackers=3[#0CNED(-31.89,13.13)age12.8s #1CNED(-31.56,11.22)age8.7s #2CNED(-32.71,9.53)age7.0s]
+[INFO] [1791278352.320011925] [i_mission]: [t=   63.8 POSITION_REFINE ph=  1.6s] NED( -32.76,  15.52,318.85) H= 4.93 hdg= 156.2 pit= +3.8 rol= -1.7 vNED=(+0.07,-0.07,-0.04) det=3 age=0.06 refine_samples=32 elapsed=1.6s
+[INFO] [1791278352.720548526] [i_mission]: Position refined: (-32.42,9.51) -> (-32.70,9.51) delta=(-0.284,0.006)m n=41
+[INFO] [1791278352.721353220] [i_mission]:   TARGET-REBIND id #6 -> #10 aim=NED(-32.70,9.51) tracker=NED(-32.67,9.50) d=0.03m
+[INFO] [1791278352.722152861] [i_mission]: STEP POSITION_REFINE->PRE_SERVO (prev 2.1s) NED(-32.74,15.49,318.77) H=5.01m
+[INFO] [1791278352.770557339] [i_mission]:   PRE-SERVO H= 5.02m target_z-GND=+2.52m cmd_z=+321.28 下降率=0.00m/s tgt=NED(-32.67,9.50) 横向偏差=0.21m
+[INFO] [1791278352.853335497] [i_mission]:   TRK-DBG step=PRE_SERVO nbox=3 boxes=[(52,134)w29→NED(-31.85,13.00) (164,209)w27→NED(-31.53,11.15) (305,182)w16→NED(-32.65,9.47)] trackers=3[#0CNED(-31.88,13.02)age13.9s #1CNED(-31.55,11.16)age9.8s #2CNED(-32.66,9.49)age8.1s]
+[INFO] [1791278353.319982712] [i_mission]: [t=   64.8 PRE_SERVO       ph=  0.6s] NED( -32.72,  15.45,319.18) H= 4.60 hdg= 156.9 pit= +0.9 rol= -1.8 vNED=(-0.01,-0.06,+1.53) det=3 age=0.04 tgt=NED(-32.61,9.50) px=(-16,+10)err=19px
+[INFO] [1791278353.748823303] [i_mission]:   DET-FILTER 剔除残缺框 1/3 (阈值8px, 本帧最小边=[25, 16, 6])
+[INFO] [1791278353.771021663] [i_mission]:   PRE-SERVO H= 3.90m target_z-GND=+1.40m cmd_z=+321.28 下降率=1.63m/s tgt=NED(-32.70,9.54) 横向偏差=0.29m
+[INFO] [1791278353.946605031] [i_mission]:   TRK-DBG step=PRE_SERVO nbox=2 boxes=[(107,206)w36→NED(-31.65,11.20) (284,166)w19→NED(-32.68,9.67)] trackers=3[#0CNED(-32.00,12.76)age15.0s #1CNED(-31.66,11.15)age10.9s #2CNED(-32.69,9.60)age9.2s]
+[INFO] [1791278354.320036679] [i_mission]: [t=   65.8 PRE_SERVO       ph=  1.6s] NED( -32.81,  15.52,320.56) H= 3.22 hdg= 159.6 pit= +2.6 rol= -1.9 vNED=(-0.14,+0.23,+1.02) det=2 age=0.06 tgt=NED(-32.68,9.67) px=(-38,+8)err=39px
+[INFO] [1791278354.820448283] [i_mission]:   PRE-SERVO H= 2.83m target_z-GND=+0.33m cmd_z=+321.28 下降率=0.57m/s tgt=NED(-32.64,9.75) 横向偏差=0.22m
+[INFO] [1791278354.870690956] [i_mission]: PRE_SERVO update target: (-32.61,9.77) H=2.8m
+[INFO] [1791278354.871629663] [i_mission]: STEP PRE_SERVO->VISUAL_SERVO (prev 2.1s) NED(-32.88,15.66,320.99) H=2.79m
+[INFO] [1791278354.959177312] [i_mission]:   TRK-DBG step=VISUAL_SERVO nbox=2 boxes=[(40,274)w53→NED(-31.49,11.42) (290,203)w27→NED(-32.59,9.77)] trackers=3[#0CNED(-32.00,12.76)age16.0s #1CNED(-31.52,11.40)age11.9s #2CNED(-32.62,9.76)age10.2s]
+[INFO] [1791278355.120175351] [i_mission]:   SERVO err=41px ex=-41 ey=-5 v_fwd=0.000 v_lat=-0.120 H=2.68m 下降率=0.82m/s drop_z剩余=-1.48m target=(-32.61,9.77) px_raw=(-30,-23,err=38px) dec=5x
+[INFO] [1791278355.319918592] [i_mission]: [t=   66.8 VISUAL_SERVO    ph=  0.4s] NED( -32.93,  15.79,321.29) H= 2.49 hdg= 162.1 pit= +4.6 rol= +0.0 vNED=(-0.08,+0.30,+1.32) det=2 age=0.06 B2/2 SERVO tgt=NED(-32.61,9.77) px=(-23,-36)err=42px
+[INFO] [1791278356.055702999] [i_mission]:   TRK-DBG step=VISUAL_SERVO nbox=1 boxes=[(324,253)w42→NED(-32.48,9.79)] trackers=2[#0CNED(-31.49,11.31)age13.0s #1CNED(-32.51,9.79)age11.3s]
+[INFO] [1791278356.120266798] [i_mission]:   SERVO err=59px ex=-27 ey=-53 v_fwd=-0.035 v_lat=-0.011 H=1.63m 下降率=0.61m/s drop_z剩余=-0.43m target=(-32.61,9.77) px_raw=(+4,-73,err=73px) dec=5x
+[INFO] [1791278356.320093967] [i_mission]: [t=   67.8 VISUAL_SERVO    ph=  1.4s] NED( -32.91,  15.99,322.23) H= 1.55 hdg= 160.9 pit= +4.3 rol= +0.9 vNED=(+0.07,+0.05,+0.45) det=1 age=0.16 B2/2 SERVO tgt=NED(-32.61,9.77) px=(+6,-78)err=78px
+[INFO] [1791278356.870599438] [i_mission]: STEP VISUAL_SERVO->DROP (prev 2.0s) NED(-32.86,16.01,322.38) H=1.40m
+[INFO] [1791278357.062476378] [i_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(332,256)w59→NED(-32.42,9.79)] trackers=2[#0CNED(-31.49,11.31)age14.0s #1CNED(-32.43,9.79)age12.3s]
+[INFO] [1791278357.319932961] [i_mission]: [t=   68.8 DROP            ph=  0.4s] NED( -32.83,  16.00,322.39) H= 1.39 hdg= 161.0 pit= +3.3 rol= -0.4 vNED=(+0.03,-0.03,+0.12) det=1 age=0.15 B2/2 tgt=NED(-32.61,9.77) px=(+9,-75)err=76px
+[INFO] [1791278358.063071281] [i_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(316,249)w73→NED(-32.39,9.85)] trackers=1[#0CNED(-32.40,9.85)age13.3s]
+[INFO] [1791278358.320279069] [i_mission]: [t=   69.8 DROP            ph=  1.4s] NED( -32.82,  16.00,322.46) H= 1.32 hdg= 162.4 pit= +3.6 rol= -0.1 vNED=(-0.01,-0.01,+0.12) det=1 age=0.07 B2/2 tgt=NED(-32.61,9.77) px=(-3,-71)err=71px
+[INFO] [1791278359.065924476] [i_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(296,260)w92→NED(-32.36,9.87)] trackers=1[#0CNED(-32.37,9.86)age14.3s]
+[INFO] [1791278359.248907066] [i_mission]:   同帧重复框合并: 2 -> 1 (相距 < 0.8m 视为同一个桶)
+[INFO] [1791278359.320043172] [i_mission]: [t=   70.8 DROP            ph=  2.4s] NED( -32.81,  15.97,322.57) H= 1.21 hdg= 161.4 pit= +3.4 rol= -0.6 vNED=(+0.00,-0.05,-0.03) det=1 age=0.07 B2/2 tgt=NED(-32.61,9.77) px=(-31,-81)err=87px
+[INFO] [1791278360.254380326] [i_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(286,256)w95→NED(-32.35,9.90)] trackers=1[#0CNED(-32.35,9.91)age15.5s]
+[INFO] [1791278360.320030998] [i_mission]: [t=   71.8 DROP            ph=  3.4s] NED( -32.80,  15.96,322.58) H= 1.20 hdg= 162.4 pit= +3.5 rol= +0.1 vNED=(+0.02,-0.01,-0.04) det=1 age=0.06 B2/2 tgt=NED(-32.61,9.77) px=(-34,-76)err=84px
+[WARN] [1791278360.670194423] [i_mission]: i模式: 1.2m 一次性修正 delta=(+0.189,+0.035)m (桶估计=(-32.36566268762664, 9.875176526605049)) → 冻结保持点 (-32.345,+9.904) 补偿B2=(+0.120,+0.040)
+[WARN] [1791278360.671773234] [i_mission]: i模式: 已到达保持点 err=22.0cm → 开始停留 5s
+[INFO] [1791278361.320011175] [i_mission]: [t=   72.8 DROP            ph=  4.4s] NED( -32.77,  15.95,322.57) H= 1.21 hdg= 164.7 pit= +4.1 rol= -1.3 vNED=(+0.10,+0.00,+0.01) det=1 age=0.07 B2/2 tgt=NED(-32.61,9.77) px=(-40,-72)err=82px
+[INFO] [1791278361.351936112] [i_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(280,250)w87→NED(-32.35,9.90)] trackers=1[#0CNED(-32.38,9.89)age16.6s]
+[INFO] [1791278362.319990666] [i_mission]: [t=   73.8 DROP            ph=  5.4s] NED( -32.63,  16.00,322.53) H= 1.25 hdg= 168.2 pit= +3.0 rol= -0.0 vNED=(+0.15,+0.08,+0.00) det=1 age=0.05 B2/2 tgt=NED(-32.61,9.77) px=(+6,-10)err=12px
+[INFO] [1791278362.369782514] [i_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(336,178)w86→NED(-32.47,9.85)] trackers=1[#0CNED(-32.42,9.87)age17.6s]
+[INFO] [1791278363.319994186] [i_mission]: [t=   74.8 DROP            ph=  6.4s] NED( -32.52,  16.08,322.55) H= 1.22 hdg= 166.1 pit= +3.0 rol= +0.8 vNED=(+0.03,+0.02,+0.04) det=1 age=0.07 B2/2 tgt=NED(-32.61,9.77) px=(+94,+50)err=107px
+[INFO] [1791278363.554361457] [i_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(426,122)w97→NED(-32.61,9.71)] trackers=1[#0CNED(-32.60,9.73)age18.8s]
+[INFO] [1791278364.320001932] [i_mission]: [t=   75.8 DROP            ph=  7.4s] NED( -32.52,  16.09,322.55) H= 1.22 hdg= 158.8 pit= +2.9 rol= +0.3 vNED=(-0.06,-0.13,+0.02) det=1 age=0.06 B2/2 tgt=NED(-32.61,9.77) px=(+118,+48)err=128px
+[INFO] [1791278364.648794604] [i_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(411,136)w100→NED(-32.61,9.73)] trackers=1[#0CNED(-32.62,9.70)age19.9s]
+[INFO] [1791278365.320146917] [i_mission]: [t=   76.8 DROP            ph=  8.4s] NED( -32.58,  15.98,322.73) H= 1.05 hdg= 153.7 pit= +2.6 rol= -1.4 vNED=(-0.03,-0.14,-0.14) det=1 age=0.06 B2/2 tgt=NED(-32.61,9.77) px=(+28,+38)err=47px
+[INFO] [1791278365.756142640] [i_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(305,144)w82→NED(-32.50,9.88)] trackers=1[#0CNED(-32.52,9.86)age21.0s]
+[INFO] [1791278366.320010918] [i_mission]: [t=   77.8 DROP            ph=  9.4s] NED( -32.60,  15.87,322.60) H= 1.18 hdg= 157.6 pit= +2.2 rol= -2.7 vNED=(+0.01,-0.04,+0.01) det=1 age=0.06 B2/2 tgt=NED(-32.61,9.77) px=(-43,+42)err=60px
+[INFO] [1791278366.851038242] [i_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(265,128)w78→NED(-32.52,9.95)] trackers=1[#0CNED(-32.50,9.94)age22.1s]
+[INFO] [1791278367.021351698] [i_mission]: >>> DROP #2! PWM=1000us NED(-32.601,15.869,322.601) 触发方式=i模式(1.2m一次性修正 [平静帧中值(校准1帧)] 到位err=15.0cm pred=8.8cm 停留6.4s vxy=0.090m/s hold=(-32.345,+9.904))
+[INFO] [1791278367.319968909] [i_mission]: [t=   78.8 DROP            ph= 10.4s] NED( -32.59,  15.89,322.60) H= 1.18 hdg= 164.0 pit= +3.6 rol= -0.3 vNED=(+0.03,+0.11,-0.17) det=1 age=0.46 B2/2 tgt=NED(-32.61,9.77) px=(-55,+52)err=76px
+[INFO] [1791278367.851771932] [i_mission]:   TRK-DBG step=DROP nbox=1 boxes=[(316,146)w63→NED(-32.51,9.85)] trackers=1[#0CNED(-32.50,9.89)age23.1s]
+[INFO] [1791278368.071183932] [i_mission]: DROP signal reset after 1.05s (command hold)
+[INFO] [1791278368.072523814] [i_mission]: STEP DROP->CLIMB (prev 11.2s) NED(-32.56,15.92,322.48) H=1.30m
+[INFO] [1791278368.320044876] [i_mission]: [t=   79.8 CLIMB           ph=  0.2s] NED( -32.55,  15.93,322.44) H= 1.34 hdg= 162.7 pit= +3.1 rol= -0.6 vNED=(+0.06,+0.03,-0.44) det=1 age=1.46
+[INFO] [1791278368.858359581] [i_mission]:   TRK-DBG step=CLIMB nbox=1 boxes=[(338,146)w42→NED(-32.54,9.77)] trackers=1[#0CNED(-32.53,9.80)age24.1s]
+[INFO] [1791278369.050752741] [i_mission]:   同帧重复框合并: 2 -> 2 (相距 < 0.8m 视为同一个桶)
+[INFO] [1791278369.052063234] [i_mission]:   TRK-NEW #1 NED(-31.24,11.64) from box(cx=10,cy=232,w=19,h=41) alive=2
+[INFO] [1791278369.319929308] [i_mission]: [t=   80.8 CLIMB           ph=  1.2s] NED( -32.44,  15.90,320.76) H= 3.02 hdg= 159.7 pit= +1.3 rol= -1.5 vNED=(+0.09,-0.02,-2.07) det=2 age=2.46
+[ERROR] [1791278369.369995500] [i_mission]: Mode timeout
+[INFO] [1791278369.370795204] [i_mission]: ========================================================================
+[INFO] [1791278369.371449987] [i_mission]: MISSION SUMMARY (project f)
+[INFO] [1791278369.372312892] [i_mission]:   End reason: mode_timeout
+[INFO] [1791278369.373079524] [i_mission]:   Total time: 80.9s
+[INFO] [1791278369.373710574] [i_mission]:   Home: NED(-0.24,6.11,323.78) HEADING_DEG=161deg
+[INFO] [1791278369.374323297] [i_mission]:   Selection: 2/3 chosen: NED(-31.28,11.23), NED(-32.42,9.51)  [lat=-0.43m, lat=+1.57m]
+[INFO] [1791278369.374938739] [i_mission]:   Buckets dropped: 2/2
+[INFO] [1791278369.375570526] [i_mission]:   Drop #1: aim NED(-31.44,17.85) at NED(-31.441,17.835) H=1.07m vehicle_to_anchor=0.015m actual_impact=unmeasured tier=Ti conv_min=Nonecm
+[INFO] [1791278369.376371381] [i_mission]:   Drop #2: aim NED(-32.59,16.02) at NED(-32.601,15.869) H=1.18m vehicle_to_anchor=0.150m actual_impact=unmeasured tier=Ti conv_min=Nonecm
+[INFO] [1791278369.376989094] [i_mission]:   Scout: not reached
+[INFO] [1791278369.377602905] [i_mission]:   Return: no stabilization (forced land)
+[INFO] [1791278369.378225927] [i_mission]:   Landing: not reached
+[INFO] [1791278369.378830558] [i_mission]: ========================================================================
+[INFO] [1791278369.379452237] [i_mission]: Mission complete, shutting down
+
+=== 正在停止所有后台进程... ===
+  watchdog (4924) 已终止
+  see (4896) 已终止
+  dds  (4833) 已终止
+=== 清理完成 ===
