@@ -32,6 +32,7 @@ import math
 import time
 import numpy as np
 import cv2
+import os
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import RegionOfInterest, Image
@@ -48,8 +49,11 @@ class YOLOv8BucketDetector(Node):
         self.declare_parameter('use_sim', True)
         self._use_sim = self.get_parameter('use_sim').value
 
+        # 2026-10-15: 默认路径改为**相对家目录**, 不再写死 /home/<某个人> ✗
+        #   (别人 clone 到别的机器/别的用户名时也能用; 实在找不到就用 model_path:= 传)
         self.declare_parameter('model_path',
-                               '/home/vincent/SITL/yolo_v8/best2.pt')
+                               os.path.join(os.path.expanduser('~'),
+                                            'yolo_v8', 'best2.pt'))
         self.declare_parameter('camera_topic', '/camera/image_raw')
         self.declare_parameter('camera_device', '')  # 如 /dev/video0，直接读摄像头
         self.declare_parameter('conf_threshold', 0.5)
@@ -115,8 +119,16 @@ class YOLOv8BucketDetector(Node):
         self._bucket_length = float(self.get_parameter('bucket_length').value)
         self._silhouette_samples = int(self.get_parameter('silhouette_samples').value)
 
-        # ---- 加载 YOLOv8 模型 (sim / real 共用) ----
-        self._load_model()
+        # ---- 加载 YOLOv8 模型 (仅在真正需要推理时) ----
+        # ★ 2026-10-15 修正: 仿真 + GT 直通模式**不需要模型** (直接发真值投影框),
+        #   原来无条件 _load_model() ⇒ 没有模型文件的环境 (如别人刚 clone 下来)
+        #   会在启动时直接 FileNotFoundError 崩掉, 整轮仿真 0 检出 ✗
+        if self._use_sim and self._sim_gt_direct:
+            self.model = None
+            self.get_logger().info(
+                "SIM (GT direct): 跳过 YOLO 模型加载 (不需要 model_path) ✓")
+        else:
+            self._load_model()
 
         # ---- 检测输出 ----
         self.det_pub = self.create_publisher(
@@ -161,6 +173,11 @@ class YOLOv8BucketDetector(Node):
 
     def _load_model(self):
         model_path = self.get_parameter('model_path').value
+        if not os.path.exists(model_path):
+            self.get_logger().fatal(
+                f"模型文件不存在: {model_path}\n"
+                f"  仿真(GT 直通)不需要模型; 实机请用 --ros-args -p model_path:=<你的.pt/.engine> 指定")
+            raise FileNotFoundError(model_path)
         try:
             from ultralytics import YOLO
             self.model = YOLO(model_path)
