@@ -61,7 +61,7 @@ sudo apt clean
 sudo snap list --all | awk '/disabled/{print $1, $3}' | while read name rev; do sudo snap remove "$name" --revision="$rev"; done
 ```
 
-历史清理记录见 [`docs/project_log.md`](docs/project_log.md#磁盘清理记录-原-claudemd-63-70-行)。
+历史清理记录见 [`docs/project_log.md`](../../日志.md#磁盘清理记录-原-claudemd-63-70-行)。
 
 ## 仿真启动流程
 
@@ -345,7 +345,7 @@ python3 scripts/analyze_k_flight_20261013.py <日志> [--ulog <x.ulg>]   # 回�
 
 ---
 
-最新阶段性总结 (截至 2026-08-11 选桶策略优化) 见 [`docs/project_log.md`](docs/project_log.md#2026-08-11--选桶策略优化--检测框面积排序--投弹高度-10m--投弹前-5s-收敛--侦察悬停-10s)。
+最新阶段性总结 (截至 2026-08-11 选桶策略优化) 见 [`docs/project_log.md`](../../日志.md#2026-08-11--选桶策略优化--检测框面积排序--投弹高度-10m--投弹前-5s-收敛--侦察悬停-10s)。
 
 **2026-08-12 子项目 b**: 基于 a 新建, 固定航向 HEADING_DEG 硬编码替代 heading0_pre 预锁 + 分桶投放补偿 B1/B2 ±10cm。SITL 仿真验证通过 (B1=0.18m B2=0.09m), SITL+fly 双版本同步。
 
@@ -355,7 +355,7 @@ python3 scripts/analyze_k_flight_20261013.py <日志> [--ulog <x.ulg>]   # 回�
 
 **2026-08-14 搜索无目标转侦察**: HOVER_SEARCH 零检测超时 (5s) 和总超时 (10s) 不再直接 RETURN, 改为切 STEP_SCOUT 飞侦察区悬停后返航, 与投完弹的路径一致。本轮仿真 3 桶全部检测成功, 该路径未触发, 待无桶场景验证。
 
-**2026-08-15 子项目 c**: 从 b 分叉新项目 (b 回退到实飞备份版不动), 承载实机试飞分析后的全部新改动: DROP_HEIGHT 1.0→1.5m (防低空丢检)、FORWARD_DIST 32→34 / SCOUT_DIST 57.5→59.5 (实机起飞点比假定后退 2m)、侦察区动作序列 (悬停5s→降1m→左1m→右2m→返航, SCOUT 重写为 5 子阶段)、B1 补偿移除/B2=-0.05、DROP_AFTER_DELAY 同步 10s。下降限速 bug 两次修复尝试失败后按用户指示回退旧 max() 代码 (b/c 均回退)。SITL 验证: **B3=0.033m(10分满分) B2=0.078m(8分) 总分 18/20**, 侦察序列全对, 总时长 4'29"。详见 [project_log 2026-08-15](docs/project_log.md#2026-08-15--子项目-c-创建与验证b-分叉--实机日志分析--侦察动作--下降限速回退)。
+**2026-08-15 子项目 c**: 从 b 分叉新项目 (b 回退到实飞备份版不动), 承载实机试飞分析后的全部新改动: DROP_HEIGHT 1.0→1.5m (防低空丢检)、FORWARD_DIST 32→34 / SCOUT_DIST 57.5→59.5 (实机起飞点比假定后退 2m)、侦察区动作序列 (悬停5s→降1m→左1m→右2m→返航, SCOUT 重写为 5 子阶段)、B1 补偿移除/B2=-0.05、DROP_AFTER_DELAY 同步 10s。下降限速 bug 两次修复尝试失败后按用户指示回退旧 max() 代码 (b/c 均回退)。SITL 验证: **B3=0.033m(10分满分) B2=0.078m(8分) 总分 18/20**, 侦察序列全对, 总时长 4'29"。详见 [project_log 2026-08-15](../../日志.md#2026-08-15--子项目-c-创建与验证b-分叉--实机日志分析--侦察动作--下降限速回退)。
 
 **2026-08-15 晚 子项目 c 实飞反馈修复**: 实飞发现 (1) 降落位置偏移 (降太猛) (2) 冲过侦察区预定点。改动: SCOUT 重写为 7 子阶段 (直飞近边 55m → 降1m → 10s 缓移至预定点 → 左1.5m → 停5s → 右3m → 停5s)、RETURN 到 home 后位置保持判稳 (漂移<0.3m/3s, 10s 兜底)、LAND 时间锚定限速 0.4m/s。SITL 验证: 新序列全对, 未冲过侦察区, 判稳 4.5s, 着陆距 home 0.20m, 总时长 4'30"。SITL+fly 双版本同步, fly 版 SCOUT_EDGE_DIST=57.0。
 
@@ -411,30 +411,30 @@ v9 核心成果: 多桶追踪器每桶独立 1.5s 时间确认防御瞬时误检
 - **实机投弹偏差 0.235m 根因与修复 (d/e SITL+fly 四份)**: 见下方"已知问题"同名条目 —— 身份锁 `geo_lock_decide` 三档策略(超门限连续 4 帧一致即重锚) + DROP 段新增像素残差积分闭环 `_servo_bias_x/y`。离线闭环仿真: 旧逻辑 0.11~0.24m 永不收敛 / 新逻辑 2.7~3.0cm、3.6~9.3s 收敛; SITL e **18/20** (B3 0.0127m / B2 0.0777m, 均优于上一轮)。
 
 最新开发迭代 (2026-08-31)：
-- [子项目 d 视觉伺服改造: 增量累加 → 锚点+反投影重建 target](docs/project_log.md#2026-08-31--子项目-d-视觉伺服改造增量累加--锚点反投影重建-targetsitl实机双版本) — 8-29 SITL 复验第一投偏 0.607m (2分): 增量伺服 `_servo_target += v·dt` 在 SITL 低速跟踪失效 (0.02 m/s 指令反偏) 下积分漂移正反馈, target 18.9s 漂 0.45m, SERVO_MAX_DRIFT=1.5m 保护未触发。修复: VISUAL_SERVO/DROP 每帧用 `_roi_to_ned()` 反投影重建 target (锚点身份锁 0.5m + 0.7/0.3 混合), 补偿移到 target 上。SITL 验证: 总分 12/20 (上轮 10/20), **横向伺服 ex -13→0px 两秒收敛零漂移** (上轮 -25→-52 发散), B2 执行精度 dev=0.051m; 残余 aim 偏差 0.1~0.2m 为单目固有 (B2 aim 偏 0.17m)。SITL+fly 双版本同步, fly 待 Jetson 编译+实飞。
+- [子项目 d 视觉伺服改造: 增量累加 → 锚点+反投影重建 target](../../日志.md#2026-08-31--子项目-d-视觉伺服改造增量累加--锚点反投影重建-targetsitl实机双版本) — 8-29 SITL 复验第一投偏 0.607m (2分): 增量伺服 `_servo_target += v·dt` 在 SITL 低速跟踪失效 (0.02 m/s 指令反偏) 下积分漂移正反馈, target 18.9s 漂 0.45m, SERVO_MAX_DRIFT=1.5m 保护未触发。修复: VISUAL_SERVO/DROP 每帧用 `_roi_to_ned()` 反投影重建 target (锚点身份锁 0.5m + 0.7/0.3 混合), 补偿移到 target 上。SITL 验证: 总分 12/20 (上轮 10/20), **横向伺服 ex -13→0px 两秒收敛零漂移** (上轮 -25→-52 发散), B2 执行精度 dev=0.051m; 残余 aim 偏差 0.1~0.2m 为单目固有 (B2 aim 偏 0.17m)。SITL+fly 双版本同步, fly 待 Jetson 编译+实飞。
 
 最新开发迭代 (2026-08-27)：
-- [子项目 d 合并 c 晚间改动: 侦察 7 子阶段 + RETURN 判稳 + LAND 限速](docs/project_log.md#2026-08-27--子项目-d-合并-c-晚间改动侦察-7-子阶段--return-判稳--land-限速) — c/d 各自只含一半最新改动 (c 有侦察重做+判稳+限速, d 有下降修复+B1补偿+日志), 按用户指示以 d 为基底合并 c 晚间全部改动。SITL 复验: B3=0.127m(8分) B2=0.036m(10分) 总分 18/20, 侦察 7 子阶段全对 (SCOUT 56.9s), RETURN 判稳 4.0s (drift 0.29m), LAND 限速 0.28m/s 无俯冲, 总时长 5'20"。SITL+fly 双版本同步, fly 待实飞。
+- [子项目 d 合并 c 晚间改动: 侦察 7 子阶段 + RETURN 判稳 + LAND 限速](../../日志.md#2026-08-27--子项目-d-合并-c-晚间改动侦察-7-子阶段--return-判稳--land-限速) — c/d 各自只含一半最新改动 (c 有侦察重做+判稳+限速, d 有下降修复+B1补偿+日志), 按用户指示以 d 为基底合并 c 晚间全部改动。SITL 复验: B3=0.127m(8分) B2=0.036m(10分) 总分 18/20, 侦察 7 子阶段全对 (SCOUT 56.9s), RETURN 判稳 4.0s (drift 0.29m), LAND 限速 0.28m/s 无俯冲, 总时长 5'20"。SITL+fly 双版本同步, fly 待实飞。
 
 最新开发迭代 (2026-08-11)：
-- [选桶策略优化: 检测框面积排序 + 投弹高度 1.0m + 投弹前 5s 收敛 + 侦察悬停 10s](docs/project_log.md#2026-08-11--选桶策略优化--检测框面积排序--投弹高度-10m--投弹前-5s-收敛--侦察悬停-10s) — 4 项改动: (1) HOVER_SEARCH 选桶从按距离改为按检测框面积降序, Tracker 新增 area 字段 (2) DROP_HEIGHT 1.5→1.0m (3) DROP_AFTER_DELAY 0→5s 悬停收敛 (4) SCOUT_HOVER_TIME 5→10s. 4 文件同步 (final_mission + a, SITL + fly). SITL 仿真验证通过, B1=0.36m.
+- [选桶策略优化: 检测框面积排序 + 投弹高度 1.0m + 投弹前 5s 收敛 + 侦察悬停 10s](../../日志.md#2026-08-11--选桶策略优化--检测框面积排序--投弹高度-10m--投弹前-5s-收敛--侦察悬停-10s) — 4 项改动: (1) HOVER_SEARCH 选桶从按距离改为按检测框面积降序, Tracker 新增 area 字段 (2) DROP_HEIGHT 1.5→1.0m (3) DROP_AFTER_DELAY 0→5s 悬停收敛 (4) SCOUT_HOVER_TIME 5→10s. 4 文件同步 (final_mission + a, SITL + fly). SITL 仿真验证通过, B1=0.36m.
 
 最新开发迭代 (2026-08-09)：
-- [final_mission 坐标系重构: 绝对NED→相对home偏移 + 边界修复 + 代码审查](docs/project_log.md#2026-08-09--final_mission-坐标系重构绝对-ned--相对-home-坐标--边界修复--代码审查) — 绝对NED不可靠, 重构为相对home坐标, 边界横向推回方向修复, `_fly_toward`修复, fly版GROUND_NED_Z残留修复, SITL两轮仿真验证通过
-- [GROUND_NED_Z 硬编码修复: LAND 直飞上天 + 巡航高度投弹 + PID 不收敛](docs/project_log.md#2026-08-08--ground_ned_z-硬编码导致实机飞行严重事故-land-直飞上天--巡航高度投弹) — 实机三重故障根因分析, 3 文件 ~40 处 self.home_z 替代硬编码常量, SITL 仿真验证通过
-- [final_mission v9: 多桶追踪器 + 实机迁移 + 项目报告](docs/project_log.md#2026-08-08--final_mission-v9-多桶追踪器--实机迁移--项目报告) — 追踪器替换帧计数门控, FORWARD_DIST 修复, see.py 多桶检测, fly 完整迁移, 项目报告 587 行
-- [子项目 a: 投放区30m + 侦察区悬停 + 实机完整迁移](docs/project_log.md#2026-08-09--子项目-a-投放区30m--侦察区悬停--实机完整迁移) — 基于 final_mission v9, FORWARD_DIST=32m, SCOUT_DIST=57.5m, 投完两桶后直飞侦察区悬停 5s 返航, SITL 仿真 B3=0.03m, fly/a.py + fly/see.py 完整迁移, 评估报告交付
+- [final_mission 坐标系重构: 绝对NED→相对home偏移 + 边界修复 + 代码审查](../../日志.md#2026-08-09--final_mission-坐标系重构绝对-ned--相对-home-坐标--边界修复--代码审查) — 绝对NED不可靠, 重构为相对home坐标, 边界横向推回方向修复, `_fly_toward`修复, fly版GROUND_NED_Z残留修复, SITL两轮仿真验证通过
+- [GROUND_NED_Z 硬编码修复: LAND 直飞上天 + 巡航高度投弹 + PID 不收敛](../../日志.md#2026-08-08--ground_ned_z-硬编码导致实机飞行严重事故-land-直飞上天--巡航高度投弹) — 实机三重故障根因分析, 3 文件 ~40 处 self.home_z 替代硬编码常量, SITL 仿真验证通过
+- [final_mission v9: 多桶追踪器 + 实机迁移 + 项目报告](../../日志.md#2026-08-08--final_mission-v9-多桶追踪器--实机迁移--项目报告) — 追踪器替换帧计数门控, FORWARD_DIST 修复, see.py 多桶检测, fly 完整迁移, 项目报告 587 行
+- [子项目 a: 投放区30m + 侦察区悬停 + 实机完整迁移](../../日志.md#2026-08-09--子项目-a-投放区30m--侦察区悬停--实机完整迁移) — 基于 final_mission v9, FORWARD_DIST=32m, SCOUT_DIST=57.5m, 投完两桶后直飞侦察区悬停 5s 返航, SITL 仿真 B3=0.03m, fly/a.py + fly/see.py 完整迁移, 评估报告交付
 
 最新开发迭代 (2026-08-07)：
-- [final_mission v8: DROP_HEIGHT 1.5m + FORWARD 过冲修复 + 边界软墙 + 零检测返航](docs/project_log.md#2026-08-07--final_mission-v8-投弹高度提升--forward-过冲修复--飞行边界软墙--零检测返航) — DROP_HEIGHT 1.0→1.5m, FORWARD 一维投影防止过冲飞走, 飞行边界 ±4m/16m 软墙, HOVER_SEARCH 零检测 5s 超时返航, B1=0.29m
-- [final_mission v7.2: CRUISE_HEIGHT 5m + 选近 2 桶](docs/project_log.md#2026-08-07--final_mission-v72-cruise_height-5m--选近-2-桶) — 5m 高空全识别 3 桶, 精度 B1=0.23m B2=0.10m B3=0.15m, 全部 <0.25m
-- [final_mission v7/v7.1: FORWARD _pub_vel + PRE_SERVO + CLIMB 优化](docs/project_log.md#2026-08-07--final_mission-v7v71-forward-_pub_vel-同步--pre_servo-替代-approach--climb-优化) — FORWARD 同步 drop_opt v4, PRE_SERVO 下降改善 pinhole 精度, CLIMB 直达下桶省时
-- [drop_opt_mission v4 / fly/drop v4: FORWARD 回退速度控制](docs/project_log.md#2026-08-07--drop_opt_mission-v4--flydrop-v4-forward-位置控制回退速度控制-v3-_pub_pos-方向错误) — v3 `_pub_pos` 方向错误, 回退 v2 `_pub_vel` 沿 heading0 直飞, SITL 验证 0.26m
-- [final_mission v6: H 估计修复 + 身份锁阈值收紧 + 漂移保护](docs/project_log.md#2026-08-07--v6-h-估计修复--选桶策略修复) — 6 文件 GROUND_NED_Z 统一, 全选围栏桶, GEO_IDENTITY_MAX 2.5→1.5m, SERVO_MAX_DRIFT 锚点保护
-- [final_mission v5: 单目标纯视觉伺服](docs/project_log.md#2026-08-07--final_mission-v5-单目标纯视觉伺服--yolo-检测器修复) — APPROACH 隔离 + VISUAL_SERVO 收敛 + 几何身份锁, B1 0.25m
-- [final_mission DESCEND 混合视觉伺服](docs/project_log.md#2026-08-06--final_mission-descend-混合视觉伺服位置控制粗导--单框触发精调) — 四轮仿真迭代对比 (v0→v3 精度 0.68→0.26m)、PX4 SITL 低速速度跟踪失败定位、ROI 去重误判修复、位置增量控制方案
-- [实机摄像头适配 640×360/85°HFOV/54°VFOV](docs/project_log.md#2026-08-06--实机摄像头适配64036085hfv54vfv-全项目同步) — 7 文件相机参数统一迁移、fly/SITL 双向同步、仿真验证通过
-- [FORWARD+HOVER_SEARCH 位置控制迁移 + PID 高度缩放](docs/project_log.md#2026-08-06--forwardhover_search-位置控制迁移--实机-overshoot-修复--pid-高度缩放) — 实机 overshoot 根因定位、FORWARD `_pub_pos`+undershoot、HOVER_SEARCH `_pub_pos`+驻留、PID height_scale、4 文件同步
+- [final_mission v8: DROP_HEIGHT 1.5m + FORWARD 过冲修复 + 边界软墙 + 零检测返航](../../日志.md#2026-08-07--final_mission-v8-投弹高度提升--forward-过冲修复--飞行边界软墙--零检测返航) — DROP_HEIGHT 1.0→1.5m, FORWARD 一维投影防止过冲飞走, 飞行边界 ±4m/16m 软墙, HOVER_SEARCH 零检测 5s 超时返航, B1=0.29m
+- [final_mission v7.2: CRUISE_HEIGHT 5m + 选近 2 桶](../../日志.md#2026-08-07--final_mission-v72-cruise_height-5m--选近-2-桶) — 5m 高空全识别 3 桶, 精度 B1=0.23m B2=0.10m B3=0.15m, 全部 <0.25m
+- [final_mission v7/v7.1: FORWARD _pub_vel + PRE_SERVO + CLIMB 优化](../../日志.md#2026-08-07--final_mission-v7v71-forward-_pub_vel-同步--pre_servo-替代-approach--climb-优化) — FORWARD 同步 drop_opt v4, PRE_SERVO 下降改善 pinhole 精度, CLIMB 直达下桶省时
+- [drop_opt_mission v4 / fly/drop v4: FORWARD 回退速度控制](../../日志.md#2026-08-07--drop_opt_mission-v4--flydrop-v4-forward-位置控制回退速度控制-v3-_pub_pos-方向错误) — v3 `_pub_pos` 方向错误, 回退 v2 `_pub_vel` 沿 heading0 直飞, SITL 验证 0.26m
+- [final_mission v6: H 估计修复 + 身份锁阈值收紧 + 漂移保护](../../日志.md#2026-08-07--v6-h-估计修复--选桶策略修复) — 6 文件 GROUND_NED_Z 统一, 全选围栏桶, GEO_IDENTITY_MAX 2.5→1.5m, SERVO_MAX_DRIFT 锚点保护
+- [final_mission v5: 单目标纯视觉伺服](../../日志.md#2026-08-07--final_mission-v5-单目标纯视觉伺服--yolo-检测器修复) — APPROACH 隔离 + VISUAL_SERVO 收敛 + 几何身份锁, B1 0.25m
+- [final_mission DESCEND 混合视觉伺服](../../日志.md#2026-08-06--final_mission-descend-混合视觉伺服位置控制粗导--单框触发精调) — 四轮仿真迭代对比 (v0→v3 精度 0.68→0.26m)、PX4 SITL 低速速度跟踪失败定位、ROI 去重误判修复、位置增量控制方案
+- [实机摄像头适配 640×360/85°HFOV/54°VFOV](../../日志.md#2026-08-06--实机摄像头适配64036085hfv54vfv-全项目同步) — 7 文件相机参数统一迁移、fly/SITL 双向同步、仿真验证通过
+- [FORWARD+HOVER_SEARCH 位置控制迁移 + PID 高度缩放](../../日志.md#2026-08-06--forwardhover_search-位置控制迁移--实机-overshoot-修复--pid-高度缩放) — 实机 overshoot 根因定位、FORWARD `_pub_pos`+undershoot、HOVER_SEARCH `_pub_pos`+驻留、PID height_scale、4 文件同步
 
 ## 交互风格
 
@@ -998,7 +998,7 @@ rm -rf $PX4_B/rootfs/eeprom
 - **噪声注入器日志不可见**：`detection_noise_injector` 的 ROS2 日志输出到 stderr，`test_drop_noise.sh` 中 `tee` 只捕获 stdout。观察 FP started/ended 事件需 `2>&1` 重定向。
 - **TRACK_MAX_TIME 死代码导致无限悬停 (2026-07-26 实机发现, 已修复)**：`fly/drop.py` 实机试飞发现丢检测后飞机无限悬停直到手动 Ctrl+C。根因是 TRACK 丢检测路径中 `_handle_detect_loss()` + `return` 跳过了 `track_elapsed > self._track_max_time` 检查，60s 超时成为死代码。修复：丢检路径先检查 track_max_time 再调用 _handle_detect_loss。SITL `drop_opt_mission.py` 和实机 `fly/drop.py` 均已修复。
 - **FORWARD 确认期间持续前飞导致 overshoot (2026-07-26 分析发现, v2 架构已缓解)**：旧版 FORWARD 阶段目标确认的 1.5s 期间飞机以 0.2~0.5m/s 继续前飞，确认完成时已冲过桶 0.3~0.75m。v2 重构：FORWARD 改为纯盲飞 (沿 heading0 直飞，全程忽略检测)，目标确认逻辑移入 HOVER_SEARCH 悬停步骤 (`_fly_toward` 速度 ramp-down)，overshoot 由距离门控 + 几何一致性 + 时空确认四层门控间接缓解。
-- **PID y 轴符号反了 → 实机正反馈发散飞离目标 (2026-07-27 实机首次试飞发现, 已修复)**：SITL GT 投影 `py=CY+FY*fwd/H`（BOTTOM=前）与真实下视摄像头物理（TOP=前）约定相反。SITL 能工作是因为检测器和 PID 用了同一错误约定，接真实摄像头后 YOLO 按正确物理输出 ey，PID 反向解读 → 正反馈发散。修复：统一 10 个文件为 `TOP=前` 约定，PID `ey=CY-cy`，GT 投影 `py=CY-FY*fwd/H`。详见 [`docs/project_log.md`](docs/project_log.md#2026-07-27--pid-y-轴符号修复--图像约定统一-top前)。SITL 仿真验证通过 (TRACK 284→28px 收敛)。
+- **PID y 轴符号反了 → 实机正反馈发散飞离目标 (2026-07-27 实机首次试飞发现, 已修复)**：SITL GT 投影 `py=CY+FY*fwd/H`（BOTTOM=前）与真实下视摄像头物理（TOP=前）约定相反。SITL 能工作是因为检测器和 PID 用了同一错误约定，接真实摄像头后 YOLO 按正确物理输出 ey，PID 反向解读 → 正反馈发散。修复：统一 10 个文件为 `TOP=前` 约定，PID `ey=CY-cy`，GT 投影 `py=CY-FY*fwd/H`。详见 [`docs/project_log.md`](../../日志.md#2026-07-27--pid-y-轴符号修复--图像约定统一-top前)。SITL 仿真验证通过 (TRACK 284→28px 收敛)。
 - **px_err 锁死 — YOLO 推理节流重发缓存 ROI (2026-08-01 已修复)**：YOLO 推理 10Hz 节流，跳帧时重复发布缓存 ROI，每次刷新 `_last_detect_time`，`_detect_fresh()` 永远返回 True。任务节点无法感知 ROI 数据陈旧，导致 px_err 值连续多帧完全相同 → PID 持续输出相同速度 → 飞机在错误方向加速。修复：`_cb_detect()` 中 ROI 内容去重，连续 ≥5 帧完全相同的 ROI → 不刷新时间戳 → `_detect_fresh()` 正常过期。
 - **_detect_fresh() 仅检查时间戳不检查内容变化 (2026-08-01 已修复)**：同上，ROI 内容去重已解决。
 - **广角摄像头 HOVER 低空振荡 (2026-08-01 已修复)**：KP=0.0223 在 H=3m 巡航高度表现良好，但在 H=1m 投放高度因像素/物理比增大 (1px=0.67cm vs H=3m 的 2.0cm) 导致 PID 更敏感。修复：PID 死区 DEAD_ZONE_PX=3 (≈2cm@H=1m)，误差 <3px 直接置零且不累积积分。SITL 验证：HOVER 首次实现自然收敛 (7px, < HOVER_ARRIVE_PX=7)，不再依赖 hover_max_time 强制推进。
@@ -1036,7 +1036,7 @@ rm -rf $PX4_B/rootfs/eeprom
 - **fly/final_mission.py GROUND_NED_Z 残留 (2026-08-09 发现, 已修复)**：2026-08-08 的 `GROUND_NED_Z → self.home_z` 修复遗漏了 `fly/final_mission.py`，高度计算仍用 `GROUND_NED_Z=0.0`。**修复**: ~10 处改为 `self.home_z`。
 - **PX4 本地 NED 绝对坐标不可靠 (2026-08-09 分析确认)**：EKF 原点每次上电不同 + 飞行中可能漂移 → 存储/依赖绝对 NED 坐标的导航逻辑有风险。**缓解**: final_mission 坐标系重构为相对 home 偏移 (见坐标系章节)。drop_opt_mission / fly/drop 主要用速度控制，风险较低。
 - **起飞离地瞬间自旋导致 heading0 漂移 (2026-08-10 实机发现, 已修复)**：5.3kg 重机离地瞬间地面摩擦力 + 电机转速不协调导致飞机自旋，heading 漂移 ~14°。旧逻辑在 STABILIZE 3s 后才锁 heading0（延迟锁航向），此时航向早已偏离起飞方向，整个任务飞行方向错误。**修复 (heading0_pre)**: 在 `_cb_local` 收到首帧位置时（地面静止）同时捕获 `_heading0_pre = self.heading`，STABILIZE 结束后直接使用预锁值替代 `self.heading`（当前航向）。FORWARD 阶段 yaw 命令 = heading0，PX4 自动将机头回正到正确方向。影响: final_mission (SITL + fly), a.py (SITL + fly). 备份: `*_heading0_prelock`.
-- **下降限速 bug (2026-08-15 调查, 已按用户指示回退旧代码)**：`target_z = max(pre_z, self.z - SERVO_DESCENT_SPEED*0.05)` 的 0.25m/s 限速从未生效——NED z 向下为正，`self.z - 0.0125` 增量方向反了，且阶段入口时 max() 直接选中最终高度 → 目标瞬间跳变 → PX4 全速俯冲（实机实测 0.65~1.3m/s，VISUAL_SERVO 仅 ~2s 就压到投放高度，收敛全靠 DROP_AFTER_DELAY 兜底）。两次修复尝试均失败：(1) `min(pre_z, self.z + 0.0125)` 目标锚定飞机当前 z，飞机不动则目标不动、误差无法积累，SITL 实测每桶 PRE_SERVO 卡死 120s (STEP_TIMEOUT 强制推进)；(2) 阶段入口 z + 时间锚定版未及验证。**最终回退旧 max() 行为**（b/c 全部回退），配合 DROP_AFTER_DELAY=10s 兜底 SITL 实测 18/20 分。教训: 下降目标必须独立于飞机实际位置（入口锚定或时间锚定），否则 MPC 无误差可跟。详见 [project_log 2026-08-15](docs/project_log.md)。
+- **下降限速 bug (2026-08-15 调查, 已按用户指示回退旧代码)**：`target_z = max(pre_z, self.z - SERVO_DESCENT_SPEED*0.05)` 的 0.25m/s 限速从未生效——NED z 向下为正，`self.z - 0.0125` 增量方向反了，且阶段入口时 max() 直接选中最终高度 → 目标瞬间跳变 → PX4 全速俯冲（实机实测 0.65~1.3m/s，VISUAL_SERVO 仅 ~2s 就压到投放高度，收敛全靠 DROP_AFTER_DELAY 兜底）。两次修复尝试均失败：(1) `min(pre_z, self.z + 0.0125)` 目标锚定飞机当前 z，飞机不动则目标不动、误差无法积累，SITL 实测每桶 PRE_SERVO 卡死 120s (STEP_TIMEOUT 强制推进)；(2) 阶段入口 z + 时间锚定版未及验证。**最终回退旧 max() 行为**（b/c 全部回退），配合 DROP_AFTER_DELAY=10s 兜底 SITL 实测 18/20 分。教训: 下降目标必须独立于飞机实际位置（入口锚定或时间锚定），否则 MPC 无误差可跟。详见 [project_log 2026-08-15](../../日志.md)。
 - **增量伺服积分漂移 → 投弹偏 0.6m (2026-08-29 发现, 2026-08-31 已修复)**：`_servo_target += v·dt` 的增量累加是纯积分器，在 PX4 SITL 低速段（<0.3 m/s，指令甚至反偏）执行失效时，飞机追不上 → 像素误差保持 → target 继续累加 → **积分漂移正反馈**（SITL 实测 target 18.9s 漂 0.45m，飞机被漂移 target 带偏，投弹偏 0.6m/2分）。SERVO_MAX_DRIFT=1.5m 拉回阈值太宽未触发。c 项目实机横向误差大与增量漂移机制同源。**修复 (d/fly d)**: VISUAL_SERVO/DROP 每帧用 `_roi_to_ned()` 反投影重建 target（锚点身份锁 SERVO_GEO_LOCK_MAX=0.5m + 混合 SERVO_EST_WEIGHT=0.7），投放补偿移到 target 上，废弃增量累加与 SERVO_MAX_DRIFT。SITL 验证: 横向 ex -13→0px 两秒收敛、target 全程零漂移（上轮发散）；残余 aim 偏差 0.1~0.2m 为单目视觉固有（由分桶补偿承担）。
 - **检测器 sim 投影 H 与任务节点不一致 → 低空反投影系统偏差 (2026-08-31 发现, 已修复)**：`yolov8_bucket_detector` sim 投影用 `dz = bz - drone_z`（飞机→桶，含桶高 NED 0.58m），任务节点 `_roi_to_ned` 用 `H = home_z - z`（飞机→地面）——低空 H=1.7m 时投影比例偏差 **25%**，反投影把被扭曲的像素当物理位置 → 伺服假稳态偏 0.13m+。**修复**: sim 投影 `dz = -self.drone_z` 统一（实机 see.py 无投影不受影响）。监听+实验验证（真实草地背景 + YOLO）：bbox 中心与圆心偏差仅 ±2px，链路本身精确。
 - **SITL MPC 悬停漂移主导投弹残余误差 (2026-08-31 分析确认, 收敛即投缓解)**：SITL MPC 位置保持有 ~0.13 m/s 随机漂移（15s 漂 0.19m，与 RETURN 判稳 drift 0.28m 同源），伺服修正速度仅 0.005 m/s（KP×小误差×height_scale）拉不住；且 MPC 微振荡使 err 在 8px 附近来回摆，收敛判据（持续 2.5s）难以满足。**缓解**: DROP 收敛即投（`err<DROP_ARRIVE_PX(10px)` 持续 1.5s 提前投弹，25s 兜底）。SITL 投弹精度上限 ≈ 0.2-0.3m（历史 18/20 的 0.03m 为收敛顺利+漂移小的幸运样本）；实机 MPC 更稳，待实飞验证。
@@ -1067,21 +1067,21 @@ rm -rf $PX4_B/rootfs/eeprom
 
 | 日期 | 主题 | 关键结果 |
 |---|---|---|
-| 2026-06-09 | [双桶视觉伺服 v1](docs/reports/2026-06-09-visual-servo-v1.md) | 11 状态机, 双桶依次投弹, 落点 ~0.3m, 端到端 ~80s |
-| 2026-06-10 | [侦察任务](docs/reports/2026-06-10-scout.md) | 8 状态机, 5 筒逐个伺服悬停, 5/5 成功率, ~160s |
-| 2026-06-10 | [全任务串联](docs/reports/2026-06-10-full-mission.md) | 13 状态机, 投放+侦察串联, 细化计分 33 分制, 首测 16/33 |
-| 2026-06-10 | [投放精度优化](docs/reports/2026-06-10-drop-opt.md) | 单桶参数迭代, 最佳 0.21m (6分), 载荷偏移补偿探索 |
-| 2026-06-10 | [竞赛场地适配 + 蛇形侦察](docs/reports/2026-06-10-competition-field.md) | competition_field.world, 蛇形扫描 24s 替代伺服 480s, **27/33** |
-| 2026-06-11 | [A3 中心悬停 + 视觉面积排序](docs/reports/2026-06-11-a3-center-hover.md) | yolo_bucket_detector, 14 状态机, 自主选目标, 27/33 (第二目标误匹配待修复) |
-| 2026-07-22 | [地面测试 sim→实机迁移](ground_test_migration_guide.md) | 文件清单、3 终端手动启动、camera_device 直读摄像头、3 个 bug 修复 |
-| 2026-07-24 | [真实环境仿真升级](docs/project_log.md) | 风力 0.8m/s、YOLOv8检测、投放质量突变、强制投弹、坐标监视、sim→real 可迁移性 (详细记录丢失于 2026-07-27 编辑失误) |
-| 2026-07-25 | [overshoot 修复 + 随机桶验证 + 实机迁移](docs/project_log.md) | FORWARD ramp down + 确认门控 4s→1.5s + SEARCH 刹车, overshoot 2.5m→0.32m (8x), 随机桶 Mean=0.042m, 独立版 drop.py (详细记录丢失于 2026-07-27 编辑失误) |
-| 2026-07-26 | [盲降 + CLAUDE.md 精简 + fly 同步](docs/project_log.md) | DESCEND/HOVER 丢检测不可逆盲降, CLAUDE.md 617→493行, fly/drop.py 同步迁移 (详细记录丢失于 2026-07-27 编辑失误) |
-| 2026-07-26 | [drop.py DDS修复 + launch_drop.sh](docs/project_log.md) | VehicleStatus→VehicleControlMode 全面迁移, 一键启动脚本, watchdog 存活监控 (详细记录丢失于 2026-07-27 编辑失误) |
-| 2026-07-26 | [TRACK_MAX_TIME 死代码 + 门控升级 (四层+刹车+几何)](docs/project_log.md) | 实机试飞 bug 分析, 几何一致性反投影, FORWARD 确认刹车, SITL 仿真验证通过 (详细记录丢失于 2026-07-27 编辑失误) |
-| 2026-07-27 | [PID y 轴符号修复 + 图像约定统一](docs/project_log.md#2026-07-27--pid-y-轴符号修复--图像约定统一-top前) | 实机首次试飞发现正反馈发散, 根因为 SITL GT 投影与真实摄像头约定相反, 统一 10 文件为 TOP=前, SITL 验证收敛 284→28px |
-| 2026-08-03 | [PID 抽帧控制](docs/project_log.md#2026-08-03--pid-抽帧控制-实机高频抖动抑制) | TRACK=5Hz, DESCEND/HOVER=4Hz, SITL 与实机参数分离, dt 同步缩放, 气球摆动分析 |
-| 2026-10-14 | [飞控直连调参通道 (USB/MAVLink)](docs/reports/fc_param_20261014.md) | `scripts/fc_param.py`; 读 827/827 + 写 + 落盘 + **reboot 后仍存活**; 踩到 2 个坑 (孤儿 shell 卡死 mavlink / `param select` 空指针硬故障, 均定位到源码 + fault log); 板子审计 ⇒ `SYS_AUTOSTART=0` 无机型 |
+| 2026-06-09 | [双桶视觉伺服 v1](../../技术文档/专题报告/2026-06-09-visual-servo-v1.md) | 11 状态机, 双桶依次投弹, 落点 ~0.3m, 端到端 ~80s |
+| 2026-06-10 | [侦察任务](../../技术文档/专题报告/2026-06-10-scout.md) | 8 状态机, 5 筒逐个伺服悬停, 5/5 成功率, ~160s |
+| 2026-06-10 | [全任务串联](../../技术文档/专题报告/2026-06-10-full-mission.md) | 13 状态机, 投放+侦察串联, 细化计分 33 分制, 首测 16/33 |
+| 2026-06-10 | [投放精度优化](../../技术文档/专题报告/2026-06-10-drop-opt.md) | 单桶参数迭代, 最佳 0.21m (6分), 载荷偏移补偿探索 |
+| 2026-06-10 | [竞赛场地适配 + 蛇形侦察](../../技术文档/专题报告/2026-06-10-competition-field.md) | competition_field.world, 蛇形扫描 24s 替代伺服 480s, **27/33** |
+| 2026-06-11 | [A3 中心悬停 + 视觉面积排序](../../技术文档/专题报告/2026-06-11-a3-center-hover.md) | yolo_bucket_detector, 14 状态机, 自主选目标, 27/33 (第二目标误匹配待修复) |
+| 2026-07-22 | [地面测试 sim→实机迁移](../../技术文档/ground_test_migration_guide.md) | 文件清单、3 终端手动启动、camera_device 直读摄像头、3 个 bug 修复 |
+| 2026-07-24 | [真实环境仿真升级](../../日志.md) | 风力 0.8m/s、YOLOv8检测、投放质量突变、强制投弹、坐标监视、sim→real 可迁移性 (详细记录丢失于 2026-07-27 编辑失误) |
+| 2026-07-25 | [overshoot 修复 + 随机桶验证 + 实机迁移](../../日志.md) | FORWARD ramp down + 确认门控 4s→1.5s + SEARCH 刹车, overshoot 2.5m→0.32m (8x), 随机桶 Mean=0.042m, 独立版 drop.py (详细记录丢失于 2026-07-27 编辑失误) |
+| 2026-07-26 | [盲降 + CLAUDE.md 精简 + fly 同步](../../日志.md) | DESCEND/HOVER 丢检测不可逆盲降, CLAUDE.md 617→493行, fly/drop.py 同步迁移 (详细记录丢失于 2026-07-27 编辑失误) |
+| 2026-07-26 | [drop.py DDS修复 + launch_drop.sh](../../日志.md) | VehicleStatus→VehicleControlMode 全面迁移, 一键启动脚本, watchdog 存活监控 (详细记录丢失于 2026-07-27 编辑失误) |
+| 2026-07-26 | [TRACK_MAX_TIME 死代码 + 门控升级 (四层+刹车+几何)](../../日志.md) | 实机试飞 bug 分析, 几何一致性反投影, FORWARD 确认刹车, SITL 仿真验证通过 (详细记录丢失于 2026-07-27 编辑失误) |
+| 2026-07-27 | [PID y 轴符号修复 + 图像约定统一](../../日志.md#2026-07-27--pid-y-轴符号修复--图像约定统一-top前) | 实机首次试飞发现正反馈发散, 根因为 SITL GT 投影与真实摄像头约定相反, 统一 10 文件为 TOP=前, SITL 验证收敛 284→28px |
+| 2026-08-03 | [PID 抽帧控制](../../日志.md#2026-08-03--pid-抽帧控制-实机高频抖动抑制) | TRACK=5Hz, DESCEND/HOVER=4Hz, SITL 与实机参数分离, dt 同步缩放, 气球摆动分析 |
+| 2026-10-14 | [飞控直连调参通道 (USB/MAVLink)](../../技术文档/专题报告/fc_param_20261014.md) | `scripts/fc_param.py`; 读 827/827 + 写 + 落盘 + **reboot 后仍存活**; 踩到 2 个坑 (孤儿 shell 卡死 mavlink / `param select` 空指针硬故障, 均定位到源码 + fault log); 板子审计 ⇒ `SYS_AUTOSTART=0` 无机型 |
 
 ### 当前活跃版本
 
@@ -1670,7 +1670,7 @@ SERVO_DESCENT_SPEED=0.25  PRE_SERVO_HEIGHT=2.5  VISUAL_SERVO_ARRIVE_PX=8.0
 
 **投弹时机三种触发方式的日志区分**: `触发方式=收敛即投` (**米制** `conv_m<10cm` 持续 1.0s 且已到高度; 2026-09-23 前为 err<10px 持续 1.5s) / `触发方式=X.Xs/25s 兜底` (等满 25s) / STEP_TIMEOUT 强推 (无投弹行)。
 
-**日志改造验证 (2026-09-12)**: 四轮完整可见 SITL。run#1 暴露并修复 3 个日志自身缺陷 (①`prev_step` 未定义 → `NameError` 任务崩溃, **py_compile 抓不到, 新增日志必须实跑验证** ②下降率符号反了 (`-self.vz` → `self.vz`) ③`px_raw` 裸打印 tuple → 新增 `_px_raw_s()`); run#2 复验全部生效 (16/20); run#4 复验"任务结束自动退出"修复 (14/20, `End reason: normal`, `test_e.sh` 完整跑完并自动打印裁判分数)。四轮得分 14~16/20, 选中桶一致 (侧向最近两桶), 波动来自 SITL MPC 悬停漂移。**同轮修复了 c 起就存在的"任务结束后进程挂住"缺陷** (见已知问题: 不能在回调内 `rclpy.shutdown()`)。详见 [project_log](docs/project_log.md#2026-09-12--子项目-e-全量诊断日志改造看日志即可复盘每时每刻的飞机状态)。
+**日志改造验证 (2026-09-12)**: 四轮完整可见 SITL。run#1 暴露并修复 3 个日志自身缺陷 (①`prev_step` 未定义 → `NameError` 任务崩溃, **py_compile 抓不到, 新增日志必须实跑验证** ②下降率符号反了 (`-self.vz` → `self.vz`) ③`px_raw` 裸打印 tuple → 新增 `_px_raw_s()`); run#2 复验全部生效 (16/20); run#4 复验"任务结束自动退出"修复 (14/20, `End reason: normal`, `test_e.sh` 完整跑完并自动打印裁判分数)。四轮得分 14~16/20, 选中桶一致 (侧向最近两桶), 波动来自 SITL MPC 悬停漂移。**同轮修复了 c 起就存在的"任务结束后进程挂住"缺陷** (见已知问题: 不能在回调内 `rclpy.shutdown()`)。详见 [project_log](../../日志.md#2026-09-12--子项目-e-全量诊断日志改造看日志即可复盘每时每刻的飞机状态)。
 
 **环境**: `worlds/e.world` (复制自 c.world)。启动: `bash ~/SITL/scripts/test_e.sh`。实机: `ros2 run fly e` (需先 `cd ~/SITL/fly && colcon build --packages-select fly`)。
 

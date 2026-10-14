@@ -1,0 +1,429 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""项目 k/l 离线验收 — FC 模式 + EKF 健康度观测字段 (2026-10-09)
+
+为什么: 13:59 实飞出现「命令爬升却下沉 / 姿态冻住 / 位置与速度自相矛盾」,
+        但节点日志里**没有飞控模式、没有 EKF 有效性** ⇒ 无法确认是 EKF 垂向失效还是
+        OFFBOARD 被切走。本补丁只加观测, 本验收要证明它「真的只是观测」且格式可用。
+
+四节
+----
+A 最小改动审计: 剥注释后与 `*.bak.*_ekf_tlm` 对比, **新增行必须全在允许集合内**,
+  且**删除行只能是原来那 8 行 1Hz 日志调用** ⇒ 无任何控制分支被改动。
+B 四份文件一致 + 语法: 仓库 k/l 与 fly 副本的补丁块**逐字节相同**。
+C 真代码路径 exec: 从 k.py 里**抽出实际补丁块**执行 (不是测试里重写一份), 核对
+  FC/EKF 字符串、缺字段兜底 (板载 px4_msgs 版本可能不同)、WARN 触发与 5s 节流、
+  dist_bottom 有效/无效两种显示。
+D 既有字段顺序不动: FC/EKF 追加在**行尾**, 既有解析 (age= / dist_to_target=) 仍匹配。
+
+用法: python3 scripts/test_ekf_tlm_20261009.py
+"""
+import difflib
+import glob
+import pathlib
+import re
+import sys
+import textwrap
+import types
+
+REPO = pathlib.Path(__file__).resolve().parent.parent
+K_PY = REPO / "src/drone_drl/drone_drl/k.py"
+L_PY = REPO / "src/drone_drl/drone_drl/l.py"
+K_FLY = REPO / "fly/src/fly/fly/k.py"
+L_FLY = REPO / "fly/src/fly/fly/l.py"
+ALL = [K_PY, L_PY, K_FLY, L_FLY]
+
+BAK_GLOB = "*_ekf_tlm"
+
+n_pass = n_fail = 0
+
+
+def check(cond, msg):
+    global n_pass, n_fail
+    if cond:
+        n_pass += 1
+        print(f"  ✓ {msg}")
+    else:
+        n_fail += 1
+        print(f"  ✗ {msg}")
+    return bool(cond)
+
+
+def strip_comments(path):
+    out = []
+    for ln in path.read_text(encoding="utf-8").splitlines():
+        s = ln.strip()
+        if s.startswith("#"):
+            continue
+        out.append(ln.rstrip())
+    return out
+
+
+def latest_bak(path):
+    c = sorted(glob.glob(str(path) + "." + BAK_GLOB))
+    return pathlib.Path(c[-1]) if c else None
+
+
+# 允许出现的新增行 (剥注释后)。**任何未列出的新增行 = 越界**
+ADD_ALLOW = (
+    # _cb_local 的 EKF 快照 (5 行)
+    "self._ekf = (bool(m.xy_valid), bool(m.z_valid), bool(m.v_xy_valid), bool(m.v_z_valid),",
+    "bool(m.dead_reckoning), int(m.xy_reset_counter), int(m.z_reset_counter),",
+    "int(m.vxy_reset_counter), int(m.vz_reset_counter),",
+    "(float(m.dist_bottom) if bool(m.dist_bottom_valid) else None))",
+    # __init__
+    "self._ekf = None",
+    "self._ekf_warn_t = 0.0",
+    # 1Hz 行尾: fc_str / ek_str 构建 + WARN
+    "fc_str = \" FC(--)\"",
+    "ek_str = \" EKF(--)\"",
+)
+
+# 允许被删除的行 (只能是原 1Hz 调用里的日志行, 且必须整块换成含新字段的版本)
+DEL_ALLOW = (
+    'f"{has_det} age={det_age:4.2f}{extra}")',
+)
+
+# 2026-10-09 后记: 本测试的 A 节是"当前文件 vs 本补丁前备份"的差集审计 ⇒ 之后**任何**就地
+# 补丁都会出现在差集里, 必须在此登记 (约定同 test_l_target_plane 的 _BAK_EXCLUDE):
+#   patch_k_vis_gate_20261009.py —— 视觉门/到位容差死锁修复 (K_VISUAL_GATE_M 0.30→0.60 +
+#   _vg_need 结构性下界); 它自己的验收是 scripts/test_k_vis_gate_20261009.py (25/25)。
+# 2026-10-09: 后续就地补丁的标记集中登记 (见 scripts/_later_patch_marks.py)
+try:
+    from _later_patch_marks import later_than, \
+        LATER_PATCH_BAK_SUFFIXES as _SHARED_BAK
+except Exception:      # 单独拷出去跑时退化为空表
+    _SHARED, _SHARED_BAK = (), ()
+
+# ⚠ 本脚本审计 patch_ekf_tlm ⇒ 只归因**晚于它**的补丁 (否则会把本补丁的改动也跳过)
+_LATER = later_than("ekf_tlm")
+LATER_PATCH_MARKERS = _LATER + (
+    "K_VISUAL_GATE_M", "_vg_need", "视觉门", "死锁",
+    "K_FWD_STALL", "_fwd_stall_logged", "forward_stall", "无进展",
+    # 后续补丁给 FC 串追加了 landed 标志 (改动了本补丁写的那两行)
+    "L{1 if self.landed")
+
+
+
+def allowed_add(line):
+    s = line.strip()
+    if not s:
+        return True
+    if any(s.startswith(p) or s == p for p in ADD_ALLOW):
+        return True
+    # FC/EKF 构建块 (含续行) —— 用语义前缀而不是整行, 但对每条都限定在"格式化/告警"范围内
+    pats = (
+        r"^_st = self\.status$", r"^if _st is None:$", r"^else:$",
+        r"^fc_str = \(f\" FC\(a", r"^f\" fs\{1 if bool\(getattr\(_st, 'failsafe'",
+        r"^f\" d\{int\(getattr\(_st, 'latest_disarming_reason'", r"^_ek = self\._ekf$",
+        r"^if _ek is None:$", r"^_dbt = \"--\" if _ek\[9\] is None else",
+        r"^ek_str = \(f\" EKF\(", r"^f\" dr\{int\(_ek\[4\]\)\} rst",
+        r"^if \(\(not _ek\[1\]\) or \(not _ek\[3\]\) or _ek\[4\]\):$",
+        r"^_now_s = self\.get_clock\(\)\.now\(\)\.nanoseconds \* 1e-9$",
+        r"^if _now_s - self\._ekf_warn_t > 5\.0:$", r"^self\._ekf_warn_t = _now_s$",
+        r"^self\.get_logger\(\)\.warn\($", r"^f\"⚠ EKF 垂向估计不可信",
+        r"^f\" v_z_valid=", r"^f\" z_reset=",
+        r'^self\.get_logger\(\)\.info\($', r'^f"\[t=\{t_mission:7\.1f\}',
+        r'^f"NED\(\{self\.x:7\.2f\}', r'^f"hdg=\{hdg:6\.1f\}',
+        r'^f"vNED=\(\{self\.vx:\+\.2f\}',
+        r'^f"\{has_det\} age=\{det_age:4\.2f\}\{extra\}\{fc_str\}\{ek_str\}"\)$',
+    )
+    return any(re.match(p, s) for p in pats)
+
+
+def section_a():
+    print("\n[A] 最小改动审计 — 只加观测, 控制分支零改动")
+    for f in ALL:
+        bak = latest_bak(f)
+        if not check(bak is not None, f"{f.name}: 找到补丁前备份 ({BAK_GLOB})"):
+            continue
+        a, b = strip_comments(bak), strip_comments(f)
+        sm = difflib.SequenceMatcher(None, a, b, autojunk=False)
+        added, removed, bad, later = [], [], [], []
+        for tag, i1, i2, j1, j2 in sm.get_opcodes():
+            if tag == "equal":
+                continue
+            # **块级**后续补丁归因 (续行/多行 f-string 不带关键字, 逐行匹配会漏;
+            # 与 test_l_target_plane 的块级匹配同一套做法)
+            if any(mk in "\n".join(b[j1:j2] + a[i1:i2]) for mk in LATER_PATCH_MARKERS):
+                later.extend(b[j1:j2])
+                continue
+            if tag in ("insert", "replace"):
+                for ln in b[j1:j2]:
+                    added.append(ln)
+                    if not allowed_add(ln):
+                        bad.append("+" + ln)
+            if tag in ("delete", "replace"):
+                for ln in a[i1:i2]:
+                    removed.append(ln)
+                    if not any(ln.strip() == p for p in DEL_ALLOW):
+                        bad.append("-" + ln)
+        check(not bad, f"{f.name}: {len(added)} 新增行 / {len(removed)} 删除行 全部在允许集合内"
+                       + ("" if not bad else f" (越界 {bad[:2]})"))
+        if later:
+            # 后续补丁**允许**改指令/发 setpoint (5m 巡航剖面就是要改下降指令) ——
+            # 但**不许**偷偷改状态机跳转/换发布器; 指令类改动由各自验收脚本负责审计。
+            check(not any(mk in "\n".join(later) for mk in
+                          ("self.step =", "_enter_step(STEP_", "create_publisher")),
+                  f"{f.name}: {len(later)} 行归因于后续补丁 且不含状态机跳转/发布器改动")
+        if f is L_PY or f is L_FLY:
+            check(not later, f"{f.name}: 无后续补丁行 (视觉门修复只该落在 k 上)")
+        # 删除行只能来自 1Hz 调用 (8 行), 且新增行里必须出现新的日志行
+        check(len(removed) <= 8 and any("fc_str}{ek_str}" in x for x in added),
+              f"{f.name}: 删除 {len(removed)} 行 (≤8) 且新增了含 {{{{fc_str}}{{ek_str}}}} 的日志行")
+        # 控制关键字绝不能被碰
+        critical = ("_pub_pos", "_pub_vel", "STEP_VISUAL_SERVO", "STEP_DROP", "def _tick",
+                    "arm(", "set_mode", "RELEASE", "_roi_to_ned", "_body_ok", "L_BODY_GATE_M")
+        touched = [c for c in critical if any(c in ln and ln.strip().startswith(("+", "-")) for ln in bad)]
+        check(not touched, f"{f.name}: 未触碰任何控制关键字 ({len(critical)} 个候选)")
+
+
+LP_MARK = "# 2026-10-09: EKF 健康度快照 —— 0~3 有效性"   # 只出现在 _cb_local, 与 __init__ 的注释区分
+FC_MARK = "# ===== 2026-10-09: 飞控状态 + EKF 健康度"
+
+
+def _block(src, mark, endmark):
+    """抽出从 mark 行首到 endmark 之前的整块 (含行首缩进, 便于 dedent 与逐字节比较)"""
+    i = src.index(mark)
+    i = src.rindex("\n", 0, i) + 1
+    j = src.index(endmark, i)
+    return src[i:j]
+
+
+def _block_lp(src):
+    """_cb_local 里插入的 EKF 快照语句 (注释 + 一条多行赋值), 精确到语句本身"""
+    i = src.index(LP_MARK)
+    i = src.rindex("\n", 0, i) + 1
+    e = src.index("(float(m.dist_bottom) if bool(m.dist_bottom_valid) else None))", i)
+    return src[i:src.index("\n", e) + 1]
+
+
+def section_b():
+    print("\n[B] 四份文件一致 + 语法")
+    blocks = [_block_lp(f.read_text(encoding="utf-8")) for f in ALL]
+    check(len(set(blocks)) == 1, "四份文件 _cb_local 快照块逐字节相同")
+
+    b2 = {f.name: _block(f.read_text(encoding="utf-8"), FC_MARK,
+                         'f"{has_det} age={det_age:4.2f}{extra}{fc_str}{ek_str}")') for f in ALL}
+    # 同字母的 SITL/fly 两份必须逐字节相同; k 与 l 之间允许差**只有** landed 那一行
+    #   (2026-10-09: landed 标志只加在 k 上, 小场地台架需要它判"贴地拖行")
+    for a_, b_ in (("k.py", "k.py"), ):
+        pass
+    _k = [v for kk, v in b2.items() if kk.startswith("k")]
+    _l = [v for kk, v in b2.items() if kk.startswith("l")]
+    check(len(set(_k)) == 1 and len(set(_l)) == 1, "同字母两份 (SITL/fly) 1Hz 追加块逐字节相同")
+    def _norm(txt):
+        txt = txt.replace('f" L{1 if self.landed else 0})")', "")       # k 独有的一行
+        txt = txt.replace("f\" d{int(getattr(_st, 'latest_disarming_reason', 0))}\"", "D")
+        txt = txt.replace("f\" d{int(getattr(_st, 'latest_disarming_reason', 0))})\")", "D")
+        return re.sub(r"\s+", " ", txt)
+
+    _dk = [ln for ln in _k[0].splitlines() if "landed" in ln]
+    check(len(_dk) == 1 and not [ln for ln in _l[0].splitlines() if "landed" in ln]
+          and _norm(_k[0]) == _norm(_l[0]),
+          "k 与 l 的 1Hz 块只差 landed 那一行 (k 独有 L{0/1}, l 保持原样)")
+
+    for f in ALL:
+        try:
+            compile(f.read_text(encoding="utf-8"), str(f), "exec")
+            check(True, f"{f.name}: 语法编译通过")
+        except SyntaxError as e:
+            check(False, f"{f.name}: 语法错误 {e}")
+
+    # 只读性: 1Hz 追加块内不得出现任何 setpoint 发布或状态机写入
+    _fc_only = _block(K_PY.read_text(encoding="utf-8"), FC_MARK,
+                      'f"{has_det} age={det_age:4.2f}{extra}{fc_str}{ek_str}")')
+    forbid = ("_pub_", "publish", "self.step =", "create_publisher", "self.hold =", "self._target_buckets =")
+    hit = [k for k in forbid if k in _fc_only]
+    check(not hit, f"1Hz 追加块内无发布/状态机写入 (禁用词 {len(forbid)} 个, 命中 {hit})")
+    # _cb_local 快照块: 只允许给 self._ekf 赋值
+    _lp_only = _block_lp(K_PY.read_text(encoding="utf-8"))
+    assigns = {l.strip().split("=")[0].strip() for l in _lp_only.splitlines()
+               if "=" in l and not l.strip().startswith("#")}
+    check(assigns == {"self._ekf"}, f"_cb_local 快照块只写 self._ekf (实得 {sorted(assigns)})")
+
+
+# ── 真代码路径: 从 k.py 抽出补丁块并执行 ────────────────────────────────────
+class _Log:
+    def __init__(self): self.warns = []
+
+    def warn(self, m): self.warns.append(m)
+
+    def info(self, m): pass
+
+
+class _Clock:
+    def __init__(self, t): self.t = t
+
+    def now(self): return types.SimpleNamespace(nanoseconds=int(self.t * 1e9))
+
+
+class _Self:
+    def __init__(self, t=0.0):
+        self.status = None
+        self._ekf = None
+        self._ekf_warn_t = 0.0
+        self._log = _Log()
+        self.t = t
+        self.landed = False   # 2026-10-09: 1Hz 行 FC 串追加的 landed 标志
+
+    def get_logger(self): return self._log
+
+    def get_clock(self): return _Clock(self.t)
+
+
+def _extract_code():
+    src = K_PY.read_text(encoding="utf-8")
+    fc_block = textwrap.dedent(_block(src, FC_MARK,
+                                      "self.get_logger().info("))
+    lp_block = textwrap.dedent(_block_lp(src)).rstrip()
+    return fc_block, lp_block
+
+
+def _run_lp(lp_block, m):
+    st = _Self()
+    exec(lp_block, {"self": st, "m": m})
+    return st
+
+
+def section_c():
+    print("\n[C] 真代码路径 exec — 用 k.py 里实际的补丁块")
+    fc_block, lp_block = _extract_code()
+
+    def run(s):
+        ns = {"self": s}
+        exec(fc_block, ns)
+        return ns["fc_str"], ns["ek_str"]
+
+    # C1 两路都没数据
+    s = _Self()
+    fc, ek = run(s)
+    check(fc == " FC(--)" and ek == " EKF(--)" and not s._log.warns,
+          f"无 status/无 EKF ⇒ '{fc}' / '{ek}' 且不告警")
+
+    # C2 正常
+    s = _Self()
+    s.status = types.SimpleNamespace(arming_state=2, nav_state=14, failsafe=False,
+                                    latest_disarming_reason=0)
+    s._ekf = (True, True, True, True, False, 0, 0, 0, 0, None)
+    fc, ek = run(s)
+    check(fc == " FC(a2 n14 fs0 d0 L0)", f"正常: FC 串 = '{fc}' (a2=已解锁 n14=OFFBOARD L0=未落地)")
+    check(ek == " EKF(1111 dr0 rst0/0/0/0 dbt=--)", f"正常: EKF 串 = '{ek}'")
+    check(not s._log.warns, "正常: 不告警")
+
+    # C3 dist_bottom 有效 ⇒ 显示实测对地距离 (有测距时这就是"真值")
+    s = _Self()
+    s.status = types.SimpleNamespace(arming_state=2, nav_state=14, failsafe=False,
+                                    latest_disarming_reason=0)
+    s._ekf = (True, True, True, True, False, 0, 0, 0, 0, 1.234)
+    _, ek = run(s)
+    check(ek == " EKF(1111 dr0 rst0/0/0/0 dbt=1.23)", f"对地距离有效 ⇒ '{ek}'")
+
+    # C4 板载 px4_msgs 版本可能没有 failsafe/latest_disarming_reason ⇒ 必须兜底不抛
+    s = _Self()
+    s.status = types.SimpleNamespace(arming_state=1, nav_state=0)
+    try:
+        fc, _ = run(s)
+        check(fc == " FC(a1 n0 fs0 d0 L0)", f"缺字段兜底: '{fc}' (getattr 默认, 不抛异常)")
+    except Exception as e:
+        check(False, f"缺字段兜底失败: {type(e).__name__}: {e}")
+
+    # C5 EKF 垂向失效 ⇒ WARN 触发, 且 5s 节流
+    s = _Self(t=100.0)
+    s.status = types.SimpleNamespace(arming_state=2, nav_state=14, failsafe=False,
+                                    latest_disarming_reason=0)
+    s._ekf = (True, False, True, False, False, 0, 3, 0, 0, None)   # z 无效 + vz 无效
+    _, ek = run(s)
+    check(" EKF(1010 dr0 rst0/3/0/0 dbt=--)" == ek, f"垂向失效: EKF 串 = '{ek}'")
+    check(len(s._log.warns) == 1 and "EKF 垂向估计不可信" in s._log.warns[0]
+          and "z_valid=0" in s._log.warns[0] and "z_reset=3" in s._log.warns[0],
+          "垂向失效: WARN 触发且含 z_valid/z_reset 与接管提示")
+    s.t = 103.0
+    run(s); run(s)
+    check(len(s._log.warns) == 1, "垂向失效: 3s 内不重复告警 (节流 5s)")
+    s.t = 106.0
+    run(s)
+    check(len(s._log.warns) == 2, "垂向失效: 超过 5s 后再告警一次")
+
+    # C5b landed=True ⇒ FC 串里 L1 (2026-10-09 14:41 实飞的关键信号)
+    s = _Self()
+    s.status = types.SimpleNamespace(arming_state=2, nav_state=14, failsafe=False,
+                                    latest_disarming_reason=0)
+    s._ekf = (True, True, True, True, False, 0, 0, 0, 0, None)
+    s.landed = True
+    fc, _ = run(s)
+    check(fc.endswith(" L1)"), f"landed=True ⇒ '{fc}' (L1 = 飞控报已落地)")
+
+    # C6 dead_reckoning ⇒ 同样告警 (纯惯导递推, 高度环必失效)
+    s = _Self(t=200.0)
+    s.status = types.SimpleNamespace(arming_state=2, nav_state=2, failsafe=True,
+                                    latest_disarming_reason=5)
+    s._ekf = (True, True, True, True, True, 0, 0, 0, 0, None)
+    fc, ek = run(s)
+    check(fc == " FC(a2 n2 fs1 d5 L0)", f"飞控侧: '{fc}' (n2=POSCTL fs1=failsafe d5=kill switch)")
+    check(len(s._log.warns) == 1 and "dead_reckoning=1" in s._log.warns[0],
+          f"dead_reckoning=1 ⇒ 告警: '{ek}'")
+
+    # C7 _cb_local 快照 exec (真实 5 行)
+    m = types.SimpleNamespace(x=1.0, y=2.0, z=-3.0, vx=0.1, vy=0.2, vz=-0.3, heading=0.5,
+                              xy_valid=True, z_valid=False, v_xy_valid=True, v_z_valid=False,
+                              dead_reckoning=True, xy_reset_counter=1, z_reset_counter=2,
+                              vxy_reset_counter=3, vz_reset_counter=4,
+                              dist_bottom_valid=True, dist_bottom=0.42)
+    st = _run_lp(lp_block, m)
+    check(st._ekf == (True, False, True, False, True, 1, 2, 3, 4, 0.42),
+          f"_cb_local 快照 = {st._ekf}")
+    m2 = types.SimpleNamespace(**{**vars(m), "dist_bottom_valid": False, "dist_bottom": 9.9})
+    st2 = _run_lp(lp_block, m2)
+    check(st2._ekf[9] is None, "对地距离无效 ⇒ None (1Hz 行显示 dbt=--)")
+
+
+def section_d():
+    print("\n[D] 既有字段顺序不动 (FC/EKF 追加在行尾)")
+    src = K_PY.read_text(encoding="utf-8")
+    ln = [x for x in src.splitlines() if "{fc_str}{ek_str}" in x][0]
+    check(ln.index("age={det_age") < ln.index("{extra}") < ln.index("{fc_str}"),
+          "顺序: age= → extra(阶段信息) → FC → EKF")
+    # 用一趟真实日志行做回归: 既有解析仍匹配
+    import json
+    logp = pathlib.Path.home() / "fly_flights"
+    real = None
+    for f in sorted(logp.glob("k_mission_*.log"), reverse=True):
+        for line in f.read_text(errors="replace").splitlines():
+            if "[t=" in line and "dist_to_target=" in line:
+                real = line
+                break
+        if real:
+            break
+    if real is None:
+        print("  · 跳过: 未找到含 dist_to_target= 的实飞日志行")
+        return
+    synth = real.replace("dist_to_target=", "dist_to_target=") + " FC(a2 n14 fs0 d0 L0) EKF(1111 dr0 rst0/0/0/0 dbt=--)"
+    m = re.search(r"dist_to_target=([\d.]+)m", synth)
+    check(m is not None and m.group(1) == re.search(r"dist_to_target=([\d.]+)m", real).group(1),
+          f"既有解析 dist_to_target= 仍匹配 (值 {m.group(1) if m else '?'})")
+    m2 = re.search(r"NED\(\s*([-\d.]+),\s*([-\d.]+),\s*([-\d.]+)\)", synth)
+    check(m2 is not None, "既有解析 NED(..) 仍匹配")
+    m3 = re.search(r"vNED=\(([-+\d.]+),([-+\d.]+),([-+\d.]+)\)", synth)
+    check(m3 is not None and json.dumps([float(x) for x in m3.groups()]) is not None,
+          "既有解析 vNED(..) 仍匹配")
+    m4 = re.search(r"age=([\d.\-]+)", synth)
+    check(m4 is not None, "既有解析 age= 仍匹配")
+
+
+def main():
+    print("=" * 84)
+    print("离线验收 — FC 模式 + EKF 健康度观测字段 (2026-10-09 patch_ekf_tlm_20261009.py)")
+    print("=" * 84)
+    section_a()
+    section_b()
+    section_c()
+    section_d()
+    print("\n" + "=" * 84)
+    print(f"结果: {n_pass} 项通过 / {n_fail} 项失败")
+    print("=" * 84)
+    return 1 if n_fail else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

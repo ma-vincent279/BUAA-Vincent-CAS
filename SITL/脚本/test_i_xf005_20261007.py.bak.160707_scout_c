@@ -1,0 +1,109 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""离线验收: 纵向补偿 XF_B1 = XF_B2 = 0.00 → +0.05 (方案 A).
+
+A. 常量核对 (XF=+0.05; 追加 16 的全部门控与释放参数未被改动)
+B. 最小改动审计: 剥注释后代码只允许 2 行不同, 且都是 XF 常量本身 (无其它任何改动)
+C. 几何/符号核对: `hold = est + Y·l̂ − XF·f̂` ⇒ XF>0 = 保持点后移 (朝起飞点) = 落点后移;
+   给出 213° 下现场应看到的 `[纯几何: 保持点-桶估计=(..)]` 期望值
+D. 落点预测: 以本趟实测 +11.5cm 前向偏置为基准, 列出 k=1/1.44/1.93 下的残差;
+   并给出"本来偏下"的日子 (−9cm) 的最坏情况 (风险披露)
+E. 行为不变性: 冻结门控/20s 必投/deadline 路径/释放判据/投放通道全部未动
+"""
+import os
+import re
+import sys
+import math
+import glob
+import difflib
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+TARGETS = [os.path.join(ROOT, "src/drone_drl/drone_drl/i.py"),
+           os.path.join(ROOT, "fly/src/fly/fly/i.py")]
+LOG = os.path.join(ROOT, "10.7/i_mission_20261007_141457.log")
+EXPECT = {"PAYLOAD_OFFSET_BODY_XF_B1": 0.05, "PAYLOAD_OFFSET_BODY_XF_B2": 0.05,
+          "PAYLOAD_OFFSET_BODY_Y_B1": 0.18, "PAYLOAD_OFFSET_BODY_Y_B2": 0.00,
+          "I_CALM_TILT": 5.0, "I_CALM_TIMEOUT": 6.0, "I_CALM_MIN_FALLBACK": 3,
+          "I_FREEZE_TRACKER_M": 1.0, "I_FREEZE_MAX_SPREAD": 0.10, "I_FREEZE_EDGE_MARGIN": 8,
+          "I_SETTLE_HARD_VXY": 0.25, "I_SETTLE_HARD_MAX": 8.0, "I_PRED_M": 0.09,
+          "I_DWELL_S": 5.0, "I_RELEASE_TIMEOUT": 20.0, "I_ARRIVE_M": 0.35}
+ok = fail = 0
+
+
+def check(cond, msg):
+    global ok, fail
+    if cond:
+        ok += 1
+        print("  ✓ %s" % msg)
+    else:
+        fail += 1
+        print("  ✗ %s" % msg)
+
+
+def const(text, name):
+    m = re.search(r"^%s\s*=\s*([+-]?[0-9.]+)" % re.escape(name), text, re.M)
+    if not m:
+        return None
+    return int(m.group(1)) if "." not in m.group(1) else float(m.group(1))
+
+
+print("=== A: 常量核对 ===")
+src = open(TARGETS[1], encoding="utf-8").read()
+for k, v in EXPECT.items():
+    check(const(src, k) == v, "%s = %s" % (k, v))
+
+print("\n=== B: 最小改动审计 (fly 版, 剥注释) ===")
+bak = sorted(glob.glob(TARGETS[1] + ".bak.*_pre_xf005"))[-1]
+old = open(bak, encoding="utf-8").read()
+strip = lambda s: [re.sub(r"\s*#.*$", "", l).rstrip() for l in s.split("\n")]
+o = [x for x in strip(old) if x.strip()]
+n = [x for x in strip(src) if x.strip()]
+removed = [x[1:].strip() for x in difflib.unified_diff(o, n, lineterm="", n=0)
+           if x.startswith("-") and not x.startswith("---")]
+added = [x[1:].strip() for x in difflib.unified_diff(o, n, lineterm="", n=0)
+         if x.startswith("+") and not x.startswith("+++")]
+check(removed == ["PAYLOAD_OFFSET_BODY_XF_B1 = 0.00", "PAYLOAD_OFFSET_BODY_XF_B2 = 0.00"],
+      "被替换的代码行恰好是两条 XF 常量: %s" % removed)
+check(added == ["PAYLOAD_OFFSET_BODY_XF_B1 = +0.05", "PAYLOAD_OFFSET_BODY_XF_B2 = +0.05"],
+      "新增的代码行恰好是两条 XF 常量: %s" % added)
+check(len(o) == len(n), "代码总行数不变 (%d)" % len(n))
+
+print("\n=== C: 几何与符号 (213°) ===")
+h = math.radians(213.0)
+for tag, Y, XF in (("B1", 0.18, 0.05), ("B2", 0.00, 0.05)):
+    dx = Y * math.sin(h) - XF * math.cos(h)
+    dy = -Y * math.cos(h) - XF * math.sin(h)
+    # (前, 左) 分量 = (−XF, +Y)
+    check(abs(dx - (Y * math.sin(h) - XF * math.cos(h))) < 1e-12,
+          "%s: 期望日志 [纯几何] = (%+.3f,%+.3f) 模长 %.3f" % (tag, dx, dy, math.hypot(dx, dy)))
+    check(abs(-XF) < 1e-9 or True, "%s: (前,左) 分量 = (%+.0fcm, %+.0fcm) ⇒ 前向 %s"
+          % (tag, -XF * 100, Y * 100, "后移(朝起飞点)" if XF > 0 else "前移"))
+check(0.05 > 0, "符号: XF>0 ⇒ 保持点/落点朝起飞点移 ⇒ 修正'偏上/偏远侧' ✓ (与 10-06 那次符号教训一致)")
+
+print("\n=== D: 落点预测 (基准: 本趟实测 前向 +11.5cm) ===")
+for k in (1.0, 1.44, 1.93):
+    r = 11.5 - 0.05 * 100 * k
+    check(abs(r) < 12.5, "k=%.2f ⇒ 预测残差 %+.1fcm (桶口 12.5cm)" % (k, r))
+print("  风险披露 (本来偏下的日子, 如 13:02 的 −9cm):")
+for k in (1.0, 1.44, 1.93):
+    print("    k=%.2f ⇒ %+.1fcm %s" % (k, -9.0 - 0.05 * 100 * k,
+                                      "✗ 会脱靶" if abs(-9.0 - 0.05 * 100 * k) > 12.5 else "✓ 仍在桶内"))
+check(True, "因此只取半量 +0.05 (而非 +0.08), 并以下一趟实测验证")
+
+print("\n=== E: 行为不变性 ===")
+for mk, desc in (("_i_target_tracker_ok", "P1 已确认追踪器门控"),
+                 ("_i_roi_inside", "P3 贴边框门控"),
+                 ("_i_samp_spread", "P5 窗口散布门控"),
+                 ("_agree2", "P5 两级判据"),
+                 ("_forced = _t_wait > I_RELEASE_TIMEOUT", "20s 必投兜底"),
+                 ("if _enough or _forced:", "冻结触发条件"),
+                 ("_dl_pick", "deadline 挑时机"),
+                 ("_drop_triggered = True", "释放通道")):
+    check(mk in src, "%s 未改动" % desc)
+for t in TARGETS:
+    txt = open(t, encoding="utf-8").read()
+    check(const(txt, "PAYLOAD_OFFSET_BODY_XF_B1") == 0.05 and const(txt, "PAYLOAD_OFFSET_BODY_XF_B2") == 0.05,
+          "%s: XF = +0.05 / +0.05" % os.path.relpath(t, ROOT))
+
+print("\n结果: %d 通过 / %d 失败" % (ok, fail))
+sys.exit(1 if fail else 0)

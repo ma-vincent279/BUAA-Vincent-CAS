@@ -3,7 +3,7 @@
 **目标硬件**：NVIDIA Jetson Orin NX（ARMv8 aarch64，8 核 Cortex-A78AE，7.4 GB RAM）
 
 > ⚠️ **最快的方式是烧系统镜像**（省掉本文全部步骤）——
-> 见 [`../sim/cuadc_px4_sim/docs/JETSON_RESTORE.txt`](../sim/cuadc_px4_sim/docs/JETSON_RESTORE.txt)。
+> 见 [`../sim/cuadc_px4_sim/docs/JETSON_RESTORE.txt`](../SITL/JETSON_RESTORE.txt)。
 > 本文是从零配的步骤。
 
 ---

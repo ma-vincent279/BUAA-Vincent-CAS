@@ -3,14 +3,13 @@
 set -e
 cd "$(dirname "$0")"
 echo "同步 仿真工作空间 → SITL/工作空间/ ..."
-rm -rf SITL/工作空间/src SITL/工作空间/worlds SITL/工作空间/gz_models*
+rm -rf SITL/工作空间/src SITL/工作空间/worlds SITL/工作空间/gz_models* SITL/工作空间/gz_worlds*
 cp -r src worlds gz_models gz_models_combined gz_models_cuadc gz_worlds gz_worlds_cuadc_px4 SITL/工作空间/
+echo "同步 脚本 → SITL/脚本/ ..."
+rm -rf SITL/脚本 && mkdir -p SITL/脚本 && cp -r scripts/* SITL/脚本/
 echo "同步 实机工作空间 → 实机/工作空间/ ..."
-rm -rf 实机/工作空间/fly
-cp -r fly 实机/工作空间/
-rm -rf 实机/工作空间/fly/src/px4_msgs/.git
-echo "同步 代码 → SITL/代码/ 与 实机/代码/ ..."
-cp src/drone_drl/drone_drl/k.py SITL/代码/任务节点/ 2>/dev/null || true
-cp fly/src/fly/fly/k.py 实机/代码/任务节点/ 2>/dev/null || true
-cp fly/src/fly/fly/see.py 实机/代码/视觉节点/ 2>/dev/null || true
-echo "✓ 同步完成。别忘了 git add -A && git commit"
+rm -rf 实机/工作空间/fly && cp -r fly 实机/工作空间/
+rm -rf 实机/工作空间/fly/src/px4_msgs/.git 实机/工作空间/fly/build 实机/工作空间/fly/install 2>/dev/null || true
+echo "同步 实机脚本 → 实机/脚本/ ..."
+rm -rf 实机/脚本 && mkdir -p 实机/脚本 && cp -r fly/*.sh 实机/脚本/ 2>/dev/null || true
+echo "✓ 同步完成。别忘了 git add -A && git commit && git push"

@@ -1,0 +1,72 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""共享登记表: 所有"就地补丁"的标记 (供各验收脚本的差集审计做**块级**归因)
+
+为什么需要它:
+  本项目几份验收脚本的 A 节是"**当前文件 vs 该补丁之前那一版备份**"的最小改动审计 ——
+  只要之后**任何**就地补丁再改同一个文件, 这些行就会出现在差集里被判"越界"。
+  逐个脚本手写标记会在每次新增补丁时全面失守 (已踩: 5 个脚本同时红), 所以把登记集中在这里。
+
+约定 (新增就地补丁时必须做两件事):
+  1. 把新补丁的**备份后缀**加进 `LATER_PATCH_BAK_SUFFIXES`;
+  2. 把新补丁**独有**的标记加进 `PATCH_MARKERS[名字]`, 并把名字按时间顺序加进 `_PATCH_ORDER`。
+
+用法 (在各验收脚本里):
+    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+    from _later_patch_marks import later_than, LATER_PATCH_BAK_SUFFIXES
+    # 本脚本审计的是 patch X ⇒ 只归因"晚于 X"的补丁行 (不会把自己的改动也跳过):
+    LATER_PATCH_MARKERS = later_than("X")
+"""
+
+# ── 按时间顺序的就地补丁 (新增补丁请追加到末尾) ───────────────────────────
+_PATCH_ORDER = (
+    "ekf_tlm",      # patch_ekf_tlm_20261009.py       飞控模式 + EKF 健康度观测字段
+    "vis_gate",     # patch_k_vis_gate_20261009.py    视觉门/到位容差死锁修复
+    "stall",        # patch_k_stall_guard_20261009.py 前飞无进展保护 + landed 记录
+    "alt5m",        # patch_k_alt_5m_20261009.py      5m 巡航 → 前进 3m → 降到 1.2m 投弹
+    "desc_fix",     # patch_k_descent_fix_20261009.py 降高限速改**时间锚定** (修爬行)
+    "anchor",       # patch_k_descent_anchor_fix_20261009.py 锚点兜底必须存住 (修平方加速)
+    "anchor_bucket",  # patch_k_descend_anchor_to_bucket_20261009.py 降高点对准检测到的桶
+)
+
+PATCH_MARKERS = {
+    "ekf_tlm": ("self._ekf", "_ekf_warn_t", "_st = self.status", "fc_str", "ek_str"),
+    "vis_gate": ("K_VISUAL_GATE_M", "_vg_need", "视觉门", "死锁"),
+    "stall": ("K_FWD_STALL", "_fwd_stall_logged", "_st_fwd", "forward_stall", "无进展",
+              "L{1 if self.landed"),      # ← 窄标记: 不误命中 LAND 段的 self.landed
+    "alt5m": ("K_DESCEND_RATE", "_z_desc", "_pre_z", "降高", "K_FLIGHT_ALT  = 5.0",
+              "PRE_SERVO_HEIGHT = DROP_HEIGHT", "HOVER_SEARCH_TIMEOUT = 16.0",
+              "巡航 → 前进", "桶正上方"),
+    "desc_fix": ("self._step_entry_z = self.z",           # _enter_step 里那条
+                 "K_DESCEND_RATE * self._step_elapsed()",  # 时间锚定
+                 "_z_anchor", "HOVER_SEARCH_TIMEOUT = 18.0"),
+    "anchor": ("self._step_entry_z = _z_anchor = self.z",),
+    "anchor_bucket": ("K_DESCEND_PULL_M", "_desc_anchor_log_t", "降高锚点",
+                      "_pub_pos(_dx, _dy, _z_desc"),
+}
+
+# ── 后续就地补丁的备份后缀 (各脚本 _BAK_EXCLUDE / 基准选择用) ──────────────
+LATER_PATCH_BAK_SUFFIXES = (
+    "_ekf_tlm",     # patch_ekf_tlm_20261009.py
+    "_vis_gate",    # patch_k_vis_gate_20261009.py
+    "_stall",       # patch_k_stall_guard_20261009.py
+    "_alt5m",       # patch_k_alt_5m_20261009.py
+    "_desc_fix",    # patch_k_descent_fix_20261009.py
+    "_anchor",      # patch_k_descent_anchor_fix_20261009.py
+    "_anchor_bucket",  # patch_k_descend_anchor_to_bucket_20261009.py
+)
+
+# ── 全部标记 (给"审计基线早于本登记表"的老脚本用) ─────────────────────────
+LATER_PATCH_MARKERS = tuple(m for n in _PATCH_ORDER for m in PATCH_MARKERS[n])
+
+
+import re as _re
+
+# 给"把标记当正则用"的脚本 (如 test_k_dev_lever): 必须转义 (标记里有 { } ( ) 等)
+LATER_PATCH_MARKERS_RE = tuple(_re.escape(m) for m in LATER_PATCH_MARKERS)
+
+
+def later_than(name):
+    """返回"晚于 patch `name`"的所有补丁标记 (本脚本自己的标记不会包含在内)"""
+    i = _PATCH_ORDER.index(name)
+    return tuple(m for n in _PATCH_ORDER[i + 1:] for m in PATCH_MARKERS[n])

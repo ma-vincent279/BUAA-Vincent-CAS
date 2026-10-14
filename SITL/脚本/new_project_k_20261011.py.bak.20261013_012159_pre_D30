@@ -1,0 +1,929 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""new_project_k_20261011.py — 新建项目 k = i 的副本, **只替换 DROP 段**
+
+背景 (用户决定 2026-10-11)
+--------------------------
+1. 比赛规则与哈工大开源仓库一致: 3 桶 15/20/25cm, 落桶内 A 区 500/300/100,
+   距桶心 ≤0.5m B 区 50 ⇒ **两投上限 800 分, 且必须打直径最小的两个桶**。
+2. 旧 k/l (小场地标定台 + 全任务标定版) 已删除; 新 k 就是"复现他们伺服投弹"的载体。
+3. k **基于 i 逐字节复制**, 不改中间控制 (巡航/前飞/搜索/跟踪/预伺服/视觉伺服/爬升/
+   侦察/返航/降落/ARM/模式/AUX5 舵机时序/日志/超时) —— 全部与 i 逐字相同。
+
+与 i 的**全部**差异 (本脚本逐条断言, 越界即报错)
+--------------------------------------------
+  D1 头部说明 + 节点名 `k_mission` + 类名 `KMission` + MISSION_REVISION
+  D2 新增 K_* 常量块 (机体坐标系闭环伺服的全部可调量)
+  D3 新增 `/drop/impact_rel` 发布器 (相对 home 的落点, 与真值同系)
+  D4 新增两个辅助方法 `_k_bucket_diameter()` / `_k_roi_usable()`
+  D5 **替换整个 DROP 段** (i 的"1.2m 冻结 + 开环保持" → k 的"每拍机体坐标系闭环")
+  D6 选桶排序: 面积降序取大两个 → **直径升序取小两个** (规则: 小桶值 500 分)
+  D7 DROP 段常量: `K_TARGET_PLANE_H = -0.30` (SITL 桶高 30cm ⇒ 桶口平面在起飞点下方 30cm)
+
+为什么这样改 (一句话)
+--------------------
+i 在 1.2m 处只算一次瞄准点就冻结、之后**开环**, 于是"冻结之后的任何参照变化" 1:1 变成落点
+误差 —— 这就是实测的 `dev` (8/8、14/14 分类命中/脱靶的那个量)。
+k 把瞄准点改成**每拍用当前帧重算**, 残差是**机体系量** (只含像素+高度+姿态, 不含自身位置
+估计) ⇒ 对 EKF 漂移免疫; 再把残差矢量转到世界系加到当前位置上作设定点, 并对设定点**限速**
+(防 f 系那种自激振荡); 释放判据就是这个同一个残差。
+
+用法
+----
+  python3 scripts/new_project_k_20261011.py            # 生成/覆盖 k.py (自动备份)
+  python3 scripts/new_project_k_20261011.py --check    # 只校验锚点, 不写文件
+  python3 scripts/new_project_k_20261011.py --diff     # 打印与 i 的差异块统计
+"""
+import argparse
+import datetime
+import difflib
+import pathlib
+import shutil
+import sys
+
+REPO = pathlib.Path(__file__).resolve().parent.parent
+SRC = REPO / "src/drone_drl/drone_drl/i.py"
+DST = REPO / "src/drone_drl/drone_drl/k.py"
+
+# ============================================================
+# D2 — 新常量块
+# ============================================================
+K_CONSTANTS = '''
+# ============================================================
+# 2026-10-11 新 k: 机体坐标系闭环伺服投弹 (复现 2026CUADC 的做法)
+# ------------------------------------------------------------
+# 与 i 的架构差别就一句话:
+#   i: 在 1.2m 处用【一次】检测算出瞄准点 hold = 桶估计 + 补偿, 冻结, 之后**开环**飞过去。
+#      ⇒ 冻结之后的任何参照变化 (EKF 漂移/风/下洗引起的位置变化) 1:1 变成落点误差 = 实测的 dev。
+#   k: **每一拍**都用当前帧像素重算"桶相对飞机的机体(前,右)偏移", 与期望投放口 (XF, Y)
+#      相减得到残差矢量; 把该矢量转到世界系加到当前位置上 ⇒ 设定点。残差是机体系量
+#      (只含像素 + 高度 + 姿态, **不含自身位置估计**) ⇒ 对 EKF 漂移免疫。
+#      释放判据 = 同一个残差的模。设定点限速 ⇒ 不会像 f 那样自激。
+# ============================================================
+K_TARGET_PLANE_H = 0.0     # 求交平面相对"起飞点平面"的下移量 (m)。
+#   SITL **必须 0.0**: 检测器 `project_mode=ground` 把桶当"参考平面上的一个圆"投影
+#   (它只取 dx/dy 与 dz=-drone_z, **完全不用桶的 z**), 与节点 `_roi_to_ned` 互为逆运算
+#   ⇒ 往返误差恒 0, 直径反推 `sqrt(area)·H/FX` 精确等于真直径 ⇒ 选桶与闭环都能被干净地验证。
+#   ⚠ 若改成 `project_mode:=silhouette` (真实圆柱轮廓), 本值必须同时改成桶口相对起飞点的
+#     高度: SITL 桶高 30cm ⇒ **约 −0.30**; 实机卷尺实测 = **−0.278** (镜头离地 0.022 −
+#     桶口离地 0.300)。两侧不可混用 —— 这正是 2026-10-09 追加 30 那条"环境常量分侧"。
+K_VMAX_DROP      = 0.20    # 设定点水平限速 (m/s) —— 他们的 release_positioning_speed
+K_VZ_DROP        = 0.20    # 设定点垂直限速 (m/s)
+K_DT_CLAMP       = 0.20    # 限速用的 dt 上限 (s) —— 他们的做法
+K_RELEASE_M      = 0.05    # 释放残差门限 (m): 起点 5cm; 他们的值是 0.03 (目标)
+K_RELEASE_CONFIRM = 2.00   # D27 (2026-10-12, 用户要求): 换成他们的 `release_stabilization_s: 2.0`。
+#   (D17 原文, 已被 D27 覆盖) 原 0.40s —— 实测在悬停极限环上
+#   会错过折返点: 残差最小的那一刻正是「折返」处 (vxy≈0), 但它只持续零点几秒,
+#   0.40s 的持续窗口经常跨不过去 ⇒ 永远落到 8s 兜底 (第 8/11/12 轮两投全是兜底,
+#   释放时 vxy 0.20~0.27 远超 0.15 门限)。0.15s = 3 拍, 足以排除单拍噪声, 又能抓住折返点。
+K_WINDOW_S       = 3.0     # 到投放高度后开始计窗口; 窗口到期放宽门限
+K_WINDOW_RELAX_M = 0.08    # 窗口到期后的放宽门限 (m)
+K_DEADLINE_S     = 12.0    # D22 **判决性实验已完成 ⇒ 回退到 12.0**: 25s 那一轮两投都在
+#   ~3.6s 由残差判据自己释放 (更新=36 新帧), 兜底窗口根本没被用到 ⇒ 延长无收益,
+#   按最小改动原则回退。结论: 残差地板不是「时间不够」, 而是**稳态偏移**(§8)。
+# (实验前的 D19 原文) 必投兜底 (s)。原 8.0 —— 第 5 轮实测残差在 8s 兜底时
+#   若是积分/稳态问题 ⇒ 25s 内必然下降; 若是飞控位置环的硬偏移 ⇒ 不降。
+#   证据 (run 004653): 飞机停在距设定点 14~18cm 处 12 秒不收敛, 而设定点全程在动。
+#   原 12.0 (D19) / 最初 8.0。实验定案后回落到 12.0 或按结论定。
+K_DEADLINE_S_ORIG = 12.0   # D22: 实验前的值, 便于回退
+# (以下为 D19 原文) 原 8.0 —— 第 5 轮实测残差在 8s 兜底时
+#   仍在**稳定下降** (33.2→31.4→32.6→25.8→20.9→16.3→12.9→8.9→7.6cm, 约 5cm/s), 说明
+#   不是不收敛而是窗口不够; 小桶容差 6.0cm 只差一点点。放到 12s 给收敛留余量
+#   (SITL 里每投多等 ~4s; 实机伺服本来就 2~4s 收敛, 不依赖这个兜底)。
+K_VXY_REL        = 0.15    # 释放瞬间水平速度上限 (m/s) —— D15 后仅作参考量记录
+K_VXY_SAFE       = 0.40    # D15: 释放的**安全**速度上限 (m/s): 超过它无论 pred 多好都不放
+K_FALL_G         = 9.81    # D15: 自由落体加速度, 用于 t_fall = sqrt(2H/g)
+K_USE_PRED_RELEASE = False # D15c: pred 只作诊断量, 不作判据
+#   (实测: 速度外推在 ~1s 周期的振荡机体上无效 —— pred=1.6cm 而实际落点 12.6cm)
+K_RESID_MAX_FACTOR = 2.0   # D15b: pred 模式下的残差放宽倍数 (pred 关时不用)
+K_SIM_NO_BALLISTIC = True  # D20: **环境常量分侧** —— SITL 载荷无弹道, 判据只认残差
+#   依据 (30 投逐轮核对): |落点 − 桶估计| ≈ 残差, 中位差仅 +2.0cm (范围 −3.5~+19cm,
+#   绝大多数 ≤4cm) ⇒ 仿真里「落点」**就是**释放瞬间的飞机站位 —— 裁判拿的是
+#   /drop/impact_rel (= 飞机坐标), 载荷是虚拟的。
+#   ⇒ 仿真里必须**只判残差**:
+#      · 速度门 vxy≤0.15 是错的: 悬停极限环上飞机「穿越目标点」时速度**最大**,
+#        而那一刻残差最小 ⇒ 要求「残差小 且 速度小」几何上不可能 ⇒ 判据结构性
+#        不可满足 (这解释了 17 轮里绝大多数只能走必投兜底)。
+#      · pred 也是错的: 它会在飞机**偏开 v·t_fall (5~13cm)** 时放行, 而 SITL 正是按
+#        那个偏开的位置算分 (实测 pred=1.6cm → 落点 12.6cm)。
+#   实机必须置 **False**: 载荷带着释放瞬间的水平速度飞 0.495s ⇒ 那时才需要速度项。
+#   为什么关 (2026-10-11 同一场景四版判据实测, 第一投落点):
+#     resid ∧ vxy≤0.15     : 8.2cm / 9.0cm   ← 最好, 已恢复为默认
+#     pred ∧ resid≤2·容差  : 12.6cm
+#     pred 单独            : 18.5cm   (pred=1.6~6.1cm, 实际偏 11~12cm)
+#   机理: pred 假设释放后 0.5s 内速度不变, 而本机悬停极限环周期 ~1s ⇒
+#         半个周期后速度反向, 「正朝桶飞」的预测当场失效。
+#         实测落点 ≈ 残差 (11.5→12.6 / 15.5→22.0) ⇒ **残差才是可用的预测器**。
+#   保留 pred 计算与日志: 它与实际落点的对照是判断「能否用速度外推」的证据。
+K_RESID_MAX_FACTOR = 2.0   # D15b: pred 模式下的残差放宽倍数 (pred 关时不用)
+#   为什么需要上限: 振荡机体上「瞬时速度指向桶」只对半个周期有效
+#   (第 9 轮实测 6.1cm 预测 → 18.5cm 实际)
+K_AGE_MAX        = 0.35    # 闭环只吃「新于此时长」的检测帧 (s)
+K_RESID_MAX_AGE  = 0.15    # D24: **释放判据**所用的残差必须来自「新于此时长」的帧
+#   为什么必须 (2026-10-12 抓到的实测矛盾): D16 让「只在新帧更新设定点」, 于是 `_k_resid`
+#   在旧帧拍子上**保持不动**, 而 0.15s 的确认计时照走 ⇒ 可能用**过时残差**放行。
+#   实证: 某投 `残差=2.4cm` 而裁判距离 **24.7cm** —— 差 22cm 正是一帧内自报位置的位移
+#   (释放时 vxy 0.33 m/s), 即判据看的是「上一帧飞机在哪」而不是「现在在哪」。
+#   处置: 残差超过此时长即失效 ⇒ 确认计时只在新鲜帧上推进, 放行也只在新鲜帧上发生。
+K_LOG_EVERY      = 0.5     # DROP 段日志节流 (s)
+K_SELECT_WAIT_S  = 6.0     # D10: 选桶前最多等这么久凑第 3 个候选 (s; HOVER_SEARCH 上限 10s)
+K_ROI_MIN_PX     = 3.0     # D28: 残缺框过滤的**像素下限** (原硬编码 8.0)
+#   为什么必须改 (2026-10-12, 由 D25 直接引起): 相机换成原生 130° 后焦距 349→171 px,
+#   5 m 搜索高度上 15cm 桶的成像边长从 ~10.5px 降到 **~5px**; 而旧的 8px 下限把
+#   **整帧所有桶全部剔除** (实测日志 `DET-FILTER 剔除残缺框 1/1 (阈值8px, 本帧最小边=[2..6])`)
+#   ⇒ 选不出桶 ⇒ HOVER_SEARCH 超时 ⇒ 0/0 投。降到 3px: 5m 处 1px≈2.9cm, 用于**选桶排序**够用,
+#   而"整框是否在画面内"另有独立的贴边判据把关, 不会放进被裁的框。
+K_SIM_IDEAL_CAMERA = True  # D11: SITL 理想相机/无挂载 ⇒ 两瓶补偿归零 (实机必须 False)
+K_ZERO_COMPENSATION = True # D26 (2026-10-12, 用户要求): **补偿一律归零** —— 直接把画面中心当投放点。
+#   与 D25 配套: 相机模型换成原生 130° 后焦距缩小 2.04×, 旧的 Y_B1/Y_B2/XF 是在旧模型下
+#   标定的 ⇒ 继续用会系统性偏掉。归零后 `期望投放口(前,右) = (0,0)` ⇒ `err = rim_body`,
+#   即「桶的机体偏移」直接就是释放残差 —— 与他们的结构完全同款
+#   (他们只是把 0 换成实测的释放口偏置 (0.029,0.070)/(−0.031,−0.065), 数值我们先取 0)。
+K_DESCENT_RATE   = 0.25    # D12: 下降限速 (m/s; 他们的受控下降是 0.2) —— 让飞机到达时已停稳
+
+'''
+
+# ============================================================
+# D4 — 辅助方法 (插在 _roi_to_ned 之前)
+# ============================================================
+K_METHODS = '''    # ===== 2026-10-11 新 k: 机体坐标系闭环用的两个辅助 =====
+    def _k_bucket_diameter(self, tracker):
+        """由追踪器记的检测框反推桶直径 (m)。
+
+        GT/真实下视框都是圆的外接方框 ⇒ 边长 ≈ sqrt(area), 直径 D = 边长·depth/FX。
+        用途有两个: ① 规则按直径计分 ⇒ 必须知道是 15/20/25cm 哪一档;
+                     ② 同时是一次"测距自检" —— D 明显偏离三档就说明高度/平面错了。
+        """
+        try:
+            side_px = math.sqrt(max(0.0, float(tracker.get("area", 0.0))))
+        except (TypeError, ValueError):
+            return None
+        depth = (self.home_z - self.z) + K_TARGET_PLANE_H
+        if not math.isfinite(depth) or depth <= 0.2:
+            return None
+        return side_px * depth / FX
+
+    def _k_roi_usable(self, roi):
+        """闭环更新只接受"干净帧": 追踪器已确认 + 框完全在画面内。
+
+        理由 (i 时代踩过的两个坑, 这里继续挡住):
+          P1 未确认追踪器的框可能是刚建立的幽灵 (10-07 13:02 冻结被拽走 58cm);
+          P3 see.py 对越界框只裁剪不剔除 ⇒ 框中点偏移可达几十 cm。
+        注意: 这里只决定"这一拍要不要更新设定点", **不决定是否释放** ——
+        脏帧时沿用一个周期前的命令点, 与他们的 FINE_DESCENT_VISION_STALE 语义一致。
+        """
+        if roi is None:
+            return False
+        if not self._i_target_tracker_ok():
+            return False
+        return self._i_roi_inside(roi)
+
+'''
+
+# ============================================================
+# D5 — 新 DROP 段 (整体替换)
+# ============================================================
+K_DROP_BLOCK = '''        # ---- DROP: 2026-10-11 新 k = 机体坐标系闭环伺服 (复现 2026CUADC 做法) ----
+        #   与 i 的根本区别 (i 的原文见 i.py 同位置):
+        #     i: 1.2m 处算一次 hold = 桶估计 + 两瓶补偿 → 冻结 → 开环 (dev 直接变落点误差)
+        #     k: 每拍重算残差 → 残差矢量转世界系加到当前位置 → 限速 → **残差就是释放判据**
+        elif self.step == STEP_DROP:
+            _now = self.get_clock().now()
+            _dt = 0.05
+
+            # (1) 已发出释放脉冲: 保持设定点 + 计时 (与 i 逐字相同)
+            if self._drop_triggered:
+                self._pub_pos(*self._drop_hold_target)
+                if (_now - self._drop_signal_start).nanoseconds * 1e-9 < AUX5_DROP_HOLD:
+                    return
+                self._aux5_value = AUX5_LOCK
+                self._drop_triggered = False
+                self._drop_signal_start = None
+                self._k_ready = False
+                self._enter_step(STEP_CLIMB)
+                return
+
+            # (2) 进入 DROP 首拍: 初始化闭环状态
+            if not getattr(self, '_k_ready', False):
+                self._k_ready = True
+                self._k_aim = (self.x, self.y)      # 限速后的命令点 (绝对 NED)
+                self._k_start = _now                # 必投计时起点
+                self._k_arrive = None               # 真正到投放平面的时刻 (窗口起点)
+                self._k_ok_since = None             # 残差达标起始
+                self._k_frozen_aim = None           # 脏帧时沿用的最后命令点
+                self._k_resid = None
+                self._k_err = None                      # D15
+                self._k_pred = None                     # D15
+                self._k_resid_t = None                  # D24: 残差的时间戳
+                self._k_H = DROP_HEIGHT                 # D15
+                self._k_n_upd = 0
+                self._k_n_rej = 0
+                self._k_n_new = 0                # D16: 新帧计数
+                self._k_n_stale = 0              # D16: 旧帧跳过计数
+                self._k_last_seq = None          # D16: 上一拍用过的 frame_seq
+                self._k_bias_x = 0.0        # D14: 设定点积分偏置 (世界系, m)
+                self._k_bias_y = 0.0
+                self._k_last_log = _now
+                # 2026-10-11 (D11): SITL 里补偿必须为 0 (理想相机 + 无挂载偏置)
+                _cs = 0.0 if (K_SIM_IDEAL_CAMERA or K_ZERO_COMPENSATION) else 1.0  # D26
+                self._k_comp_y = _cs * (PAYLOAD_OFFSET_BODY_Y_B1 if self._drop_count == 0
+                                        else PAYLOAD_OFFSET_BODY_Y_B2)
+                self._k_comp_xf = _cs * (PAYLOAD_OFFSET_BODY_XF_B1 if self._drop_count == 0
+                                         else PAYLOAD_OFFSET_BODY_XF_B2)
+                self.get_logger().warn(
+                    f"[K-SERVO] 进入 DROP #{self._drop_count + 1}: 机体坐标系闭环 | "
+                    f"期望投放口(前,右)=({self._k_comp_xf:+.3f},{self._k_comp_y:+.3f})m | "
+                    f"门限={K_RELEASE_M * 100:.0f}cm/{K_RELEASE_CONFIRM:.2f}s "
+                    f"放宽={self._k_tol_late * 100:.1f}cm@{K_WINDOW_S:.0f}s "
+                    f"必投={K_DEADLINE_S:.0f}s 限速={K_VMAX_DROP:.2f}m/s "
+                    f"平面={K_TARGET_PLANE_H:+.3f}m")
+
+            drop_z = self.home_z - DROP_HEIGHT
+            drop_zone_H = max(0.1, self.home_z - self.z)   # D15
+
+            # (3) 窗口起点: 真正到投放平面才开始 (与他们的 |z-frozen_z|<=0.05 同义)
+            if self._k_arrive is None and abs(self.z - drop_z) <= 0.10:
+                self._k_arrive = _now
+
+            # (4) 闭环: 用当前帧重算机体坐标系残差 → 新命令点
+            _roi = self.latest_roi
+            _age = ((_now - self._last_detect_time).nanoseconds * 1e-9
+                    if self._last_detect_time is not None else 1e9)
+            _target = None
+            # ---- D16b: 只在**新检测帧**上更新设定点 ----
+            #   为什么: 检测器 10Hz 出新帧, 节点 20Hz 跑控制 ⇒ 约一半的拍子拿的是
+            #   50~100ms 前的旧像素, 却配上**当前**位姿去反投影 ⇒
+            #       err_旧帧 = (桶 − 飞机(t−延迟)) − 补偿
+            #       aim = 飞机(t) + err_旧帧 = 桶 − 补偿 + (飞机(t) − 飞机(t−延迟))
+            #   最后那一项 = 飞机自己在延迟内的位移 ⇒ **设定点被拽向飞机自己的运动方向**
+            #   (负阻尼/正反馈)。这正是他们 `navigation_sample_at(stamp)`(按曝光时刻插值位姿)
+            #   要治的项 —— 这里用最小可行版: 新帧才算, 旧帧**只发设定点不动目标**。
+            _seq = getattr(self, '_det_seq', None)
+            _is_new_frame = (_seq is not None and _seq != getattr(self, '_k_last_seq', None))
+            if _is_new_frame:
+                self._k_n_new += 1
+            else:
+                self._k_n_stale += 1
+            if _is_new_frame and _age <= K_AGE_MAX and self._k_roi_usable(_roi):
+                self._k_last_seq = _seq
+                _cx = _roi.x_offset + _roi.width / 2.0
+                _cy = _roi.y_offset + _roi.height / 2.0
+                _proj = camera_pixel_to_level(_cx, _cy, self._pitch, self._roll)
+                if _proj is not None:
+                    _H = self.home_z - self.z
+                    _depth = _H + K_TARGET_PLANE_H
+                    if _depth > 0.2:
+                        _rim_fwd = _proj[0] * _depth        # 桶相对飞机: 机体前
+                        _rim_right = _proj[1] * _depth      # 桶相对飞机: 机体右
+                        # 期望: 桶应停在机体 (前, 右) = (XF, Y) 处
+                        _err_fwd = _rim_fwd - self._k_comp_xf
+                        _err_right = _rim_right - self._k_comp_y
+                        self._k_resid = math.hypot(_err_fwd, _err_right)
+                        self._k_err = (_err_fwd, _err_right)   # D15: 预测落点判据用
+                        self._k_H = _H                          # D15
+                        self._k_resid_t = _now                  # D24: 残差的时间戳
+                        _dx, _dy, _ = self._body_to_ned(_err_fwd, _err_right)
+                        # ---- D14: 设定点积分 (有界) ----
+                        # 为什么必须有: 我们的设定点 = **桶估计 − 两瓶补偿**, 与飞机自身位置**无关**
+                        #   ⇒ "飞机相对设定点的偏差" 完全由飞控位置环决定, 闭环**结构上无权**修正它。
+                        #   SITL 实测 (7 轮): 第 1 投设定点稳定在 (+2.20,+31.62), 飞机却停在
+                        #   (+2.40,+31.6), **20cm 稳态偏差 8 秒不收敛** ⇒ 只能走必投兜底。
+                        #   加一个有界积分项, 让设定点朝残差方向持续追赶, 直到**真实**站位到位
+                        #   (平衡点仍是"残差=0 ⇔ 真实站位 = 桶 − 补偿", 只是把飞控的稳态误差补掉)。
+                        #   ⚠ 这是**超出他们做法**的一处新增 (ArduPilot 位置环没有这个稳态误差, 他们不需要);
+                        #     上限 0.40m 是安全闸, 视觉失效时不积分。
+                        self._k_bias_x += K_AIM_KI * _dx * _dt
+                        self._k_bias_y += K_AIM_KI * _dy * _dt
+                        _bn = math.hypot(self._k_bias_x, self._k_bias_y)
+                        if _bn > K_AIM_BIAS_MAX:
+                            self._k_bias_x *= K_AIM_BIAS_MAX / _bn
+                            self._k_bias_y *= K_AIM_BIAS_MAX / _bn
+                        _target = (self.x + _dx + self._k_bias_x,
+                                   self.y + _dy + self._k_bias_y)
+                        self._k_frozen_aim = _target
+                        self._k_n_upd += 1
+            if _target is None:
+                self._k_n_rej += 1
+                self._k_resid = None
+                self._k_err = None                # D15: 脏帧不参与预测判据
+                self._k_resid_t = None            # D24: 残差失效
+                _target = self._k_frozen_aim if self._k_frozen_aim else (self.x, self.y)
+
+            # (5) 设定点限速 (他们的 rate_limited_drop_target 语义): 命令点朝新目标走
+            _ax, _ay = self._k_aim
+            _ddx, _ddy = _target[0] - _ax, _target[1] - _ay
+            _dd = math.hypot(_ddx, _ddy)
+            _step_max = K_VMAX_DROP * min(_dt, K_DT_CLAMP)
+            if _dd > _step_max and _dd > 1e-9:
+                _ax += _ddx / _dd * _step_max
+                _ay += _ddy / _dd * _step_max
+            else:
+                _ax, _ay = _target
+            self._k_aim = (_ax, _ay)
+            self._pub_pos(_ax, _ay, drop_z, self.heading)
+
+            # (6) 释放判据 = 同一个残差的模 (残差即"投放口离桶口多远")
+            _elapsed = (_now - self._k_start).nanoseconds * 1e-9
+            _vxy = math.hypot(self.vx, self.vy)
+            _tol = K_RELEASE_M
+            if self._k_arrive is not None:
+                _win = (_now - self._k_arrive).nanoseconds * 1e-9
+                if _win >= K_WINDOW_S:
+                    _tol = K_WINDOW_RELAX_M
+            else:
+                _win = 0.0
+
+            _h_ok = self.z > drop_z - 0.2
+            # D24: 残差新鲜度 —— 过时残差不参与判据 (旧帧拍子上 `_k_resid` 不动, 但飞机在动)
+            _resid_fresh = (self._k_resid_t is not None
+                            and (_now - self._k_resid_t).nanoseconds * 1e-9 <= K_RESID_MAX_AGE)
+            _resid_now = self._k_resid if _resid_fresh else None
+            # ---- D15: 释放判据改用**预测落点** (机体系) ----
+            #   物理: 载荷从 H 落下需 t_fall = sqrt(2H/g) ≈ 0.5s, 期间飞机还在以 v 移动
+            #         ⇒ 真实落点 = 瞄准点 + v·t_fall ⇒ 该看 pred = |err − v_body·t_fall|。
+            #   为什么必须 (SITL 第 8 轮实测): 老判据要求 |err| ≤ 容差 **且** |vxy| ≤ 0.15
+            #         两件事同时成立 —— 第 1 投残差已到 7.5cm (容差 5.9/8.9cm), 却被
+            #         vxy=0.272 一票否决 ⇒ 只能走必投兜底。而"正朝桶飞过去"的那一瞬
+            #         恰恰是**最好**的释放时机。
+            #   这是项目自己验证过的 `pred` 思想, 这里只把量搬到机体系 (对 EKF 漂移免疫)。
+            _t_fall = math.sqrt(max(0.0, 2.0 * drop_zone_H / K_FALL_G))
+            _ch2, _sh2 = math.cos(self.heading), math.sin(self.heading)
+            _v_fwd = self.vx * _ch2 + self.vy * _sh2
+            _v_rgt = -self.vx * _sh2 + self.vy * _ch2
+            self._k_pred = None
+            if self._k_err is not None and self._k_resid is not None:
+                self._k_pred = math.hypot(self._k_err[0] - _v_fwd * _t_fall,
+                                          self._k_err[1] - _v_rgt * _t_fall)
+            # D15b (2026-10-11 第 9 轮实测后修正): 必须是**合取** ——
+            #   pred 只用得着「释放瞬间的速度」, 而这台机悬停时有 ~1s 周期的极限环
+            #   (位置 ±10~25cm / 速度 ±0.25m/s)。第 9 轮实测: 只看 pred 时两投都在
+            #   pred=6.1/7.9cm 放行, 但**实际落点 18.5/17.2cm** —— 半个周期后速度反向,
+            #   「正朝桶飞」的预测当场失效。⇒ 位置与预测**同时**满足才放行。
+            _tol_resid = K_RESID_MAX_FACTOR * _tol
+            _tier = None
+            if K_SIM_NO_BALLISTIC:
+                # D20 SITL 路径: 落点 = 释放瞬间站位 ⇒ **只判残差** (速度/弹道项一律不参与)
+                _ok_gate = (_resid_now is not None and _resid_now <= _tol)
+            elif K_USE_PRED_RELEASE:
+                _ok_gate = (self._k_pred is not None and self._k_pred <= _tol
+                            and _resid_now is not None and _resid_now <= _tol_resid)
+            else:
+                # 实机路径: 残差 + 准静止 (物理依据: 落 0.495s, 0.15m/s ⇒ 漂 7.4cm ≈ 小桶半径)
+                _ok_gate = (_resid_now is not None and _resid_now <= _tol
+                            and _vxy <= K_VXY_REL)
+            if _ok_gate and (K_SIM_NO_BALLISTIC or _vxy <= K_VXY_SAFE) and _h_ok:
+                _tier = 1 if _tol <= K_RELEASE_M else 2
+            if _tier is None:
+                self._k_ok_since = None
+            elif self._k_ok_since is None:
+                self._k_ok_since = _now
+            elif (_now - self._k_ok_since).nanoseconds * 1e-9 >= K_RELEASE_CONFIRM:
+                _tier = 3
+            _deadline = _elapsed >= K_DEADLINE_S
+
+            # (7) 节流日志
+            if (_now - self._k_last_log).nanoseconds * 1e-9 >= K_LOG_EVERY:
+                self._k_last_log = _now
+                _rs = f"{self._k_resid * 100:5.1f}cm" if self._k_resid is not None else "  --  "
+                self.get_logger().info(
+                    f"  [K-SERVO] t={_elapsed:4.1f}s win={_win:3.1f}s H={self.home_z - self.z:4.2f}m "
+                    f"残差={_rs} 门限={_tol * 100:.0f}cm vxy={_vxy:.3f} "
+                    f"更新={self._k_n_upd}/拒绝={self._k_n_rej} 命令点=({_ax:+0.2f},{_ay:+0.2f}) "
+                    f"积分偏置={math.hypot(self._k_bias_x, self._k_bias_y) * 100:.1f}cm "
+                    f"pred={'--' if self._k_pred is None else f'{self._k_pred * 100:.1f}cm'} "
+                    f"新帧={self._k_n_new}/旧帧跳过={self._k_n_stale}")
+
+            if _tier is None and not _deadline:
+                return
+
+            # (8) 释放
+            _way = (f"机体残差{self._k_resid * 100:.1f}cm<={_tol * 100:.0f}cm 保持"
+                    f"{K_RELEASE_CONFIRM:.2f}s" if _tier in (1, 2, 3) and self._k_pred is not None
+                    else f"{K_DEADLINE_S:.0f}s 必投兜底")
+            if _tier is None:
+                self.get_logger().warn(
+                    f"[K-SERVO] {K_DEADLINE_S:.0f}s 兜底释放 (残差="
+                    f"{'--' if self._k_resid is None else f'{self._k_resid * 100:.1f}cm'} "
+                    f"vxy={_vxy:.3f} 更新={self._k_n_upd} 拒绝={self._k_n_rej})")
+            if not self._drop_triggered:
+                self._drop_triggered = True
+                self._drop_signal_start = _now
+                _sx, _sy = (self._current_target_ned if self._current_target_ned
+                            else (self.x - self.home_x, self.y - self.home_y))
+                self._served_targets.append((_sx, _sy))
+                self.get_logger().info(
+                    f"  SERVED +1 bucket NED({_sx:.2f},{_sy:.2f}) → 共 {len(self._served_targets)} 个已投")
+                self._drop_hold_target = (_ax, _ay, drop_z, self.heading)
+                _drop_val = AUX5_DROP if self._drop_count == 0 else AUX5_DROP2
+                _pwm_us = 1500 + _drop_val * 600
+                self._aux5_value = _drop_val
+                self._drop_count += 1
+                self.impact_pub.publish(Point(x=float(self.x), y=float(self.y),
+                                              z=float(self.home_z)))
+                # 新增: 相对 home 的落点 (与 worlds/*.truth.json 同系, 供 cuadc_judge)
+                self.impact_rel_pub.publish(Point(x=float(self.x - self.home_x),
+                                                  y=float(self.y - self.home_y),
+                                                  z=float(self.home_z - self.z)))
+                self._drop_records.append({
+                    "idx": self._drop_count - 1,
+                    "aim": (_ax, _ay),
+                    "bucket": (_sx, _sy),
+                    "pos": (self.x, self.y),
+                    "H": self.home_z - self.z,
+                    "tier": _tier,
+                    "resid_m": self._k_resid,
+                    "elapsed_s": _elapsed,
+                    "n_upd": self._k_n_upd,
+                    "n_rej": self._k_n_rej,
+                })
+                self.get_logger().info(
+                    f">>> DROP #{self._drop_count - 1}! PWM={_pwm_us:.0f}us "
+                    f"NED({self.x:.3f},{self.y:.3f},{self.z:.3f}) "
+                    f"桶NED({_sx:+.3f},{_sy:+.3f}) 落点相对home=({self.x - self.home_x:+.3f},"
+                    f"{self.y - self.home_y:+.3f}) "
+                    f"pitch={self._pitch:+.3f} roll={self._roll:+.3f} vxy={_vxy:.3f}m/s "
+                    f"残差={'--' if self._k_resid is None else f'{self._k_resid * 100:.1f}cm'} "
+                    f"pred={'--' if self._k_pred is None else f'{self._k_pred * 100:.1f}cm'} "
+                    f"更新={self._k_n_upd} 拒绝={self._k_n_rej} "
+                    f"新帧={self._k_n_new}/旧帧跳过={self._k_n_stale} "
+                    f"event=release_command 触发方式={_way}")
+            return
+
+'''
+
+# ============================================================
+# D6 — 选桶排序 (面积降序取大两个 → 直径升序取小两个)
+# ============================================================
+K_SELECT_OLD = """            s_h0 = math.sin(self._heading0) if self._heading0 is not None else 0.0
+            c_h0 = math.cos(self._heading0) if self._heading0 is not None else 0.0
+            _area_ref = max(1.0, max((float(t.get("area", 0.0)) for t in confirmed), default=1.0))
+            confirmed.sort(key=lambda t: (
+                -round(float(t.get("area", 0.0)) / _area_ref * 10.0),   # 面积降序 (0.1 档)
+                abs(-t["ned"][0] * s_h0 + t["ned"][1] * c_h0)))         # 同档 → |lateral| 升序
+"""
+
+K_SELECT_NEW = """            s_h0 = math.sin(self._heading0) if self._heading0 is not None else 0.0
+            c_h0 = math.cos(self._heading0) if self._heading0 is not None else 0.0
+            # 2026-10-11 新 k: **规则计分 ⇒ 目标是直径最小的两个桶**
+            #   (15cm = 500 分 / 20cm = 300 分 / 25cm = 100 分; 抛弃只值 100 分的那个)
+            #   i 时代是"面积降序取大的两个", 在一个"三桶同径"的仿真里定的 ⇒ 与规则相反。
+            #   直径由框宽反推: D ≈ sqrt(area)·(H + K_TARGET_PLANE_H)/FX (同时也是测距自检)。
+            #   同直径档 (差 ≤1.5cm) 时按 |lateral| 升序兜底 (优先靠航向中线)。
+            _dia = {id(t): (self._k_bucket_diameter(t) or 9.9) for t in confirmed}
+            confirmed.sort(key=lambda t: (
+                round(_dia[id(t)] / 0.015),                             # 直径升序 (1.5cm 档)
+                abs(-t["ned"][0] * s_h0 + t["ned"][1] * c_h0)))         # 同档 → |lateral| 升序
+            self.get_logger().info(
+                "  [直径分类] " + ", ".join(
+                    f"NED({t['ned'][0]:+.2f},{t['ned'][1]:+.2f})D={_dia[id(t)] * 100:.0f}cm"
+                    for t in confirmed))
+"""
+
+
+# ============================================================
+# D9 — 搜索点挪到投放区几何中心 (规则对齐的必然结果)
+# ============================================================
+K_SEARCH_POINT_NOTE = """# 2026-10-11 新 k (D9): FORWARD_DIST 34.0 → 32.5 = **投放区几何中心**。
+#   为什么必须改: 规则说桶可以摆在投放区 NED y∈[30,35] 的**任意位置**, 而 5m 高度
+#   下视视野只有 **前向 ±2.8m** —— 悬停在 y=34 时只能覆盖 y∈[31.2,36.8], 后半个区
+#   (y<31.2) 结构性看不见。SITL 首轮实测: 15cm 桶在 y=31.63, 距悬停点 2.47m ⇒ 落在
+#   画面**下边缘被裁** ⇒ 追踪器反复超时重建 (age0.6s → 消失 → 0.6s), 最终没被选中。
+#   挪到 32.5 后视野覆盖 y∈[29.7,35.3] ⊇ [30,35] (横向 ±4.98m ⊇ ±4m) ⇒ **一次悬停覆盖全
+#   区**。他们的等价做法是 3m 高度 + 2 条航带割草机搜索 (视野更窄所以需要扫)。
+"""
+
+# ============================================================
+# D8 — 追踪器改「一对一全局分配」(规则对齐后暴露的真实缺陷)
+# ============================================================
+K_TRACKER_BLOCK = '''    def _update_trackers(self, bucket_ests):
+        """2026-10-11 新 k: 检测↔追踪器改【一对一全局分配】 (复现 2026CUADC 的 merge_detections 语义)。
+
+        为什么必须改 (SITL 实测, 2026-10-11 首轮): 旧写法对每个检测各自找"最近的追踪器",
+        **没有一对一约束** ⇒ 两个相距 1.12m 的框 (< TRACKER_NED_MATCH = 1.5m) 被并进同一个
+        追踪器, 追踪器停在两桶中间 NED(0.65,33.4), 而真桶在 (0.48,33.0) 与 (1.05,34.0)
+        ⇒ "已确认目标"永远只有 1 个 ⇒ 选不出 2 桶 ⇒ HOVER_SEARCH 10s 超时直接飞侦察区,
+        **0/0 投弹** (检测器每帧其实稳定报 2 框 w=17/14 —— 不是视觉问题)。
+        规则对齐后桶在 5×8m 区内随机摆放、间距可能只有 1m 级, 所以这条修正是**必须的**。
+
+        改法 = 他们的做法 (merge_detections): 先列出门限内所有 (追踪器, 检测) 候选对,
+        按距离升序**贪心一对一** (每个追踪器与每个检测各用一次); 未被分配的检测才新建追踪器。
+        """
+        now = self.get_clock().now()
+        now_s = now.nanoseconds * 1e-9
+
+        # (1) 候选对 (距离升序)
+        pairs = []
+        for di, est in enumerate(bucket_ests):
+            bx, by = float(est[0]), float(est[1])
+            for t in self._trackers:
+                dist = math.hypot(bx - t["ned"][0], by - t["ned"][1])
+                if dist < TRACKER_NED_MATCH:
+                    pairs.append((dist, di, t))
+        pairs.sort(key=lambda p: p[0])
+
+        # (2) 贪心一对一: 每个追踪器与每个检测只许用一次
+        used_det, used_trk, assign = set(), set(), []
+        for dist, di, t in pairs:
+            if di in used_det or id(t) in used_trk:
+                continue
+            used_det.add(di)
+            used_trk.add(id(t))
+            assign.append((dist, di, t))
+        assign.sort(key=lambda a: a[1])
+
+        for dist, di, best_t in assign:
+            bx, by, roi, _d, cx, cy = bucket_ests[di]
+            if dist > 0.8:                       # 2026-09-20 诊断: 距离偏大的匹配
+                self.get_logger().info(
+                    f"  TRK-PULL #{self._trackers.index(best_t)} dist={dist:.2f}m "
+                    f"box(cx={cx:.0f},cy={cy:.0f}) NED({bx:.2f},{by:.2f}) "
+                    f"← tracker NED({best_t['ned'][0]:.2f},{best_t['ned'][1]:.2f})")
+            alpha = 0.3
+            old_x, old_y = best_t["ned"]
+            best_t["ned"] = (old_x + alpha * (bx - old_x),
+                             old_y + alpha * (by - old_y))
+            best_t["last_seen"] = now_s
+            best_t["roi_center"] = (cx, cy)
+            best_t["area"] = float(roi.width * roi.height)
+            if not best_t["confirmed"] and (now_s - best_t["first_seen"]) >= TRACKER_CONFIRM_TIME:
+                best_t["confirmed"] = True
+                self.get_logger().info(
+                    f"Tracker confirmed: NED({best_t['ned'][0]:.1f},{best_t['ned'][1]:.1f}) "
+                    f"after {now_s - best_t['first_seen']:.1f}s")
+
+        # (3) 未被分配的检测 ⇒ 新建追踪器
+        matched = {id(t) for _d, _i, t in assign}
+        for di, (bx, by, roi, _d, cx, cy) in enumerate(bucket_ests):
+            if di in used_det:
+                continue
+            self._trackers.append({
+                "id": self._next_tracker_id,          # C: 稳定 id (= 桶身份)
+                "ned": (bx, by),
+                "first_seen": now_s,
+                "last_seen": now_s,
+                "confirmed": False,
+                "roi_center": (cx, cy),
+                "area": float(roi.width * roi.height),
+            })
+            self._next_tracker_id += 1
+            self.get_logger().info(
+                f"  TRK-NEW #{len(self._trackers) - 1} NED({bx:.2f},{by:.2f}) "
+                f"from box(cx={cx:.0f},cy={cy:.0f},w={roi.width:.0f},h={roi.height:.0f}) "
+                f"alive={len(self._trackers)}")
+
+        self._trackers = [t for t in self._trackers
+                          if (now_s - t["last_seen"] < TRACKER_TIMEOUT)
+                          or id(t) in matched]
+        # 2026-09-20 诊断: 1Hz 打印本帧全部检测框 + 全部存活追踪器
+        if now_s - getattr(self, '_trk_dbg_t', 0.0) > 1.0:
+            self._trk_dbg_t = now_s
+            box_txt = " ".join(
+                f"({cx:.0f},{cy:.0f})w{w:.0f}→NED({bx:.2f},{by:.2f})"
+                for bx, by, _roi, _d, cx, cy, w in
+                [(bx, by, roi, d, cx, cy, roi.width) for bx, by, roi, d, cx, cy in bucket_ests])
+            trk_txt = " ".join(
+                f"#{i}{'C' if t['confirmed'] else '-'}NED({t['ned'][0]:.2f},{t['ned'][1]:.2f})"
+                f"age{now_s - t['first_seen']:.1f}s"
+                for i, t in enumerate(self._trackers))
+            self.get_logger().info(
+                f"  TRK-DBG step={STEP_NAME.get(self.step, self.step)} nbox={len(bucket_ests)} "
+                f"boxes=[{box_txt}] trackers={len(self._trackers)}[{trk_txt}]")
+
+'''
+
+
+
+
+
+# ============================================================
+# D13 — 释放容差由【规则 + 桶径分类】决定 (不再是拍的固定 8cm)
+# ============================================================
+K_TOL_CONST = """K_RELEASE_R_FRAC = 0.00    # D27 (2026-10-12, 用户要求「他们怎么伺服的我们就怎么做」):
+#   **归零** ⇒ 容差 = K_RELEASE_MIN_M = **3cm 固定**, 与他们的
+#   `release_visual_xy_tolerance_m: 0.03` 逐字一致 (D13 原为 桶半径×0.8 = 6.0/8.0/10.0cm)。
+#   ⚠ 后果预警: 本 SITL 的**水平保持地板中位 16.2cm**(探针 18 样本) ⇒ 3cm 门限在仿真里
+#   **几乎必然触不到** ⇒ 会全部落到 12s 必投兜底。这是"忠实复现判据"与"仿真可触发性"的
+#   取舍, 用实测数据说话 (见 docs/reports/k_servo_20261012.md)。
+K_RELEASE_MIN_M  = 0.03    # D13: 容差下限 (m) —— 就是他们的 release_visual_xy_tolerance = 3cm
+K_AIM_KI          = 0.80   # D23: 设定点积分增益 (1/s)。原 0.30 —— 探针实测投放区存在
+#   **13~34cm 的直流偏移**(三轮探针: 起飞点稳 ~10cm, 其他位置均值 ~21cm 且不可预测),
+#   而 0.30 在 12s 窗内只能推 ~36cm 且前 8s 只推了 10cm (run 004653 实证: 命令点从 2.18
+#   推到 2.08, 飞机仍停在 2.31)。0.80 ⇒ 15cm 偏移下命令点以 12cm/s 追, 约 1.3s 补掉。
+#   安全性由 K_AIM_BIAS_MAX(0.40m) 硬上限保证。
+K_AIM_BIAS_MAX    = 0.40   # D14: 积分偏置硬上限 (m) —— 防跑飞
+K_RELEASE_LATE_ADD = 0.00  # D18: 窗口到期后的容差**增量 = 0** ⇒ 不放宽。
+#   为什么 (2026-10-12 第 13 轮实测): 规则计分下 A 区 = 落在桶内, 而晚档 容差+3cm 已经
+#   **超过桶半径** (20cm 桶: 8+3=11 > r=10; 15cm 桶: 6+3=9 > r=7.5) ⇒ 晚档放行
+#   **按构造不可能进 A 区**, 而 B 区固定 50 分、与兜底同分 ⇒ **放宽毫无收益**。
+#   实测落点 ≈ 残差 + 0~6cm (6.4→8.4 / 1.9→0.7 / 9.6→13.3 / 15.5→22.0), 所以要进 A 区
+#   必须让**残差**达到 r−2cm 量级; 把窗口只当梯子、不当放宽, 兜底仍保证必投。
+#   ⚠ 原值 0.03; 且**绝不能用 K_WINDOW_RELAX_M(=0.08 绝对门限语义)当增量** (已踩过一次)
+#   (=0.08 是"绝对门限"语义), 否则 15cm 桶的晚档会变成 6+8=14cm —— 比原来还松 (已踩过一次)
+"""
+
+K_TOL_OLD = """                self._k_comp_xf = _cs * (PAYLOAD_OFFSET_BODY_XF_B1 if self._drop_count == 0
+                                         else PAYLOAD_OFFSET_BODY_XF_B2)"""
+K_TOL_NEW = """                self._k_comp_xf = _cs * (PAYLOAD_OFFSET_BODY_XF_B1 if self._drop_count == 0
+                                         else PAYLOAD_OFFSET_BODY_XF_B2)
+                # 2026-10-11 新 k (D13): 容差由**规则**推出来 —— A 区定义就是"落在桶内",
+                #   而桶径我们刚才已经用框宽反推出来了 ⇒ 容差 = 该桶半径 × 0.8 (留 20% 给
+                #   落下 1.2m 期间 (0.5s) 的弹道漂移), 下限 3cm (他们的值)。
+                #   为什么比固定 8cm 更好: 固定 8cm 对大桶过松(12.5cm 半径放行在 8cm 等于白扔
+                #   4.5cm 余量)、对小桶过松(7.5cm 半径放行在 8cm 已经出桶!) —— SITL 实测第 1 投
+                #   在 7.6cm 被 8cm 门放行, 而 15cm 桶半径只有 7.5cm ⇒ 落点 8.2cm 差 0.7cm 出桶。
+                #   改成 6/8/10cm (对应 15/20/25cm 桶) 后, 小桶会被要求收敛得更紧。
+                _r_b = 0.0
+                try:
+                    _r_b = 0.5 * float(self._target_diams[self._drop_count])
+                except (AttributeError, IndexError, TypeError, ValueError):
+                    _r_b = 0.0
+                self._k_tol = (max(K_RELEASE_MIN_M, K_RELEASE_R_FRAC * _r_b)
+                               if _r_b > 0 else K_RELEASE_M)
+                self._k_tol_late = self._k_tol + K_RELEASE_LATE_ADD"""
+
+K_TOL_USE = [
+    ("            _tol = K_RELEASE_M\n",
+     "            _tol = self._k_tol          # D13: 容差 = 该桶半径 × 0.8 (下限 3cm)\n"),
+    ("                    _tol = K_WINDOW_RELAX_M\n",
+     "                    _tol = self._k_tol_late     # D13: 窗口到期放宽 = 容差 + 3cm\n"),
+    ("                _tier = 1 if _tol <= K_RELEASE_M else 2\n",
+     "                _tier = 1 if _tol <= self._k_tol else 2   # D13\n"),
+    ('f"门限={K_RELEASE_M * 100:.0f}cm/{K_RELEASE_CONFIRM:.2f}s "',
+     'f"门限={self._k_tol * 100:.1f}cm/{K_RELEASE_CONFIRM:.2f}s "'),
+]
+
+# ============================================================
+# D12 — 下降段改时间锚定限速 (修掉"注释承诺 0.25m/s 实际全权限阶跃"的 no-op)
+# ============================================================
+K_DESCENT_OLD_PRE = "            target_z = max(pre_z, self.z - SERVO_DESCENT_SPEED * 0.05)\n"
+K_DESCENT_NEW_PRE = """            # 2026-10-11 新 k (D12): 时间锚定限速下降。
+            #   旧写法 `max(pre_z, self.z - SERVO_DESCENT_SPEED*0.05)` 在下降时**恒取 pre_z**
+            #   ⇒ 目标瞬间跳变 ⇒ **全权限阶跃**, 注释承诺的 0.25m/s 从未生效 (5.0m→2.5m 只用 ~2s)。
+            #   SITL 实测后果: 进 DROP 时飞机仍在振铃 —— 第 1 投 vxy 0.23 的极限环、残差
+            #   23~28cm 全程不收敛, 只能走 8s 必投; 而第 2 投 (vxy 0.06~0.08) 收敛到 5.3cm、
+            #   判据触发、**落点 4.0cm 进 A 区**。⇒ 到达时的停放质量直接决定成败。
+            #   他们用 0.2m/s 受控下降 (2.0m→0.8m 用 11s) 保证到达即稳。
+            #   锚点必须是**常量**(不是当前 z): 用当前 z 会让位置环只跟微小误差 ⇒ 爬行
+            #   (这正是 2026-10-09 追加 38 踩过的坑)。
+            _d12_t0 = self.home_z - CRUISE_HEIGHT
+            target_z = min(pre_z, _d12_t0 + K_DESCENT_RATE * self._step_elapsed())
+"""
+K_DESCENT_OLD_VIS = "            target_z = max(drop_z, self.z - SERVO_DESCENT_SPEED * 0.05)\n"
+K_DESCENT_NEW_VIS = """            # 2026-10-11 新 k (D12): 同 PRE_SERVO, 时间锚定限速下降到投弹高度。
+            _d12_t0 = self.home_z - PRE_SERVO_HEIGHT
+            target_z = min(drop_z, _d12_t0 + K_DESCENT_RATE * self._step_elapsed())
+"""
+
+# ============================================================
+# D11 — SITL 补偿归零 (环境常量分侧, 与 TARGET_PLANE_H/HFOV 同一条既有约定)
+# ============================================================
+K_COMP_SPLIT = """K_SIM_IDEAL_CAMERA = True  # SITL: 检测器是**理想针孔 GT 投影**, 既没有相机安装偏差
+#   也**没有挂载偏置**(仿真的瓶子从机体原点掉) ⇒ 两瓶补偿在校验台里必须为 **0**。
+#   实机必须置 False: 用 10-09 静态标定的 `Y_B1=+0.146 / Y_B2=+0.036 / XF=-0.021`
+#   (= 相机常数 9.10cm ± 释放口 5.5cm)。
+#   ⚠ 为什么必须分侧 (项目自己的记录): SITL 裁判拿**飞机坐标**当落点, 不建模挂载偏置 ⇒
+#   补偿会让飞机**故意**偏离桶心 15.8cm(B1)/5.8cm(B2), 这部分**按构造**就是纯罚分,
+#   分数无法解读 (旧 i 的 20 分制也一直被这个伪影主导)。归零后 SITL 的距桶距离
+#   = **真实执行误差**, 才拿得到可比较的数字。
+"""
+
+# ============================================================
+# D10 — 选桶门: 先凑候选再挑 (SITL 首轮实测: 15cm 桶晚 0.6s 确认被漏掉)
+# ============================================================
+K_SELECT_GATE_OLD = """            confirmed = [t for t in self._trackers if t["confirmed"]]
+            if len(confirmed) < 2:
+                return
+"""
+
+K_SELECT_GATE_NEW = """            confirmed = [t for t in self._trackers if t["confirmed"]]
+            # 2026-10-11 新 k (D10): 选桶改"先凑候选再挑" —— 复现 2026CUADC 的
+            #   `try_lock_target_plan(allow_two=false)` 需要 3 个独立可靠目标的语义。
+            #   为什么要紧 (SITL 首轮实测): 旧门"≥2 就选"是**先到先得** —— 15cm 桶
+            #   (500 分那个) 比另两个晚 0.6s 确认, 于是被漏掉, 选中的是 20cm+25cm
+            #   (上限 300+100), 而规则里 500 分恰恰在小桶上。
+            #   新门: 先等 K_SELECT_WAIT_S 秒凑第 3 个; 等不到就按现有候选挑 (不空等)。
+            if len(confirmed) < (3 if self._step_elapsed() < K_SELECT_WAIT_S else 2):
+                return
+"""
+
+HEADER = '''#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# ==============================================================================
+# 项目 k — 2026-10-11 新建, **基于 i 逐字节复制**, 只替换 DROP 段
+#
+# 目的: 复现哈工大 2026CUADC (北部赛区冠军) 的伺服投弹精度。
+#
+# 与 i 的差异**仅**以下 29 处 (生成器 scripts/new_project_k_20261011.py 逐条断言):
+#   D1 本头部 + 节点名 k_mission + 类名 KMission + MISSION_REVISION
+#   D2 K_* 常量块 (机体坐标系闭环的全部可调量)
+#   D3 /drop/impact_rel 发布器 (相对 home 的落点, 与 worlds/*.truth.json 同系)
+#   D4 _k_bucket_diameter() / _k_roi_usable() 两个辅助方法
+#   D5 DROP 段整体替换: 冻结+开环 → 每拍机体坐标系闭环 + 限速设定点 + 残差即判据
+#   D6 选桶: 面积降序取大两个 → **直径升序取小两个** (规则是小桶 500 分)
+#   D7 K_TARGET_PLANE_H = 0.0 (SITL 与检测器 ground 模式互为逆运算; 实机 = -0.278)
+#   D8 追踪器 `_update_trackers`: 多对一最近邻 → **一对一全局贪心分配**
+#      (规则对齐后桶间距 1m 级, 旧写法会把两个桶并成一个追踪器 ⇒ 选不出 2 桶)
+#   D9  FORWARD_DIST 34.0 → 32.5 (投放区几何中心, 5m 视野覆盖全区)
+#   D10 选桶门: "≥2 已确认就选" → "先等 6s 凑第 3 个, 再取直径最小两个"
+#   D11 K_SIM_IDEAL_CAMERA=True ⇒ SITL 两瓶补偿归零 (仿真无挂载偏置, 否则是纯罚分)
+#   D12 PRE_SERVO/VISUAL_SERVO 下降改**时间锚定限速** 0.25m/s (旧 max() 写法是全权限阶跃)
+#   D13 释放容差 = 该桶半径 × 0.8 (下限 3cm), 由桶径分类推出, 取代固定 8cm
+#   D14 DROP 段设定点加**有界积分** (上限 0.40m) —— 补掉飞控位置环的稳态偏差
+#   D15/D15c 预测落点 pred 作为**诊断量**保留, 判据默认仍用 残差 ∧ 准静止 (实测 pred 在振荡机体上无效)
+#   D16 _cb_detect 记 frame_seq + DROP 段**只在新帧上更新设定点** (治「旧像素配新位姿」的负阻尼项)
+#   D17 释放确认时间 0.40s → 0.15s (抓残余振荡的折返点, 那里 vxy≈0 才是最佳释放时刻)
+#   D18 窗口到期后的容差增量 0.03 → **0** (晚档容差已超桶半径, 规则计分下放宽无收益)
+#   D19 必投兜底 8s → 12s (实测残差在 8s 时仍在稳定下降, 窗口不够)
+#   D20 **环境常量分侧**: SITL 载荷无弹道 ⇒ 判据只认残差 (速度门/pred 在仿真里都是错的)
+#   D21 1Hz 行尾追加 FC(a..n..fs..d..) + EKF(..) 观测字段 (复用 patch_ekf_tlm 的文本, 只读)
+#   D22 必投兜底 8→12→(25s 实验)→12s (判决实验证明地板不是时间问题)
+#   D23 设定点积分增益 0.30 → 0.80 (探针实测投放区有 13~34cm 直流偏移, 0.30 追不上)
+#   D24 残差新鲜度门 K_RESID_MAX_AGE=0.15s: 过时残差不参与释放判据 (实测差 22cm)
+#   D25 相机模型换**原生画幅** (单目/无畸变/对角线 130°/16:9, 去掉视觉裁切) ⇒ FX=FY=171.21px
+#   D26 **补偿归零** (画面中心=投放点; 与 D25 配套, 旧补偿是在旧相机模型下标定的)
+#   D27 释放判据换成他们的: 容差 **3cm 固定** (原 桶半径×0.8) + 稳定 **2.0s** (原 0.15s)
+#   D28 残缺框过滤像素下限 8px → 3px (D25 换广角后 5m 处桶只有 ~5px, 旧门把整帧全剔除)
+#   D29 巡航高度 5.0 → 3.0 m (130° 下 3m 就能看全投放区; 15cm 桶 5.1→8.6px)
+#       + 拆出 PID_HEIGHT_REF=5.0 (伺服 PID 增益基准与巡航高度解耦, 防增益被放大 1.67×)
+#       (超出他们做法的新增: ArduPilot 位置环没这个稳态误差)
+#
+# 中间控制 (巡航/前飞/搜索/跟踪/预伺服/视觉伺服/爬升/侦察/返航/降落)、
+# ARM/模式逻辑、AUX5 舵机时序、日志与超时 **全部与 i 逐字相同**。
+#
+# 为什么这么改 (一句话): i 在 1.2m 冻结后是**开环**, 冻结之后的任何参照变化 1:1 变成落点
+# 误差 (实测 `dev`, 8/8 与 14/14 分类命中/脱靶)。k 的瞄准点是**每拍用当前帧重算的机体系
+# 残差** —— 不含自身位置估计 ⇒ 对 EKF 漂移免疫; 再加设定点限速 ⇒ 不会自激。
+# ==============================================================================
+'''
+
+
+def replace_once(text, old, new, tag):
+    n = text.count(old)
+    assert n == 1, f"[{tag}] 锚点匹配 {n} 次 (要求 1 次)"
+    return text.replace(old, new, 1)
+
+
+CAM_OLD = 'IMG_W, IMG_H = 640, 360\nCX, CY = IMG_W / 2.0, IMG_H / 2.0\nHFOV = math.radians(85)\nVFOV = math.radians(54)\nFX = IMG_W / (2.0 * math.tan(HFOV / 2.0))\nFY = IMG_H / (2.0 * math.tan(VFOV / 2.0))\n'
+
+CAM_NEW = '# ===== D25 (2026-10-12): 相机模型改为「原生画幅」, 去掉视觉裁切 =====\n# 硬件: **单目 / 无畸变 / 对角线视角 130° / 画幅 16:9**。\n# 旧方案用一个**更窄的等效视场** (HFOV 85° / VFOV 54°) 描述同一张 640x360 图 —— 等价于只用\n# 原生画幅中心 tan(42.5°)/tan(61.85°) ≈ 49% 的宽度 (即"裁切")。本版直接用原生画幅:\n#   焦距由**对角线**视角反解 (方形像素 ⇒ FX = FY = f):\n#     f = (d_px/2)/tan(DIAG_FOV/2),  d_px = hypot(IMG_W,IMG_H) = 734.30 px\n#     f = 367.15 / tan(65°) = 171.21 px\n#   ⇒ HFOV = 2·atan(320/f) = 123.71°,  VFOV = 2·atan(180/f) = 92.87°\n# ⚠ 与旧值相比焦距缩小 2.04× ⇒ 同一像素偏差算出的地面偏移**翻倍**; 旧的实飞补偿\n#   Y_B1/Y_B2/XF 是在旧模型下标定的 ⇒ **必须同时归零** (见 D26)。\nDIAG_FOV_DEG = 130.0                       # 硬件对角线视角 (原生画幅)\nIMG_W, IMG_H = 640, 360                    # 16:9 (see.py 把 1920x1080 整幅 resize 到此)\nCX, CY = IMG_W / 2.0, IMG_H / 2.0\nFOCAL_PX = (math.hypot(IMG_W, IMG_H) / 2.0) / math.tan(math.radians(DIAG_FOV_DEG) / 2.0)\nFX = FY = FOCAL_PX                         # 方形像素 ⇒ 同一焦距\nHFOV = 2.0 * math.atan(IMG_W / 2.0 / FX)   # 123.71°\nVFOV = 2.0 * math.atan(IMG_H / 2.0 / FY)   # 92.87°\n'
+
+
+def build(src_text: str) -> str:
+    t = src_text
+
+    # ---- D1: 头部 ----
+    first_nl = t.index("\n")
+    t = HEADER + t[first_nl + 1:]
+    t = replace_once(t, "class IMission(Node):", "class KMission(Node):", "D1-class")
+    t = replace_once(t, "super().__init__('i_mission')",
+                     "super().__init__('k_mission')", "D1-node")
+    t = replace_once(t, 'MISSION_REVISION = "competition-water-20260924-r1-f-i"',
+                     'MISSION_REVISION = "cuadc-20261011-r1-k-servo"', "D1-rev")
+    t = replace_once(t, "    node = IMission()", "    node = KMission()", "D1-main")
+
+    # ---- D2: 常量块 (插在 I_RELEASE_TIMEOUT 之后) ----
+    anchor2 = ("I_RELEASE_TIMEOUT = 20.0   # 从进 DROP 起的兜底 (s): "
+               "超时无论有没有检测都强制投放 (必投)\n")
+    t = replace_once(t, anchor2, anchor2 + K_CONSTANTS, "D2-consts")
+    # MISSION_REVISION 现在有两行 (i 的原值与常量块插入后) —— 检查只剩一行
+    assert t.count("MISSION_REVISION = ") == 1, "MISSION_REVISION 出现多行"
+
+    # ---- D3: /drop/impact_rel 发布器 ----
+    anchor3 = ("        self.impact_pub = self.create_publisher(Point, "
+               "'/drop/impact_point', 10)\n")
+    t = replace_once(t, anchor3,
+                     anchor3 + ("        # 2026-10-11 新 k: 相对 home 的落点 "
+                                "(与 worlds/*.truth.json 同系, 供 cuadc_judge)\n"
+                                "        self.impact_rel_pub = self.create_publisher("
+                                "Point, '/drop/impact_rel', 10)\n"),
+                     "D3-pub")
+
+    # ---- D4: 辅助方法 (插在 _roi_to_ned 之前) ----
+    anchor4 = "    def _roi_to_ned(self, roi):\n"
+    t = replace_once(t, anchor4, K_METHODS + anchor4, "D4-methods")
+
+    # ---- D5: DROP 段整体替换 ----
+    beg_marker = "        # ---- DROP ----\n        elif self.step == STEP_DROP:\n"
+    end_marker = "\n        # ---- CLIMB: 投弹后爬升"
+    i0 = t.index(beg_marker)
+    i1 = t.index(end_marker)
+    assert i0 < i1, "DROP 段定位失败"
+    t = t[:i0] + K_DROP_BLOCK + t[i1 + 1:]
+
+    # ---- D6: 选桶排序 ----
+    t = replace_once(t, K_SELECT_OLD, K_SELECT_NEW, "D6-select")
+
+    # ---- D9: FORWARD_DIST → 投放区几何中心 ----
+    t = replace_once(
+        t, "FORWARD_DIST  = 34.0      # 2026-08-14: 32→34, 起飞点比假定位置后退 2m, 所有长度+2m (同步实机)",
+        "FORWARD_DIST  = 32.5      # 2026-10-11 新 k (D9): 34→32.5 = **投放区几何中心**"
+        " (规则: 桶可摆在 NED y∈[30,35] 任意处; 5m 悬停视野只 ±2.8m ⇒ 34 会漏掉 y<31.2 的桶)",
+        "D9-forward") + K_SEARCH_POINT_NOTE
+
+    # ---- D10: 选桶门 ----
+    t = replace_once(t, K_SELECT_GATE_OLD, K_SELECT_GATE_NEW, "D10-select-gate")
+    # D13: 选桶时记下选中桶的直径 (DROP 段据此算释放容差)
+    t = replace_once(
+        t, '            selected = [(t["ned"][0], t["ned"][1]) for t in picked]\n',
+        '            selected = [(t["ned"][0], t["ned"][1]) for t in picked]\n'
+        '            self._target_diams = [_dia[id(t)] for t in picked]'
+        '   # D13: 选中的桶径 (释放容差用)\n', "D13-diams")
+
+    # ---- D21: 飞控状态 + EKF 健康度观测字段 (只读; 复用既有补丁的锚点与文本, 单一来源) ----
+    import importlib.util as _ilu
+    _spec = _ilu.spec_from_file_location(
+        "_ekfpatch", REPO / "scripts" / "patch_ekf_tlm_20261009.py")
+    _mod = _ilu.module_from_spec(_spec)
+    _spec.loader.exec_module(_mod)
+    t = replace_once(t, _mod.A_ANCHOR, _mod.A_ANCHOR + _mod.A_INSERT, "D21-A")
+    t = replace_once(t, _mod.B_ANCHOR, _mod.B_ANCHOR + _mod.B_INSERT, "D21-B")
+    t = replace_once(t, _mod.C_ANCHOR, _mod.C_REPLACE, "D21-C")
+
+    # ---- D28: 残缺框过滤下限 8px → 3px (D25 换广角后 5m 处桶只有 ~5px) ----
+    t = replace_once(t, "            _thr = max(8.0, 0.5 * sides[len(sides) // 2])",
+                        "            _thr = max(K_ROI_MIN_PX, 0.5 * sides[len(sides) // 2])  # D28", "D28-a")
+    t = replace_once(t, "            _thr = 8.0\n", "            _thr = K_ROI_MIN_PX  # D28\n", "D28-b")
+
+    # ---- D29: 巡航高度 5.0 → 3.0 m; 同时把「PID 增益基准」拆出来 ----
+    #   为什么可以降到 3m (2026-10-12 算过): 相机换成原生 130° 后
+    #     沿机头方向覆盖 = 2·H·tan(92.87°/2) ⇒ 3m 时 6.31m > 投放区 5m ✓ (2.5m 也够: 5.26m)
+    #     横向覆盖 = 2·H·tan(123.70°/2) ⇒ 3m 时 11.21m > 区宽 8m ✓
+    #   ⇒ **一次进场就能看全整个投放区**(旧 85°/54° 在 3m 只覆盖 3.06m, 所以当年才定 5m)。
+    #   好处: 15cm 桶成像从 5.1px(5m) 升到 **8.6px(3m)** ⇒ 直径分类量化误差从 ±2cm 降到 ±0.9cm。
+    #   ⚠ `CRUISE_HEIGHT` 同时是伺服 PID 的增益基准 (`height_scale = H/CRUISE_HEIGHT`),
+    #     直接改会让同一高度下的增益放大 5/3=1.67× ⇒ 必须拆出 `PID_HEIGHT_REF` 固定在 5.0。
+    t = replace_once(t, "CRUISE_HEIGHT = 5.0\n",
+        "CRUISE_HEIGHT = 3.0    # D29: 巡航/搜索高度 (m) —— 5.0→3.0 (130° 视野下 3m 已能看全投放区)\n"
+        "PID_HEIGHT_REF = 5.0   # D29: 伺服 PID 的**增益基准高度** (m) —— 与巡航高度解耦, 保持 5.0 不变\n",
+        "D29-alt")
+    t = replace_once(t, "                height_scale = dz_h / CRUISE_HEIGHT",
+                        "                height_scale = dz_h / PID_HEIGHT_REF   # D29: 基准与巡航高度解耦", "D29-pid")
+    t = replace_once(t, "            f\"cruise={CRUISE_HEIGHT}m drop={DROP_HEIGHT}m (no flight boundary)\")",
+                        "            f\"cruise={CRUISE_HEIGHT}m drop={DROP_HEIGHT}m (no flight boundary)\")", "D29-log-noop")
+
+    # ---- D25: 相机模型换成原生 130° 对角线 @16:9 (去视觉裁切) ----
+    t = replace_once(t, CAM_OLD, CAM_NEW, "D25-camera")
+
+    # ---- D16a: _cb_detect 记录检测帧序号 (供 DROP 段判"这一拍是不是新帧") ----
+    t = replace_once(
+        t, '        detections = data.get("buckets", [])\n',
+        '        detections = data.get("buckets", [])\n'
+        '        self._det_seq = data.get("frame_seq")   # D16: 新帧判据用 (检测器 10Hz, 节点 20Hz)\n',
+        "D16a-seq")
+
+    # ---- D13: 释放容差 = 桶半径 × 0.8 ----
+    anchor13 = "K_SIM_IDEAL_CAMERA = True"
+    t = replace_once(t, anchor13, K_TOL_CONST + anchor13, "D13-consts")
+    t = replace_once(t, K_TOL_OLD, K_TOL_NEW, "D13-init")
+    for _o, _n in K_TOL_USE:
+        t = replace_once(t, _o, _n, "D13-use")
+
+    # ---- D12: 下降段改时间锚定限速 ----
+    t = replace_once(t, K_DESCENT_OLD_PRE, K_DESCENT_NEW_PRE, "D12-pre")
+    t = replace_once(t, K_DESCENT_OLD_VIS, K_DESCENT_NEW_VIS, "D12-vis")
+
+    # ---- D8: 追踪器改一对一全局分配 ----
+    tb = t.index("    def _update_trackers(self, bucket_ests):\n")
+    te = t.index("\n    def _enter_step(self, step):\n")
+    assert tb < te, "追踪器函数定位失败"
+    t = t[:tb] + K_TRACKER_BLOCK + t[te + 1:]
+
+    return t
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--check", action="store_true", help="只校验锚点, 不写文件")
+    ap.add_argument("--diff", action="store_true", help="打印与 i 的差异块")
+    args = ap.parse_args()
+
+    src = SRC.read_text(encoding="utf-8")
+    out = build(src)
+
+    if args.check:
+        print("锚点全部命中 ✓")
+    if args.diff:
+        a = src.split("\n")
+        b = out.split("\n")
+        sm = difflib.SequenceMatcher(None, a, b, autojunk=False)
+        blocks = [op for op in sm.get_opcodes() if op[0] != "equal"]
+        print(f"i.py {len(a)} 行 → k.py {len(b)} 行, 差异块 {len(blocks)} 处:")
+        for tag, i1, i2, j1, j2 in blocks:
+            print(f"  {tag:8s} i[{i1 + 1}:{i2}] ({i2 - i1} 行) → k[{j1 + 1}:{j2}] ({j2 - j1} 行)")
+        return 0
+    if args.check:
+        return 0
+
+    if DST.exists():
+        ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        bak = DST.with_suffix(f".py.bak.{ts}_newk")
+        shutil.copy2(DST, bak)
+        print(f"[backup] {bak.name}")
+    DST.write_text(out, encoding="utf-8")
+    print(f"[write] {DST.relative_to(REPO)}  {len(out.splitlines())} 行 "
+          f"({DST.stat().st_size} B)")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

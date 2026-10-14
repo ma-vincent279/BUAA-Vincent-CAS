@@ -1,0 +1,221 @@
+#!/usr/bin/env python3
+# ⚠ 历史验收 (逐次迭代记录, 非当前判据): 本脚本冻结的是 i.py 在本次迭代**当时**的常量值
+#   (截止日期见文件名)。i.py 之后又被后续迭代改过 (10-07 晚 ~ 10-09), 且 i.py 本身一行未动
+#   ⇒ **现在重跑必然失败, 属预期**, 不代表代码有问题。当前有效的判据见:
+#     scripts/test_i_xf005_20261007.py (i 最后一次改动, 38/38)
+#     scripts/test_i_hold_geom_20261007.py (2026-10-09 已对齐 i 现值, 30/30)
+#     scripts/test_calib_params_20261009.py (22/22) + scripts/test_l_target_plane_20261009.py k|l (15/15)
+# -*- coding: utf-8 -*-
+"""离线验收: 第 1 投冻结质量修复 (P1+P2+P3+P4+P5).
+
+A. 常量核对 + 冻结项未被改动
+B. 最小改动审计: 剥注释后只允许"设计内的"新增/替换 (删除行必须来自白名单)
+C. 门控单元测试 (直接 exec 出厂代码里的 4 个辅助函数 + 用 13:02 真实帧):
+   P1 已确认追踪器 / P3 贴边裁剪 / P5 窗口散布
+D. **13:02 第 1 投逐帧回放**: 用日志里的真实 (框, NED, vxy, 追踪器确认标记) 跑新旧两套门控,
+   对比"冻结时刻/冻结估计/相对收敛值的偏差"
+E. 安全边界: 20s 必投兜底与 deadline 路径未改动
+"""
+import os
+import re
+import sys
+import math
+import glob
+import difflib
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+TARGETS = [os.path.join(ROOT, "src/drone_drl/drone_drl/i.py"),
+           os.path.join(ROOT, "fly/src/fly/fly/i.py")]
+LOG = os.path.join(ROOT, "10.7/i_mission_20261007_130234.log")
+STAMP = "firstdrop_fix"
+EXPECT = {"I_CALM_TIMEOUT": 6.0, "I_CALM_MIN_FALLBACK": 3, "I_FREEZE_TRACKER_M": 1.0,
+          "I_FREEZE_MAX_SPREAD": 0.10, "I_FREEZE_EDGE_MARGIN": 8,
+          "I_SETTLE_HARD_VXY": 0.25, "I_SETTLE_HARD_MAX": 8.0,
+          "I_SETTLE_MAX": 5.0, "I_SETTLE_HOLD": 1.0, "I_RELEASE_TIMEOUT": 20.0,
+          "I_CALM_TILT": 5.0, "I_CALM_VXY": 0.15, "I_CALM_SAMPLES": 5,
+          "PAYLOAD_OFFSET_BODY_Y_B1": 0.18, "PAYLOAD_OFFSET_BODY_Y_B2": 0.00,
+          "PAYLOAD_OFFSET_BODY_XF_B1": 0.00, "PAYLOAD_OFFSET_BODY_XF_B2": 0.00}
+# 允许被删除/替换的旧代码行 (设计内)
+WHITELIST_OLD = ["I_CALM_TIMEOUT   = 3.0",
+                 "I_SETTLE_MAX     = 5.0     # 先停稳: 最长等待 (s), 超时照常进入采样",
+                 "or (sim_t - getattr(self, '_i_pre_start', sim_t) >= I_SETTLE_MAX))",
+                 "if _est is not None and _calm:",
+                 "_enough = (len(self._i_samp) >= I_CALM_SAMPLES",
+                 "or (len(self._i_samp) > 0 and _t_wait > I_CALM_TIMEOUT))",
+                 "if self._i_samp:", "_xs = sorted(s[0] for s in self._i_samp)",
+                 "_ys = sorted(s[1] for s in self._i_samp)",
+                 "self._i_nsamp = len(self._i_samp)",
+                 'self._i_mode = "平静帧中值(校准%d帧)" % self._i_nsamp if self._i_samp else "兜底:无平静样本"',
+                 "f\"补偿B{self._drop_count + 1}=({_dy:+.3f},{_dx:+.3f}){' [兜底:无检测]' if _est is None else ''}\")"]
+ok = fail = 0
+
+
+def check(cond, msg):
+    global ok, fail
+    if cond:
+        ok += 1
+        print("  ✓ %s" % msg)
+    else:
+        fail += 1
+        print("  ✗ %s" % msg)
+
+
+def const(text, name):
+    """按字面量取常量: 无小数点则返回 int (与出厂代码的 I_CALM_SAMPLES=5 一致, 否则切片会报错)."""
+    m = re.search(r"^%s\s*=\s*([+-]?[0-9.]+)" % re.escape(name), text, re.M)
+    if not m:
+        return None
+    return int(m.group(1)) if "." not in m.group(1) else float(m.group(1))
+
+
+print("=== A: 常量核对 ===")
+src = open(TARGETS[1], encoding="utf-8").read()
+for k, v in EXPECT.items():
+    check(const(src, k) == v, "%s = %s" % (k, v))
+
+print("\n=== B: 最小改动审计 (fly 版, 剥注释) ===")
+bak = sorted(glob.glob(TARGETS[1] + ".bak.*" + STAMP))[-1]
+old = open(bak, encoding="utf-8").read()
+strip = lambda s: [re.sub(r"\s*#.*$", "", l).rstrip() for l in s.split("\n")]
+o = [x for x in strip(old) if x.strip()]
+n = [x for x in strip(src) if x.strip()]
+removed = [x for x in difflib.unified_diff(o, n, lineterm="", n=0) if x.startswith("-") and not x.startswith("---")]
+added = [x for x in difflib.unified_diff(o, n, lineterm="", n=0) if x.startswith("+") and not x.startswith("+++")]
+bad = [x for x in removed if x[1:].strip() not in WHITELIST_OLD]
+check(not bad, "所有被替换/删除的旧代码行都在白名单内 (%d 行, 越界: %s)" % (len(removed), bad or "无"))
+print("     新增 %d 行 / 替换 %d 行 / 净增 %d 行" % (len(added), len(removed), len(added) - len(removed)))
+check(60 <= len(added) - len(removed) <= 100, "代码净增 %d 行 (符合设计量级)" % (len(added) - len(removed)))
+check("_agree2" in src and "I_CALM_MIN_FALLBACK" in src, "P5 两级判据 (稳定窗 / 最近两帧一致) 已在代码里")
+
+print("\n=== C: 门控单元测试 (exec 出厂辅助函数) ===")
+
+
+class FakeRoi:
+    def __init__(self, x, y, w, h):
+        self.x_offset, self.y_offset, self.width, self.height = x, y, w, h
+
+
+class Fake:
+    pass
+
+
+ns = {}
+consts = {k: const(src, k) for k in EXPECT}
+ns.update(consts)
+ns["math"] = math
+ns["IMG_W"], ns["IMG_H"] = 640, 360
+# 抽出 4 个辅助函数源码并 exec (与出厂完全一致)
+for fn in ("_i_target_tracker_ok", "_i_roi_inside", "_i_samp_recent", "_i_samp_spread"):
+    m = re.search(r"    def %s\(self[^\n]*\n(?:.*?\n)*?(?=    def )" % fn, src)
+    assert m, "找不到 %s" % fn
+    body = "\n".join(l[4:] if l.startswith("    ") else l for l in m.group(0).rstrip("\n").split("\n"))
+    exec(compile(body, "<%s>" % fn, "exec"), ns)
+IMission = type("IMission", (), ns)
+
+f = IMission()
+f._trackers = [{"ned": (1.0, 1.0), "confirmed": False}, {"ned": (10.0, 10.0), "confirmed": True}]
+f._current_target_ned = (1.2, 1.0)
+check(f._i_target_tracker_ok() is False, "P1: 目标追踪器未确认 ⇒ 不采样")
+f._trackers[0]["confirmed"] = True
+check(f._i_target_tracker_ok() is True, "P1: 已确认且 0.2m 内 ⇒ 可采样")
+f._current_target_ned = (5.0, 5.0)
+check(f._i_target_tracker_ok() is False, "P1: 最近追踪器 7m 远 ⇒ 不采样 (超 I_FREEZE_TRACKER_M)")
+
+check(f._i_roi_inside(FakeRoi(163, 292, 142, 142)) is False, "P3: 13:02 冻结帧 (163,292)w142 ⇒ 底边 363>359 被裁 ⇒ 拒收")
+check(f._i_roi_inside(FakeRoi(474, 7, 165, 165)) is False, "P3: 13:02 后续帧 (556,62)w165 ⇒ 右边 639/上边裁 ⇒ 拒收")
+check(f._i_roi_inside(FakeRoi(73, 136, 137, 137)) is True, "P3: 13:02 首帧 (142,205)w137 ⇒ 整框在内 ⇒ 收")
+check(f._i_roi_inside(FakeRoi(0, 0, 100, 100)) is False, "P3: 左上角贴边 ⇒ 拒收")
+check(f._i_roi_inside(None) is False, "P3: 无框 ⇒ 拒收")
+
+f._i_samp = [(0.0, 0.0), (0.01, 0.01), (-0.02, 0.0), (0.0, 0.03), (0.01, -0.01)]
+check(f._i_samp_spread() <= 0.10, "P5: 稳定窗 (最大 4cm) ⇒ 允许冻结")
+f._i_samp = [(0.0, 0.0), (0.01, 0.01), (-0.02, 0.0), (0.0, 0.03), (0.30, -0.40)]
+check(f._i_samp_spread() > 0.10, "P5: 窗口里有 50cm 漂移 ⇒ 拒绝冻结")
+check(len(f._i_samp_recent()) == 5, "P5: recent 只取最近 5 帧")
+f._i_samp = [(float(i), 0.0) for i in range(9)]
+check(f._i_samp_recent()[0][0] == 4.0, "P5: 9 个样本时窗口 = 最近 5 个 (第 5~9)")
+
+print("\n=== D: 13:02 第 1 投逐帧回放 (真实日志数据) ===")
+lines = open(LOG, encoding="utf-8", errors="ignore").read().split("\n")
+t0 = None
+frames = []
+for i, l in enumerate(lines):
+    mt = re.search(r"\[(\d+\.\d+)\]", l)
+    if not mt:
+        continue
+    t = float(mt.group(1))
+    if t0 is not None and ">>> DROP #1" in l:
+        break
+    if t0 is None and "STEP VISUAL_SERVO->DROP" in l:
+        t0 = t
+        continue
+    if t0 is None:
+        continue
+    mm = re.search(r"boxes=\[\((\d+),\s*(\d+)\)w(\d+)→NED\(([-\d.]+),([-\d.]+)\)\]", l)
+    if mm:
+        conf = bool(re.search(r"trackers=\d*\[#\d+C", l))
+        frames.append({"t": t - t0, "box": (int(mm.group(1)), int(mm.group(2)), int(mm.group(3))),
+                       "ned": (float(mm.group(4)), float(mm.group(5))), "conf": conf, "vxy": None})
+    mv = re.search(r"vNED=\(([-+\d.]+),([-+\d.]+),", l)
+    if mv and frames:
+        frames[-1]["vxy"] = math.hypot(float(mv.group(1)), float(mv.group(2)))
+if not frames:
+    check(False, "无法从日志解析第 1 投帧序列")
+else:
+    # 车队真实速度: 用相邻帧 1Hz 速度行补齐 (缺则用最近的)
+    v = next((fr["vxy"] for fr in frames if fr["vxy"] is not None), 0.45)
+    for fr in frames:
+        if fr["vxy"] is None:
+            fr["vxy"] = v
+    print("  帧序列 (t, 框, 追踪器已确认, vxy, P3 整框?, 采样?)")
+    samp_old, samp_new = [], []
+    freeze_new = None
+    freeze_t = None
+    for fr in frames:
+        cx, cy, w = fr["box"]
+        inside = f._i_roi_inside(FakeRoi(cx - w // 2, cy - w // 2, w, w))
+        calm = fr["vxy"] < 0.15
+        acc_new = calm and fr["conf"] and inside
+        if calm:                       # 旧门控: 只看平静
+            samp_old.append(fr["ned"])
+        if acc_new:
+            samp_new.append(fr["ned"])
+        f._i_samp = samp_new
+        sp = f._i_samp_spread()
+        l2 = samp_new[-2:] if len(samp_new) >= 2 else []
+        agree2 = (len(l2) == 2 and math.hypot(l2[0][0] - l2[1][0], l2[0][1] - l2[1][1]) <= 0.10)
+        stable = len(f._i_samp_recent()) >= 5 and sp <= 0.10
+        enough = stable or (agree2 and len(samp_new) >= 3 and fr["t"] > 6.0)
+        tag = ""
+        if enough and freeze_new is None:
+            freeze_new = (0.5 * (l2[0][0] + l2[1][0]), 0.5 * (l2[0][1] + l2[1][1])) if (not stable and len(l2) == 2) else fr["ned"]
+            freeze_t = fr["t"]
+            tag = "★新冻结(%s)" % ("整窗中值" if stable else "最近两帧均值")
+        print("   +%5.2fs 框(%3d,%3d)w%3d 确认=%-5s vxy=%.2f 整框=%-5s 采样=%-5s 窗口散布=%4.0fcm %s"
+              % (fr["t"], cx, cy, w, fr["conf"], fr["vxy"], inside, acc_new, sp * 100, tag))
+    conv = samp_old[-1] if samp_old else None
+    d_old = math.hypot(freeze_new[0] - conv[0], freeze_new[1] - conv[1]) if freeze_new and conv else float('nan')
+    _ft = freeze_t
+    print("\n  旧门控 (只看平静): 冻结于 t=+4.75s, 用 1 帧, 与之后收敛值差 58cm ← 实测")
+    if freeze_new:
+        print("  新门控 (P1+P3+P4+P5): 冻结于 t≈%+.2fs, 估计=(%.2f,%.2f), 与末帧差 %.0fcm"
+              % (_ft if _ft else -1, freeze_new[0], freeze_new[1], d_old * 100))
+    else:
+        print("  新门控: 本段无可用样本 ⇒ 走 20s 必投兜底")
+    nclip = sum(1 for fr in frames
+                if not f._i_roi_inside(FakeRoi(fr["box"][0] - fr["box"][2] // 2,
+                                               fr["box"][1] - fr["box"][2] // 2,
+                                               fr["box"][2], fr["box"][2])))
+    check(nclip >= 1, "日志里确实存在被裁剪的框 (%d/%d 帧被裁 ⇒ 新门控会拒收)" % (nclip, len(frames)))
+    check(len(samp_new) <= len(samp_old), "新门控采样 %d 帧 ≤ 旧门控 %d 帧 (严格性不降低)" % (len(samp_new), len(samp_old)))
+    if freeze_new and conv:
+        check(d_old <= 0.15, "新门控冻结值 = 回放末帧值 (差 %.0fcm ≤ 15cm)" % (d_old * 100))
+
+print("\n=== E: 安全边界 (必投保证未动) ===")
+check("_forced = _t_wait > I_RELEASE_TIMEOUT" in src, "20s 必投兜底 `_forced` 仍在")
+check("if _enough or _forced:" in src, "冻结决策仍由 `_enough or _forced` 触发 (不会卡死)")
+check("_dl_pick" in src and "I_DEADLINE_WIN" in src, "deadline 挑时机路径未改动")
+check("self._drop_triggered = True" in src, "释放通道未改动")
+
+print("\n结果: %d 通过 / %d 失败" % (ok, fail))
+sys.exit(1 if fail else 0)

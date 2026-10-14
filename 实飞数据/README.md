@@ -4,7 +4,7 @@
 >
 > ⚠️ **先说最重要的一条**：**当前主线版本 `k` 还没有实飞过** 【待验证】。
 > 下面所有实飞记录都是 `b` ~ `i` 的历史版本。
-> `k` 的首飞清单见 [`../reports/k_flight_prep_20261013.md`](../reports/k_flight_prep_20261013.md)。
+> `k` 的首飞清单见 [`../reports/k_flight_prep_20261013.md`](../技术文档/专题报告/k_flight_prep_20261013.md)。
 
 ---
 
@@ -148,7 +148,7 @@ ls scripts/analyze_*.py scripts/check_*.py
 3. **落点必须量两个分量**（沿航向 / 垂直航向），不要写"偏左下方"这种描述 ✗
 4. **一次只改一个变量**：这个项目的历史版本（`a`~`j`）就是这么做的 ——
    每个版本只改一处，便于归因
-5. **把当天的日志和结论写进** [`../project_log.md`](../project_log.md)，别只留在脑子里
+5. **把当天的日志和结论写进** [`../project_log.md`](../日志.md)，别只留在脑子里
 
 ---
 
@@ -156,7 +156,7 @@ ls scripts/analyze_*.py scripts/check_*.py
 
 | 想了解 | 去哪 |
 |---|---|
-| 首飞怎么做 | [`../reports/k_flight_prep_20261013.md`](../reports/k_flight_prep_20261013.md) |
-| 日志怎么读 | [`从零开始的CUADC生活/08_从零开始的回看日志生活.md`](从零开始的CUADC生活/08_从零开始的回看日志生活.md) |
-| 精度结论怎么来的 | [`../reports/k_accuracy_three_lenses_20261013.md`](../reports/k_accuracy_three_lenses_20261013.md) |
-| 完整开发历史 | [`../project_log.md`](../project_log.md) |
+| 首飞怎么做 | [`../reports/k_flight_prep_20261013.md`](../技术文档/专题报告/k_flight_prep_20261013.md) |
+| 日志怎么读 | [`从零开始的CUADC生活/08_从零开始的回看日志生活.md`](../从零开始的CUADC生活/从零开始的回看日志生活.md) |
+| 精度结论怎么来的 | [`../reports/k_accuracy_three_lenses_20261013.md`](../技术文档/专题报告/k_accuracy_three_lenses_20261013.md) |
+| 完整开发历史 | [`../project_log.md`](../日志.md) |

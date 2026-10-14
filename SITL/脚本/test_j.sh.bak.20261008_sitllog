@@ -1,7 +1,12 @@
 #!/bin/bash
 # ================================================================
-# 子项目 d — 一键启动 (临时副本, 仅修改步骤5等待逻辑: sleep 30 → 轮询 600s)
-# 用法: bash ~/SITL/tmp_test_d_fixed.sh
+# 子项目 j — 一键启动 (基底 = 项目 e, 只改释放判据) (投放区 30m + 侦察区动作序列 + 返航)
+# ----------------------------------------------------------------
+# 与 e 的唯一差异 = 两级释放判据 (方案 B, 2026-09-24):
+#   Tier1 优选: conv_m<5cm + 低谷(<=本段最小+2cm) + 准静止(vxy<0.12), 确认 0.5s
+#   Tier2 保底: e 的旧判据 conv_m<10cm 持续 1.0s (先给 Tier1 10s 优先窗口)
+#   Tier3 兜底: DROP_AFTER_DELAY=35s 无条件释放 (未改)
+# 用法: bash ~/SITL/scripts/test_j.sh
 # ================================================================
 set -e
 
@@ -9,7 +14,7 @@ SITL_DIR="/home/vincent/SITL"
 PX4_DIR="/home/vincent/PX4-Autopilot"
 PX4_BUILD="$PX4_DIR/build/px4_sitl_default"
 PX4_ROOTFS="$PX4_BUILD/rootfs"
-LOG_FILE="/tmp/d_output.log"
+LOG_FILE="/tmp/j_output.log"
 
 echo "=== 1. 清理残留进程 ==="
 for port in 11345 8888; do
@@ -44,9 +49,9 @@ export PX4_PARAM_CBRK_IO_SAFETY=22027
 export PX4_PARAM_CBRK_USB_CHK=197848
 export PX4_PARAM_COM_OF_LOSS_T=10.0
 export PX4_PARAM_COM_LOW_BAT_ACT=0
-export PX4_SITL_WORLD="$SITL_DIR/worlds/d.world"
+export PX4_SITL_WORLD="$SITL_DIR/worlds/j.world"
 echo "  PX4 状态已重置"
-echo "  World: d.world (投放区 30m×5m, 侦察区 55m×5m, 3 桶)"
+echo "  World: j.world (投放区 30m×5m, 侦察区 55m×5m, 3 桶)"
 
 echo ""
 echo "=== 3. 编译 ==="
@@ -102,8 +107,8 @@ ros2 run drone_drl yolov8_bucket_detector --ros-args \
     -p bucket2_gz_x:=34.01 -p bucket2_gz_y:=2.98 -p bucket2_gz_z:=0.25 \
     -p bucket3_gz_x:=35.01 -p bucket3_gz_y:=0.98 -p bucket3_gz_z:=0.25 &
 sleep 0.5
-# 终极项目裁判 (使用 final_judge, 传入新的桶坐标). 输出重定向到日志文件供事后查看打分
-JUDGE_LOG="/tmp/d_judge.log"
+# 独立裁判 (final_judge, 传入桶坐标). 输出重定向到日志文件供事后查看打分
+JUDGE_LOG="/tmp/i_judge.log"
 rm -f "$JUDGE_LOG"
 ros2 run drone_drl final_judge --ros-args \
     -p bucket1_gz_x:=32.51 -p bucket1_gz_y:=-0.52 -p bucket1_gz_z:=0.25 \
@@ -114,10 +119,10 @@ sleep 1
 echo "  辅助节点已启动 (裁判日志: $JUDGE_LOG)"
 
 echo ""
-echo "=== 8. 启动 D 任务 ==="
+echo "=== 8. 启动 F 任务 ==="
 echo "  =========================================="
 source "$SITL_DIR/install/setup.bash"
-ros2 run drone_drl d 2>&1 | tee "$LOG_FILE"
+ros2 run drone_drl j 2>&1 | tee "$LOG_FILE"
 
 # 任务结束后的清理
 echo ""
@@ -132,4 +137,4 @@ else
     echo "  (无裁判日志)"
 fi
 echo ""
-echo "d 完成喵~ 任务日志: $LOG_FILE / 裁判日志: $JUDGE_LOG"
+echo "f 完成喵~ 任务日志: $LOG_FILE / 裁判日志: $JUDGE_LOG"

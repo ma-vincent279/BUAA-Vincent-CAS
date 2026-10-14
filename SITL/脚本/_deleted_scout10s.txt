@@ -1,0 +1,41 @@
+            if self._scout_sub == 3:
+                # 子阶段3: 机体左移 1.5m
+                tx, ty = sx + left_x * SCOUT_LEFT_DIST, sy + left_y * SCOUT_LEFT_DIST
+                self._pub_pos(self.home_x + tx, self.home_y + ty, scout_z, yaw_locked)   # c 世代: 直接位置设定点 (取消 h 移植的平移限速)
+                if sub_elapsed > SCOUT_SUB_TIMEOUT:
+                    self.get_logger().warn("Scout left-move timeout, pausing")
+                    self._scout_sub = 4; self._scout_sub_start = self.get_clock().now(); return
+                if math.hypot((self.x - self.home_x) - tx, (self.y - self.home_y) - ty) < SCOUT_SUB_ARRIVE:
+                    self._scout_sub = 4; self._scout_sub_start = self.get_clock().now()
+                    self.get_logger().info("Scout: left 1.5m done, pausing 5s")
+                return
+            if self._scout_sub == 4:
+                # 子阶段4: 停 5s (位置保持)
+                tx, ty = sx + left_x * SCOUT_LEFT_DIST, sy + left_y * SCOUT_LEFT_DIST
+                self._pub_pos(self.home_x + tx, self.home_y + ty, scout_z, yaw_locked)
+                if sub_elapsed >= SCOUT_PAUSE_TIME:   # c 世代: 到点即计时 (取消 h 移植的判稳门控)
+                    self._scout_sub = 5; self._scout_sub_start = self.get_clock().now()
+                    self.get_logger().info("Scout: pause done, moving right 3m")
+                return
+            if self._scout_sub == 5:
+                # 子阶段5: 机体右移 3m (终点=预定点右侧1.5m)
+                tx = sx + left_x * SCOUT_LEFT_DIST - left_x * SCOUT_RIGHT_DIST
+                ty = sy + left_y * SCOUT_LEFT_DIST - left_y * SCOUT_RIGHT_DIST
+                self._pub_pos(self.home_x + tx, self.home_y + ty, scout_z, yaw_locked)   # c 世代: 直接位置设定点 (取消 h 移植的平移限速)
+                if sub_elapsed > SCOUT_SUB_TIMEOUT:
+                    self.get_logger().warn("Scout right-move timeout, pausing")
+                    self._scout_sub = 6; self._scout_sub_start = self.get_clock().now(); return
+                if math.hypot((self.x - self.home_x) - tx, (self.y - self.home_y) - ty) < SCOUT_SUB_ARRIVE:
+                    self._scout_sub = 6; self._scout_sub_start = self.get_clock().now()
+                    self.get_logger().info("Scout: right 3m done, pausing 5s")
+                return
+            # 子阶段6: 停 5s → 返航
+            tx = sx + left_x * SCOUT_LEFT_DIST - left_x * SCOUT_RIGHT_DIST
+            ty = sy + left_y * SCOUT_LEFT_DIST - left_y * SCOUT_RIGHT_DIST
+            self._pub_pos(self.home_x + tx, self.home_y + ty, scout_z, yaw_locked)
+            if sub_elapsed >= SCOUT_PAUSE_TIME:   # c 世代: 到点即计时 (取消 h 移植的判稳门控)
+                self._scout_done = True                    # 2026-09-12 e: 写入 MISSION SUMMARY
+                self._scout_elapsed = self._step_elapsed()
+                self.get_logger().info(
+                    f"Scout maneuver complete ({self._scout_elapsed:.1f}s, 7 sub-phases), returning home")
+                self._enter_step(STEP_RETURN)

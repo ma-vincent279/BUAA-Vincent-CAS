@@ -179,7 +179,7 @@ entry_points={'console_scripts': [
 ⇒ `ros2 run <包名> <入口名>` 就是这么找到你的程序的 ✓
 
 **【经验/建议】** ⚠️ **改了 Python 代码必须重新 `colcon build`** —— 否则 `ros2 run` 跑的
-还是 `install/` 里的**旧副本** ✗（这是我们踩过的坑，见 [`../复现指南.md`](../复现指南.md)）
+还是 `install/` 里的**旧副本** ✗（这是我们踩过的坑，见 [`../复现指南.md`](../技术文档/配置仿真环境.md)）
 
 ---
 
@@ -272,4 +272,4 @@ ros2 topic echo --qos-reliability best_effort /fmu/out/vehicle_control_mode --on
 
 ## 七、下一章
 
-→ [`03_从零开始的仿真生活.md`](03_从零开始的仿真生活.md)：在电脑上把整个系统跑起来
+→ [`03_从零开始的仿真生活.md`](从零开始的仿真生活.md)：在电脑上把整个系统跑起来

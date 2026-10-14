@@ -1,0 +1,204 @@
+#!/bin/bash
+# ================================================================
+# 项目 k — 一键启动 (2026-10-11 新建, 基底 = i, 只替换 DROP 段)
+# ----------------------------------------------------------------
+# 与 test_i.sh 的差异 (均为本次对比后按规则/按他们的做法对齐):
+#   1. 场地 = worlds/k.world, 由 `scripts/gen_world_cuadc.py` **生成**,
+#      3 个桶 15/20/25cm (规则三档), 高 30cm, 白色, 落在投放区 NED y∈[30,35]
+#   2. 检测器与裁判的桶坐标**都从 `worlds/k.truth.json` 读** —— 不再手抄三处
+#   3. 裁判换成 `cuadc_judge` (规则原样计分: 落桶内 = 500/300/100, 距桶心≤0.5m = 50)
+#   4. 跑一轮落一个**独立产物目录** runs/k_<seed>_<ts>/ (任务日志/裁判/真值/摘要),
+#      且加 `trap` 按进程组收尾 (旧脚本只杀 agent, 会留 PX4+gzserver)
+# 用法: bash ~/SITL/scripts/test_k.sh
+# ================================================================
+set -e
+
+SITL_DIR="/home/vincent/SITL"
+PX4_DIR="/home/vincent/PX4-Autopilot"
+PX4_BUILD="$PX4_DIR/build/px4_sitl_default"
+PX4_ROOTFS="$PX4_BUILD/rootfs"
+# 世界可覆盖 (隔离实验用): WORLD_FILE=/abs/path/world.world bash scripts/test_k.sh hover_probe
+WORLD="${WORLD_FILE:-$SITL_DIR/worlds/k.world}"
+TRUTH="$SITL_DIR/worlds/k.truth.json"
+
+[ -f "$WORLD" ] || { echo "ERROR: 缺 $WORLD —— 先跑 python3 scripts/gen_world_cuadc.py --name k --seed 7"; exit 2; }
+[ -f "$TRUTH" ] || { echo "ERROR: 缺 $TRUTH"; exit 2; }
+
+# ---- 产物目录 (每次运行独立, 不互相覆盖) ----
+SEED=$(python3 -c "import json;print(json.load(open('$TRUTH'))['seed'])")
+TS=$(date +%Y%m%d_%H%M%S)
+RUN_DIR="$SITL_DIR/runs/k_${SEED}_${TS}"
+mkdir -p "$RUN_DIR"
+cp "$TRUTH" "$RUN_DIR/truth.json"
+cp "$WORLD" "$RUN_DIR/world.sdf"
+echo "RUN_DIR=$RUN_DIR" | tee "$RUN_DIR/RUN_INFO.txt"
+
+AGENT_PID=""
+cleanup() {
+    echo ""
+    echo "=== 9. 清理 (trap) ==="
+    [ -n "$AGENT_PID" ] && kill "$AGENT_PID" 2>/dev/null || true
+    # 真节点是包装进程的子进程 ⇒ 必须按可执行路径补杀 (2026-10-09 追加 33 的教训)
+    pkill -9 -f "drone_drl" 2>/dev/null || true
+    pkill -9 -x "px4" 2>/dev/null || true
+    pkill -9 -x "gzserver" 2>/dev/null || true
+    pkill -9 -x "gzclient" 2>/dev/null || true
+    pkill -9 -f "MicroXRCEAgent" 2>/dev/null || true
+    rm -f /tmp/cuadc_test_k.lock
+    echo "  已清理"
+}
+trap cleanup EXIT INT TERM
+
+echo "=== 1. 清理残留进程 ==="
+for port in 11345 8888; do
+    for pid in $(lsof -ti:$port 2>/dev/null); do
+        kill -9 $pid 2>/dev/null && echo "  killed PID $pid (port $port)" || true
+    done
+done
+pkill -9 -x "px4" 2>/dev/null || true
+pkill -9 -x "gzserver" 2>/dev/null || true
+pkill -9 -x "gzclient" 2>/dev/null || true
+pkill -9 -f "MicroXRCEAgent" 2>/dev/null || true
+pkill -9 -f "sitl_run" 2>/dev/null || true
+pkill -9 -f "make px4_sitl" 2>/dev/null || true
+pkill -9 -f "drone_drl" 2>/dev/null || true
+rm -f /tmp/px4_lock-0 /tmp/px4-sock-0 2>/dev/null
+sleep 2
+echo "  进程清理完成"
+
+# ---- 并发守卫 (2026-10-12 加): 两个实例同时跑会让裁判收到重复落点, 分数作废 ----
+#  起因: 有一次本脚本的 `pkill -f drone_drl` 把自己的父 shell 杀了, 但脚本本身继续跑,
+#        变成孤儿进程又跑了一整轮 ⇒ 同一 DDS 域里两个节点, 裁判收到 4 条落点。
+LOCK=/tmp/cuadc_test_k.lock
+if [ -f "$LOCK" ]; then
+    OLD_PID=$(cat "$LOCK" 2>/dev/null)
+    if [ -n "$OLD_PID" ] && kill -0 "$OLD_PID" 2>/dev/null; then
+        echo "ERROR: 已有另一个 test_k.sh 在跑 (PID $OLD_PID) ⇒ 拒绝启动 (并发会污染裁判)"
+        exit 10
+    fi
+    echo "  (清理陈旧的锁文件: PID $OLD_PID 已不存在)"
+fi
+echo $$ > "$LOCK"
+# 清理后若仍有 PX4/gzserver 存活 ⇒ 说明有并行实例或顽固残留, 拒绝启动
+if pgrep -x px4 > /dev/null || pgrep -x gzserver > /dev/null; then
+    echo "ERROR: 清理后仍有 px4/gzserver 存活 ⇒ 拒绝启动 (可能有并发实例)"
+    rm -f "$LOCK"
+    exit 11
+fi
+
+echo ""
+echo "=== 2. 清理旧日志 + 重置 PX4 持久化状态 ==="
+rm -rf "$PX4_ROOTFS/log"/*/ 2>/dev/null || true
+rm -f "$PX4_BUILD/dataman" "$PX4_ROOTFS/dataman" "$PX4_ROOTFS/parameters.bson" \
+      "$PX4_ROOTFS/parameters_backup.bson"
+rm -rf "$PX4_ROOTFS/eeprom"
+export PX4_PARAM_CBRK_SUPPLY_CHK=894281
+export PX4_PARAM_CBRK_IO_SAFETY=22027
+export PX4_PARAM_CBRK_USB_CHK=197848
+export PX4_PARAM_COM_OF_LOSS_T=10.0
+export PX4_PARAM_COM_LOW_BAT_ACT=0
+export PX4_SITL_WORLD="$WORLD"
+echo "  PX4 状态已重置; World: $WORLD (seed=$SEED)"
+
+echo ""
+echo "=== 3. 编译 ==="
+cd "$SITL_DIR"
+colcon build --packages-select drone_drl 2>&1 | tail -5
+source "$SITL_DIR/install/setup.bash"
+
+echo ""
+echo "=== 4. 启动 MicroXRCEAgent ==="
+MicroXRCEAgent udp4 -p 8888 &
+AGENT_PID=$!
+sleep 2
+echo "  Agent PID=$AGENT_PID"
+
+echo ""
+echo "=== 5. 启动 PX4 SITL + Gazebo ==="
+cd "$PX4_DIR"
+export GAZEBO_MODEL_DATABASE_URI=""
+# 机型可覆盖 (判决实验用): PX4_MODEL=gazebo-classic_iris bash scripts/test_k.sh hover_probe
+PX4_MODEL="${PX4_MODEL:-gazebo-classic_iris_mono_cam_down}"
+echo "  机型: $PX4_MODEL"
+make px4_sitl "$PX4_MODEL" &
+echo "  等待初始化 (轮询, 最多 600s)..."
+for i in $(seq 1 120); do
+    if pgrep -x gzserver > /dev/null && pgrep -x px4 > /dev/null; then
+        echo "  初始化完成 (第 $((i*5))s)"; break
+    fi
+    sleep 5
+done
+pgrep -x gzserver > /dev/null || { echo "ERROR: gzserver failed"; exit 1; }
+pgrep -x px4 > /dev/null || { echo "ERROR: px4 failed"; exit 1; }
+echo "  PX4 + Gazebo 就绪"
+
+echo ""
+echo "=== 6. 等待 DDS 话题 ==="
+source "$SITL_DIR/install/setup.bash"
+for i in $(seq 1 20); do
+    if ros2 topic list 2>/dev/null | grep -q "/fmu/out/vehicle_status_v4"; then
+        echo "  DDS 就绪"; break
+    fi
+    sleep 1
+done
+
+echo ""
+echo "=== 7. 启动辅助节点 (参数全部由 truth.json 机器生成) ==="
+source "$SITL_DIR/install/setup.bash"
+# 桶参数: ned → gazebo (gz_x = ned_y + spawn_x, gz_y = ned_x + spawn_y)
+BUCKET_ARGS=$(python3 - "$TRUTH" <<'PY'
+import json, sys
+t = json.load(open(sys.argv[1]))
+sx, sy = t['spawn_gz']['x'], t['spawn_gz']['y']
+out = []
+for i, b in enumerate(t['buckets'], 1):
+    gx, gy = b['ned_y'] + sx, b['ned_x'] + sy
+    out += [f"-p bucket{i}_gz_x:={gx:.3f}", f"-p bucket{i}_gz_y:={gy:.3f}",
+            f"-p bucket{i}_gz_z:=0.15", f"-p bucket{i}_radius:={b['radius']:.4f}"]
+print(" ".join(out))
+PY
+)
+echo "  桶参数: $BUCKET_ARGS"
+
+# shellcheck disable=SC2086
+ros2 run drone_drl yolov8_bucket_detector --ros-args \
+    -p use_sim:=true -p conf_threshold:=0.3 -p bucket_count:=3 \
+    -p focal_px:=171.205 -p img_width:=640 -p img_height:=360 \
+    $BUCKET_ARGS > "$RUN_DIR/detector.log" 2>&1 &
+sleep 0.5
+
+ros2 run drone_drl cuadc_judge --ros-args \
+    -p truth_file:="$TRUTH" \
+    -p impact_topic:=/drop/impact_rel \
+    -p allow_reuse:=false \
+    -p summary_file:="$RUN_DIR/summary.json" \
+    > "$RUN_DIR/judge.log" 2>&1 &
+sleep 1
+echo "  辅助节点已启动 (裁判: $RUN_DIR/judge.log)"
+
+echo ""
+echo "=== 8. 启动 K 任务 (机体坐标系闭环伺服投弹) ==="
+echo "  =========================================="
+source "$SITL_DIR/install/setup.bash"
+set +e
+NODE="${1:-k}"                        # 首个参数 = 要跑的节点 (默认 k; 传 hover_probe 即悬停探针)
+if [ "$NODE" = "hover_probe" ]; then
+    HOLDS_ARG="${PROBE_HOLDS:-0,0,12;2,32,12;5,28,12;0,0,12}"
+    ros2 run drone_drl "$NODE" --ros-args -p "csv_path:=$RUN_DIR/hover.csv" \
+        -p "holds:=$HOLDS_ARG" -p "hold_mode:=${PROBE_MODE:-offboard}" \
+        2>&1 | tee "$RUN_DIR/mission.log"
+else
+    ros2 run drone_drl "$NODE" 2>&1 | tee "$RUN_DIR/mission.log"
+fi
+set -e
+
+echo ""
+echo "=== 裁判打分 (规则: A区=桶内 500/300/100, B区=距桶心0.5m 50) ==="
+cat "$RUN_DIR/judge.log" 2>/dev/null || echo "  (无裁判日志)"
+echo ""
+if [ -f "$RUN_DIR/summary.json" ]; then
+    echo "=== 摘要 ==="
+    cat "$RUN_DIR/summary.json"
+fi
+echo ""
+echo "k 完成喵~ 产物目录: $RUN_DIR"
