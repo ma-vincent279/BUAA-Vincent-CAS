@@ -1,0 +1,2126 @@
+#!/usr/bin/env python3
+"""
+子项目 i — (f 副本; 低空改为一次性相对修正+定点保持+停留5s+必投) 投放区 30m + 侦察区动作序列 + 返航 (基底 = 项目 e, 只改"释放判据").
+
+来历 (2026-09-24 新建, 用户要求: 新建 f, e 不动):
+  - 基底 = e.py 逐字节复制 (e 一行未改), 只替换 节点名/类名/入口名/MISSION_REVISION
+  - 改动 = 两级释放判据 (Tier1 优选相位 + Tier2 保底 + Tier3 35s 兜底), 见下方常量块
+
+动机 (9-24 实飞 ULog 复盘):
+  e 的判据只要求 conv_m < 10cm, 而最坏情况 = 10cm(残差) + 3~7.6cm(弹道漂移) > 桶半径 12.5cm
+  => 最坏情况会脱靶; 9-24 两次命中是运气 (2.6/1.8cm, 且漂移方向恰好抵消残差).
+依据 (8 份历史实飞日志回放): 几何正确时残差每轮都会穿过 2~4cm 低谷, 但"待在 5cm 以内"只有 1~3s.
+改法:
+  Tier1 (优选): conv_m<5cm 且处于本段低谷(<=本段最小值+2cm) 且准静止(vxy<0.12), 确认 0.5s
+  Tier2 (保底): e 的旧判据 conv_m<10cm 持续 1.0s, 但先给 Tier1 DROP_PREFER_WINDOW=10s 机会
+  Tier3 (兜底): DROP_AFTER_DELAY=35s 无条件释放 (不变)
+  => 形态上"永不比 e 更差": Tier2 与 e 的判据逐字相同, 只是延后到 10s 之后才生效.
+其余 (DROP 段锚点+反投影伺服 / 两轴瞄准补偿 / 俯冲段 / 侦察 7 子阶段 / RETURN 判稳 / LAND 限速)
+全部与 e 完全一致.
+"""
+
+import collections
+import json
+import hashlib
+import math
+from pathlib import Path
+import rclpy
+from rclpy.node import Node
+from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
+from px4_msgs.msg import (
+    TrajectorySetpoint, OffboardControlMode, VehicleCommand,
+    VehicleStatus, VehicleLocalPosition, VehicleLandDetected,
+    ManualControlSetpoint, VehicleControlMode, VehicleAttitude,
+)
+from sensor_msgs.msg import RegionOfInterest
+from std_msgs.msg import Float32, String
+from geometry_msgs.msg import Point
+
+# ============================================================
+# 实机 QoS & 话题 (内联, 不依赖 common.py)
+# ============================================================
+
+QOS_BE = QoSProfile(
+    reliability=ReliabilityPolicy.BEST_EFFORT,
+    durability=DurabilityPolicy.VOLATILE,
+    depth=10,
+)
+
+# 实机 PX4 固件使用 _v1 后缀 (fly/ 已验证)
+PX4_STATUS_SUFFIX = "_v1"
+PX4_LOCAL_POS_SUFFIX = "_v1"
+
+STATUS_TOPIC = f"/fmu/out/vehicle_status{PX4_STATUS_SUFFIX}"
+LOCAL_POS_TOPIC = f"/fmu/out/vehicle_local_position{PX4_LOCAL_POS_SUFFIX}"
+LAND_DETECTED_TOPIC = "/fmu/out/vehicle_land_detected"
+CONTROL_MODE_TOPIC = "/fmu/out/vehicle_control_mode"
+
+def send_arm(cmd_pub, node):
+    cmd_pub.publish(VehicleCommand(
+        timestamp=node.get_clock().now().nanoseconds // 1000,
+        command=400, param1=1.0, param2=2989.0,
+        target_system=1, target_component=1,
+        source_system=1, source_component=1, from_external=True))
+
+# ============================================================
+# 可调参数 — 实机版
+# ============================================================
+MISSION_TIMEOUT = 600.0    # 全局超时 10min, 超时强制着陆
+
+# 地面 NED z 坐标。实机: 地面 ≈ 起飞点 ≈ EKF 原点
+GROUND_NED_Z = 0.0          # 实机默认 0; SITL iris spawn 0.83
+
+CRUISE_HEIGHT = 5.0
+DROP_HEIGHT   = 1.2     # 2026-09-13: 1.5→1.2 (按用户要求降低投弹高度). 低空像素/米比更小 → 同样 10px 收敛门限 ≈3.4cm (原 4.2cm), 反投影随 H 同比偏小;
+                        #   注意: 视野覆盖降到 ±1.11m, 下洗更强 — 复飞重点看 DROP 段是否丢检测
+FORWARD_DIST  = 34.0      # 2026-08-14: 32→34, 实机起飞点比假定位置后退 2m, 所有长度+2m
+
+SCOUT_DIST = 59.5          # 2026-08-14: 57.5→59.5, 起飞点后退 2m. 侦察区正上方(预定点)
+SCOUT_EDGE_DIST = 57.0     # 2026-08-15: 侦察区第一根线(近边)沿 heading0 距离, 直飞目标改近边防过冲 (SITL=55.0)
+SCOUT_SLOW_MOVE_TIME = 10.0  # 2026-08-15: 近边→预定点 缓慢移动时长 (s), 0.45m/s
+SCOUT_DESCENT_DELTA = 1.0  # 2026-08-15: 到达近边后先下降 1m (悬停5s子阶段已取消)
+SCOUT_LEFT_DIST = 1.5      # 2026-08-15: 1.0→1.5, 机体左移 1.5m
+SCOUT_RIGHT_DIST = 3.0     # 2026-08-15: 2.0→3.0, 再右移 3m (终点=预定点右侧1.5m)
+SCOUT_PAUSE_TIME = 5.0     # 2026-08-15: 左右移动后各停 5s
+SCOUT_MOVE_SPEED = 0.35   # (2026-09-30 自 h 移植) 侦察区平移峰值速度 (m/s): 3m 约 9s (原位置阶跃=全速冲刺->硬刹车)
+SCOUT_MOVE_RAMP  = 0.50   # 末段线性减速距离 (m)
+SCOUT_SETTLE_VMAX = 0.15  # 判稳门限: 水平速度 (m/s) (0.10 太紧, 实测悬停 |vxy| 本就 0.08~0.12)
+SCOUT_SETTLE_HOLD = 0.50  # 判稳持续 (s), 之后才开始 SCOUT_PAUSE_TIME 计时
+SCOUT_PAUSE_MAX  = 8.0    # 停留总时长上限 (s), 兜底
+SCOUT_SUB_ARRIVE = 0.3     # 侦察子动作到位判据 (m)
+SCOUT_SUB_TIMEOUT = 14.0   # 2026-09-30: 10->14 (3m @0.35m/s ~ 8.6s, 防贴超时线)
+
+RETURN_STAB_DRIFT_MAX = 0.3  # 2026-08-15: 返航后稳定判据 — 窗口内水平漂移 <0.3m
+RETURN_STAB_WINDOW    = 3.0  # 漂移监测窗口时长 (s)
+RETURN_STAB_TIMEOUT   = 10.0 # 稳定等待超时, 强制进入 LAND (s)
+LAND_DESCENT_SPEED    = 0.4  # 2026-08-15: LAND 前下降限速 (m/s), 时间锚定, 防降太猛
+
+KP_H = 0.0015          # 纯 PD, 极低增益保安全
+KI_H = 0.0
+KD_H = 0.001
+MAX_HORIZ_VEL = 0.3
+INTEGRAL_LIMIT = 0.0
+DEAD_ZONE_PX = 5.0
+
+TRACK_ARRIVE_PX  = 40.0
+HOVER_ARRIVE_PX  = 25.0
+STABILIZE_TIME   = 5.0
+TRACK_MAX_TIME   = 60.0
+HOVER_MAX_TIME   = 30.0
+
+CRUISE_SPEED    = 2.0
+RETURN_SPEED    = 3.0
+FORWARD_RAMP_DIST = 3.0
+FORWARD_MIN_SPEED = 0.5
+FORWARD_EXIT_CONFIRM_FRAMES = 5  # 连续 N 帧满足退出条件才真正退出, 防御 GPS 瞬时跳变
+SEARCH_SPEED     = 0.3
+SERVO_DESCENT_SPEED = 0.25   # VISUAL_SERVO 下降速率 (m/s)
+PRE_SERVO_HEIGHT = 2.5     # 预伺服下降目标高度, 低空 pinhole 更准
+HOVER_VZ_KP      = 0.8
+TRACK_VZ_KP      = 0.5
+CLIMB_VZ         = -0.8
+
+# VISUAL_SERVO: 单目标纯视觉伺服 (v5)
+VISUAL_SERVO_ARRIVE_PX     = 8.0   # 收敛像素阈值
+VISUAL_SERVO_CONVERGE_TIME = 2.5   # 稳定收敛时间 (s)
+VISUAL_SERVO_TIMEOUT       = 35.0  # 伺服总超时
+SERVO_MAX_DRIFT           = 1.5    # v6: _servo_target 距锚点最大漂移 (m), 超出拉回 (仍用于 VISUAL_SERVO 俯冲段, 保持 c 原样)
+# 2026-09-12 e: DROP 段 (已降到 1.5m 投弹高度之后) 改用 锚点+反投影重建 target (自 d 移植),
+#               废弃该段的 `_servo_target += v·dt` 增量累加 (实机 c 时代"两次投弹均偏右"的根因);
+#               PRE_SERVO / VISUAL_SERVO (含 2.5→1.5m 俯冲) 按用户指示保持 c 原样不动
+SERVO_EST_WEIGHT   = 0.7   # 反投影权重: target = 0.7*反投影 + 0.3*锚点 (每帧 _roi_to_ned 重建)
+SERVO_GEO_LOCK_MAX = 0.5   # 反投影距锚点身份锁阈值 (m), 超限采信锚点防误检
+
+# --- 2026-09-13 实机投弹精度修复 (9-13 两次实飞: 释放瞬间 err=52/55px, 落点偏 0.235m, DROP 25s 未收敛) ---
+# 机制: DROP 段 target 每帧由反投影重建, 但"距锚点超 0.5m 即冻结在锚点"会把随高度变化的反投影
+# 漂移 (实机同一静止桶 5m→1.5m 漂 0.65m) 当成误检 → 永远停在旧锚点 → err 不收敛 → 只能 25s 兜底.
+SERVO_GEO_REANCHOR_N   = 4      # 连续 N 帧"一致地超门限" → 认可新位置 (不再被陈旧锚点锁死)
+SERVO_GEO_REANCHOR_RAD = 0.30   # "一致"判据: 相邻两帧被拒估计相距 < 0.30m
+SERVO_GEO_REANCHOR_MAX = 1.2    # 超此距离永不重锚 (实测高度偏置 ≤0.7m < 1.2m < 最小真实桶间距 2.24m)
+SERVO_BIAS_MAX         = 1.0    # 像素残差积分项上限 (m): 抵消反投影系统性偏置, 超限饱和并告警
+SERVO_BIAS_ERR_MAX_M   = 1.0
+SERVO_BIAS_VMAX        = 0.15   # 准静止门控: 飞机水平速度超此值该帧不积分
+                                #   (否则把"追赶迟滞"当成反投影偏置 → 目标自走 → 绕圈振荡)    # 像素偏差折算成米超此值视为"看到别的桶", 该帧不积分 (最小真实桶间距 2.24m)
+
+DETECT_TIMEOUT = 3.0
+STEP_TIMEOUT   = 120.0
+
+# PID 抽帧控制 — 抑制 YOLO bbox jitter 引发的高频振动 (实飞调参)
+# 5.3kg+15寸桨响应慢 (~0.3s), 20Hz 控制激起谐振; 降频 + dt 同步缩放解决
+PID_DECIMATION_TRACK   = 4   # 20Hz/4=5Hz
+PID_DECIMATION_SERVO   = 5   # 20Hz/5=4Hz (VISUAL_SERVO/DESCEND/PRE_SERVO)
+PID_DECIMATION_DROP    = 5   # 20Hz/5=4Hz
+
+# 2026-09-12 e: 飞行边界软墙按用户指示完全移除 (自 d 移植).
+# 原因 (实机 d 试飞): 目标桶侧向超出 ±4m 时软墙每 1-2s 触发, 用 _pub_vel 抢控制权并 `return`
+# 跳过整个状态机 → 视觉伺服 _pub_pos / 收敛判定 / 投弹计时全部停摆 → err 发散, 任务中止.
+# (原 LATERAL_BOUNDARY=4.0 / BOUNDARY_PUSH_SPEED=0.5 常量已随机制删除)
+
+HOVER_SEARCH_ZERO_DETECT_TIMEOUT = 5.0  # 搜索阶段零检测超时 (s)
+
+TRACK_ENTRY_DIST_MAX     = 3.0
+TRACK_ENTRY_CONFIRM_TIME = 1.5
+TRACK_ENTRY_ROI_DRIFT    = 120.0
+TRACK_ENTRY_GEO_ERR_MAX  = 1.5
+STABILIZE_LOST_FRAMES_MAX = 10
+
+POS_ARRIVE_DIST  = 0.5
+LAND_DWELL_TIME  = 3.0
+# 2026-09-12 e: 投放补偿按用户指示全部去掉, 瞄准点 = 相机中心正下方, 实机再按落点标定
+# 2026-09-23 实飞标定 (e 首次实飞, 两投落点都在桶"右上方" 15~16cm):
+# 矢量分解得固定机体偏置 S = (前 +4.0cm, 右 +4.8cm) => 瞄准点反向平移 (前 -4.0, 右 -4.8).
+# 语义与 pixel_offset 一致: _Y>0 = 瞄准点左移;  _XF>0 = 瞄准点后移.
+PAYLOAD_OFFSET_BODY_Y_B1 = +0.25    # 2026-10-03 保守(方案C): 0.048->+0.25 (换机架后实测右瓶持续偏右 0.35~0.42m)
+PAYLOAD_OFFSET_BODY_Y_B2 = +0.12    # 2026-10-03 保守(方案C): 0.048->+0.12 (实测左瓶偏右 ~0.10m)
+PAYLOAD_OFFSET_BODY_XF_B1 = +0.040  # 前向 (2026-09-23 新增): 瞄准点后移 4.0cm
+PAYLOAD_OFFSET_BODY_XF_B2 = +0.040
+DROP_AFTER_DELAY = 35.0  # 2026-09-12 e: 15→25 (同 d); 2026-09-23 按用户指示 25→35:
+                          #   把"自己收敛"的窗口再拉长 10s (兜底只在真收敛不了时才用).
+                          #   注意: 收敛偏差判据 = DROP_ARRIVE_M=0.10 (等效 10cm, 见下)
+# ===== 2026-09-24 项目 f: 两级释放判据 (方案 B) =====
+# 释放精度 = 释放那一刻 conv_m (到补偿后瞄准点的地面距离). e 只要求 <10cm =>
+# 最坏 10cm + 弹道漂移 3~7.6cm > 桶半径 12.5cm => 最坏会脱靶 (9-24 命中是运气).
+# 历史 8 份实飞日志: 残差每轮都穿过 2~4cm 低谷, 但停留 <5cm 只有 1~3s => 确认时间须缩到 0.5s.
+DROP_ARRIVE_M    = 0.05   # Tier1 优选门限 (米制): conv_m < 5cm
+DROP_ARRIVE_M_LATE = 0.10  # Tier2 保底门限 = e 旧判据 (逐字相同, 保证永不比 e 更差)
+DROP_CONVERGE_EARLY = 0.5  # Tier1 确认时间 (2026-09-24 f: 1.0->0.5s; 低位窗口仅 1~3s)
+DROP_CONVERGE_LATE  = 1.0  # Tier2 确认时间 (同 e)
+DROP_CONV_MIN_BAND  = 0.02 # 低谷带: 只允许在 conv_m <= 本段最小值 + 2cm 时释放
+DROP_CONV_MIN_FLOOR = 0.02 # 本段最小值下限夹 2cm (防单帧噪声把门槛带偏)
+DROP_ARRIVE_VMAX    = 0.12 # Tier1 准静止门控: 释放瞬间水平速度上限 (m/s) => 漂移 <= ~6cm
+DROP_PREFER_WINDOW  = 10.0 # Tier1 优先窗口 (s): 前 10s 只认 Tier1, 之后 Tier2 也放行
+DROP_ARRIVE_PX   = 10.0   # 仅保留作历史参数留档, 不再是判据
+DROP_DETECT_MAX_AGE = 0.5  # 2026-09-20: DROP 段"匹配检测"接收年龄上限 (s)
+# ===== 2026-10-03 项目 i: 低空"一次性相对修正 + 定点保持" =====
+I_LOW_ALT_FREEZE = True    # True=i模式(低空不做闭环伺服); False=退回 f 原行为
+I_DWELL_S        = 5.0     # 1.2m 处修正后停留时间 (s)
+I_VMAX           = 0.12    # 释放判据: 水平速度上限 (m/s)
+I_RELEASE_TIMEOUT = 20.0   # 从进 DROP 起的兜底 (s): 超时无论有没有检测都强制投放 (必投)
+MISSION_REVISION = "competition-water-20260924-r1-f-i"
+
+AUX5_LOCK  =  0.0
+AUX5_DROP  =  0.83333   # B1: PWM 2000us
+AUX5_DROP2 = -0.83333   # B2: PWM 1000us
+AUX5_DROP_HOLD = 1.0
+MANUAL_TIMER_PERIOD = 0.005
+
+# 固定航向 (不再起飞前锁机头, 直接测场地填)
+HEADING_DEG = 180.0  # 机头朝向 (0=北, 90=东, 180=南). 2026-09-13: 54→180, 与 9-13 实飞日志一致
+                       #   (实飞日志 `HEADING_DEG=180deg`, 目标 NED(-34.0,0.0) — 沿 -x 前飞 34m)
+
+IMG_W, IMG_H = 640, 360
+CX, CY = IMG_W / 2.0, IMG_H / 2.0
+HFOV = math.radians(85)
+VFOV = math.radians(54)
+FX = IMG_W / (2.0 * math.tan(HFOV / 2.0))
+FY = IMG_H / (2.0 * math.tan(VFOV / 2.0))
+
+# 多桶追踪器 (v9): 每个候选桶独立时间确认, 防御瞬时误检
+TRACKER_CONFIRM_TIME  = 1.5   # 持续观测 ≥1.5s 才算确认
+TRACKER_TIMEOUT       = 2.0   # 超过此时间未更新则丢弃追踪器
+TRACKER_NED_MATCH     = 1.5   # NED 最近邻匹配距离 (m)
+# 2026-09-20 晚 (A+C): 已投过的桶不再参与任何匹配/瞄准; 目标点用活追踪器刷新
+SERVED_EXCLUDE_M      = 0.60  # A: 已投过的桶: 落在此半径内的框一律不作候选 (桶半径 0.125m)
+TARGET_REFRESH_MAX_M  = 2.00  # C: 用追踪器刷新瞄准点时允许的最大偏差 (仅作合理性门控)
+TARGET_REBIND_MAX_M   = 0.60  # C: refine 后重新认领追踪器 id 的最大距离 (紧门限, << 桶间距)
+TARGET_REBIND_MARGIN  = 0.30  # C: 认领时要求比第二名近这么多 (防歧义)
+DET_DUP_MERGE_DIST   = 0.8   # 2026-09-12: 同帧内两检测框 NED 估计相距 < 此值视为同一个桶, 只保留较大的框
+
+# v2 新增参数
+STABILIZE_HOVER_TIME = 3.0    # 起飞后稳定悬停时间, 之后锁定 heading0
+HOVER_SEARCH_TIMEOUT = 10.0   # 目标点搜索超时, 无有效目标则返航
+HOVER_SEARCH_SETTLE_TIME = 1.5  # 驻留等 MPC 刹车, 期间跳过门控
+TAKEOFF_CLIMB_RATE   = 0.8    # 竖直爬升速率 (m/s)
+
+# POSITION_REFINE — TRACK 到位后悬停重新估算桶坐标 (v4)
+POSITION_REFINE_DURATION   = 2.0   # 悬停收集时间
+POSITION_REFINE_MIN_SAMPLES = 5    # 最少有效样本数
+POSITION_REFINE_CENTER_MAX = 150.0 # 图像中心附近门限 (px)
+POSITION_REFINE_MAX_CORRECTION = 1.5  # 最大修正距离 (m), 超出视为身份混淆
+POSITION_REFINE_IDENTITY_MAX = 1.5   # 几何身份锁门限 (m), v6: 2.0->1.5 < 最小桶间距 2.2m
+
+# ============================================================
+# 状态
+# ============================================================
+(STEP_TAKEOFF, STEP_STABILIZE, STEP_FORWARD, STEP_HOVER_SEARCH,
+ STEP_TRACK, STEP_POSITION_REFINE, STEP_PRE_SERVO, STEP_VISUAL_SERVO, STEP_DROP,
+ STEP_CLIMB, STEP_SCOUT, STEP_RETURN, STEP_LAND) = range(13)
+
+STEP_NAME = {
+    STEP_TAKEOFF: "TAKEOFF", STEP_STABILIZE: "STABILIZE",
+    STEP_FORWARD: "FORWARD", STEP_HOVER_SEARCH: "HOVER_SEARCH",
+    STEP_TRACK: "TRACK", STEP_POSITION_REFINE: "POSITION_REFINE",
+    STEP_PRE_SERVO: "PRE_SERVO", STEP_VISUAL_SERVO: "VISUAL_SERVO",
+    STEP_DROP: "DROP", STEP_CLIMB: "CLIMB", STEP_SCOUT: "SCOUT",
+    STEP_RETURN: "RETURN", STEP_LAND: "LAND",
+}
+
+
+def camera_pixel_to_level(cx, cy, pitch, roll):
+    """下视像素射线 -> 水平航向坐标中的 (前向/H, 右向/H)。
+
+    固定安装假设：图像上=机头，图像右=机体右，相机光轴=机体下。
+    PX4 FRD -> NED 使用 Rz(yaw) Ry(pitch) Rx(roll)。这里去除
+    roll/pitch，yaw 由 _body_to_ned 处理。视觉误差和反投影共用本模型。
+    """
+    if not all(math.isfinite(v) for v in (cx, cy, pitch, roll)):
+        return None
+    fwd = (CY - cy) / FY
+    right = (cx - CX) / FX
+    cr, sr = math.cos(roll), math.sin(roll)
+    cp, sp = math.cos(pitch), math.sin(pitch)
+    rolled_right = cr * right - sr
+    rolled_down = sr * right + cr
+    level_fwd = cp * fwd + sp * rolled_down
+    level_down = -sp * fwd + cp * rolled_down
+    if level_down <= 1e-6:  # 射线平行于地面或指向天空
+        return None
+    return level_fwd / level_down, rolled_right / level_down
+
+
+def level_to_camera_pixel(fwd, right, height, pitch, roll):
+    """camera_pixel_to_level 的逆变换，返回像素 (cx, cy) 或 None。"""
+    if not all(math.isfinite(v) for v in (fwd, right, height, pitch, roll)) or height <= 0.0:
+        return None
+    cr, sr = math.cos(roll), math.sin(roll)
+    cp, sp = math.cos(pitch), math.sin(pitch)
+    body_fwd = cp * fwd - sp * height
+    unpitched_down = sp * fwd + cp * height
+    body_right = cr * right + sr * unpitched_down
+    body_down = -sr * right + cr * unpitched_down
+    if body_down <= 1e-6:
+        return None
+    return CX + FX * body_right / body_down, CY - FY * body_fwd / body_down
+
+class PIDController:
+    def __init__(self, kp, ki, kd, max_vel, int_limit, dead_zone_px=0.0):
+        self.kp, self.ki, self.kd = kp, ki, kd
+        self.max_vel, self.int_limit = max_vel, int_limit
+        self.dead_zone_px = dead_zone_px
+        self.prev_ex = self.prev_ey = 0.0
+        self.int_ex = self.int_ey = 0.0
+
+    def reset(self):
+        self.prev_ex = self.prev_ey = 0.0
+        self.int_ex = self.int_ey = 0.0
+
+    def compute(self, roi, dt, pixel_offset_x=0.0, pitch=0.0, roll=0.0, height_scale=1.0,
+                pixel_offset_y=0.0):
+        """纯 PD 像素偏差→机体速度.
+
+        返回: (v_fwd, v_lat, err_px, ex, ey)
+          v_fwd: 机体前向速度 (m/s), 正值=前进
+          v_lat: 机体右向速度 (m/s), 正值=右移
+          err_px: 按水平地面距离折算的等效像素误差，保留控制死区内的真实残差
+          ex, ey: 等效横向/纵向误差 (ey>0=目标在前方, 需前进)
+
+        height_scale = H / CRUISE_HEIGHT: 低空自动缩小 KP/KD, 消除像素/物理比变化.
+        """
+        cx = roi.x_offset + roi.width / 2.0
+        cy = roi.y_offset + roi.height / 2.0
+        projected = camera_pixel_to_level(cx, cy, pitch, roll)
+        if projected is None:
+            self.reset()
+            return 0.0, 0.0, float('inf'), float('inf'), float('inf')
+        fwd_per_h, right_per_h = projected
+        ex = right_per_h * FX - pixel_offset_x
+        ey = fwd_per_h * FY - pixel_offset_y   # 2026-09-23: 前向补偿 (正值=瞄准点后移 4cm)
+        raw_ex, raw_ey = ex, ey  # 死区只影响控制输出，释放判据保留未抹零误差
+
+        if abs(ex) < self.dead_zone_px: ex = 0.0
+        if abs(ey) < self.dead_zone_px: ey = 0.0
+
+        dt = max(dt, 0.001)
+        self.int_ex += ex * dt
+        self.int_ey += ey * dt
+        self.int_ex = max(-self.int_limit, min(self.int_limit, self.int_ex))
+        self.int_ey = max(-self.int_limit, min(self.int_limit, self.int_ey))
+
+        dex = (ex - self.prev_ex) / dt
+        dey = (ey - self.prev_ey) / dt
+
+        kp = self.kp * height_scale
+        kd = self.kd * height_scale
+
+        v_lat = kp * ex + self.ki * self.int_ex + kd * dex
+        v_fwd = kp * ey + self.ki * self.int_ey + kd * dey
+        v_lat = max(-self.max_vel, min(self.max_vel, v_lat))
+        v_fwd = max(-self.max_vel, min(self.max_vel, v_fwd))
+
+        self.prev_ex, self.prev_ey = ex, ey
+        return v_fwd, v_lat, math.hypot(raw_ex, raw_ey), raw_ex, raw_ey
+
+
+# ============================================================
+# 2026-09-13: 身份锁决策 (纯函数, 便于离线单测) — 实机 9-13 投弹偏差修复
+# ============================================================
+def geo_lock_decide(est_x, est_y, anchor_x, anchor_y, gate, weight,
+                    prev_est, reject_n, reanchor_n, reanchor_rad, reanchor_max):
+    """反投影估计 vs 锚点 → 目标位置. 返回 (mode, tx, ty, reject_n, prev_est).
+
+    accept   : 距锚点 < gate → 采信 (weight*反投影 + (1-weight)*锚点)
+    reanchor : 连续 reanchor_n 帧一致地超 gate 且 < reanchor_max → 认可新位置
+               (同一个桶因高度变化引起的反投影漂移, 不是误检跳变)
+    reject   : 超 gate 但只出现 1~reanchor_n-1 帧 → 暂用锚点, 记账等待一致性确认
+    block    : 超 reanchor_max → 疑似别的桶, 恒用锚点且永不重锚
+    """
+    dist = math.hypot(est_x - anchor_x, est_y - anchor_y)
+    if dist < gate:
+        return ('accept', weight * est_x + (1.0 - weight) * anchor_x,
+                weight * est_y + (1.0 - weight) * anchor_y, 0, None)
+    if dist > reanchor_max:
+        return ('block', anchor_x, anchor_y, 0, None)
+    if prev_est is not None and math.hypot(est_x - prev_est[0], est_y - prev_est[1]) < reanchor_rad:
+        n = reject_n + 1
+    else:
+        n = 1
+    if n >= reanchor_n:
+        return ('reanchor', est_x, est_y, 0, None)
+    return ('reject', anchor_x, anchor_y, n, (est_x, est_y))
+
+class IMission(Node):
+    def __init__(self):
+        super().__init__('i_mission')
+
+        self.traj_pub = self.create_publisher(TrajectorySetpoint, '/fmu/in/trajectory_setpoint', 10)
+        self.offboard_mode_pub = self.create_publisher(OffboardControlMode, '/fmu/in/offboard_control_mode', 10)
+        self.cmd_pub = self.create_publisher(VehicleCommand, '/fmu/in/vehicle_command', 10)
+        self.manual_pub = self.create_publisher(ManualControlSetpoint, '/fmu/in/manual_control_input', 10)
+        self.aux5_pwm_pub = self.create_publisher(Float32, '/drop/aux5_pwm', 10)
+        self.impact_pub = self.create_publisher(Point, '/drop/impact_point', 10)
+
+        self.status_sub = self.create_subscription(VehicleStatus, STATUS_TOPIC, self._cb_status, QOS_BE)
+        self.local_sub = self.create_subscription(VehicleLocalPosition, LOCAL_POS_TOPIC, self._cb_local, QOS_BE)
+        self.land_sub = self.create_subscription(VehicleLandDetected, LAND_DETECTED_TOPIC, self._cb_land, QOS_BE)
+        self.detect_sub = self.create_subscription(String, '/bucket/detections', self._cb_detect, 10)
+        self.control_mode_sub = self.create_subscription(VehicleControlMode, CONTROL_MODE_TOPIC, self._cb_control_mode, QOS_BE)
+        self.attitude_sub = self.create_subscription(VehicleAttitude, '/fmu/out/vehicle_attitude', self._cb_attitude, QOS_BE)
+
+        self.x = self.y = self.z = 0.0
+        self.home_x = self.home_y = self.home_z = None
+        self._takeoff_x = self._takeoff_y = self._takeoff_z = None
+        self.heading = None
+        self._heading0 = None
+        self._stabilize_yaw = None
+        self.landed = False
+        self.status = None
+        self._control_mode = None
+
+        # ---- 多桶追踪 ----
+        self.latest_roi = None
+        self._last_matched_detect_time = None   # 2026-09-20: DROP 段"匹配检测"接收时刻
+        self._last_detect_time = self.get_clock().now()
+        self._last_roi_key = None
+        self._roi_dup_count = 0
+        self._target_buckets = []        # 选定的目标桶: [(ned_x, ned_y), ...]
+        # 2026-09-20 晚 (A+C):
+        self._served_targets = []        # A: 已投过的桶位置 (home 相对 NED), 后续匹配一律排除
+        self._target_ids = []            # C: 被选目标的追踪器 id (= 桶身份, 不随追踪器列表增删变化)
+        self._next_tracker_id = 0        # C: 追踪器 id 发号器
+        self._last_refresh_log = 0.0     # C: 刷新日志限流
+        self._bucket_idx = 0             # 当前处理第几个目标
+        self._current_target_ned = None  # 当前伺服的桶的估计 NED 位置
+        self._bucket_ests = []           # [(ned_x, ned_y, roi, d, cx, cy), ...]
+        self._prev_bucket_ests = None     # 上一帧 NED 列表, 用于帧间稳定性检查
+        self._trackers = []               # v9: 每桶独立追踪器 [{ned, first_seen, last_seen, confirmed, roi_center}]
+
+        self._target_img_idx = -1  # unused; kept for compatibility with _enter_step
+
+        self._pitch = 0.0
+        self._roll = 0.0
+
+        self.step = STEP_TAKEOFF
+        self._step_start_time = None
+        self.pid = PIDController(KP_H, KI_H, KD_H, MAX_HORIZ_VEL, INTEGRAL_LIMIT, DEAD_ZONE_PX)
+        self._stabilize_start = None
+        self._detect_loss_logged = False
+        self._detect_loss_start = None
+        self._confirm_start_time = None
+        self._confirm_first_cx = 0.0
+        self._confirm_first_cy = 0.0
+        self._stabilize_lost_frames = 0
+
+        self._aux5_value = AUX5_LOCK
+        self._drop_triggered = False
+        self._drop_signal_start = None
+        self._drop_hold_target = None           # 2026-09-20: 释放后固定的设定点
+        self._drop_count = 0  # 第几次投放 (0=B1, 1=B2)
+        # 2026-09-12 e: 收敛即投状态 (自 d)
+        self._last_drop_err = None       # DROP 段最近一帧 (err_px, ex, ey, H)
+        self._drop_converge_start = None # 收敛即投计时
+        # 2026-09-13 实机投弹精度修复: 身份锁一致性记账 + 像素残差积分 (DROP 闭环)
+        self._geo_reject_n = 0          # 连续被拒帧数
+        self._geo_pending_est = None    # 上一帧被拒的反投影估计
+        self._geo_mode = None           # 上一帧身份锁模式 (模式变化时打日志)
+        self._servo_bias_x = 0.0        # 像素残差积分项 (抵消反投影系统性偏置)
+        self._servo_bias_y = 0.0
+        self._bias_sat_logged = False   # 积分项饱和只告警一次
+
+        # VISUAL_SERVO 纯视觉伺服状态 (v5)
+        self._servo_active = False
+        self._servo_target_x = 0.0
+        self._servo_target_y = 0.0
+        self._servo_converge_start = None
+
+        self._land_dwell_start = None
+        self._land_cmd_sent = False
+        self._land_cmd_time = None
+
+        # ===== 2026-09-12 e: 全量日志/复盘状态 (自 d 移植) =====
+        self.vx = self.vy = self.vz = 0.0     # NED 速度 (供日志)
+        self._mission_start_time = None       # TAKEOFF 首次进入时刻
+        self.done = False                     # 2026-09-12 e: _shutdown() 置位, main() 据此退出 spin 循环
+        # 2026-09-24 f: 两级释放判据状态
+        self._drop_conv_min = None            # 本段 DROP 残差最小值 (m, 下限夹 DROP_CONV_MIN_FLOOR)
+        self._drop_tier = None                # 当前候选档位: 1=Tier1 优选 / 2=Tier2 保底 / None
+        self._drop_records = []               # 每次投放: idx/aim/pos/H/last_err
+        self._scout_done = False              # SCOUT 7 子阶段是否完整走完
+        self._scout_elapsed = None            # SCOUT 阶段总耗时
+        self._return_stab_info = None         # (判稳耗时, 漂移)
+        self._land_pos = None                 # 着陆时 NED 水平位置
+        self._search_failed = False           # 搜索无目标转侦察
+        self._mission_timeout_forced = False  # 全局超时强制着陆
+        self._desc_log_t = 0.0                # PRE_SERVO/VISUAL_SERVO 下降速率日志节流
+        self._sel_info = None                 # 选桶决策文本 (写入 MISSION SUMMARY)
+
+        self._mode_req = self._arm_req = False
+        self._mode_req_start = None
+        self._last_arm_attempt = -10.0
+        self._init_wait_start = None
+        self._initial_wait_done = False
+
+        self._track_max_time = TRACK_MAX_TIME
+        self._hover_max_time = HOVER_MAX_TIME
+
+        self._fwd_exit_frames = 0    # FORWARD 过冲确认帧计数 (GPS 噪声防护)
+        self._fwd_arrive_frames = 0  # FORWARD 到达确认帧计数
+
+        # SCOUT 状态
+        self._scout_hover_start = None
+        self._scout_sub = 0
+        self._scout_sub_start = None
+
+        # RETURN 稳定悬停 + LAND 限速 (2026-08-15)
+        self._return_sub = 0
+        self._return_sub_start = None
+        self._stab_pos_hist = collections.deque(
+            maxlen=max(1, int(RETURN_STAB_WINDOW / 0.05)))
+        self._land_entry_z = None
+
+        self._print_ctr = 0
+        self._last_pid_print = 0.0
+        self._last_vel_x = 0.0
+        self._last_vel_y = 0.0
+        self._decimation_ctr = 0     # PID 抽帧计数器 (每状态重置)
+        self._last_vel_z = 0.0
+        self._start_wall = self.get_clock().now()
+
+        self.timer = self.create_timer(0.05, self.control_loop)
+        self.manual_timer = self.create_timer(MANUAL_TIMER_PERIOD, self._publish_manual_control)
+        self.get_logger().info(
+            f"F Mission ready. HEADING={HEADING_DEG:.0f}deg "
+            f"offset_横_B1={PAYLOAD_OFFSET_BODY_Y_B1:.3f}m B2={PAYLOAD_OFFSET_BODY_Y_B2:.3f}m "
+            f"offset_前_B1={PAYLOAD_OFFSET_BODY_XF_B1:.3f}m B2={PAYLOAD_OFFSET_BODY_XF_B2:.3f}m "
+            f"FORWARD_DIST={FORWARD_DIST}m SCOUT_DIST={SCOUT_DIST}m "
+            f"cruise={CRUISE_HEIGHT}m drop={DROP_HEIGHT}m (no flight boundary)")
+        try:
+            source_path = Path(__file__).resolve()
+            source_hash = hashlib.sha256(source_path.read_bytes()).hexdigest()
+        except OSError as exc:
+            source_path, source_hash = __file__, f"unavailable:{exc}"
+        self.get_logger().info(
+            f"Build revision={MISSION_REVISION} source={source_path} sha256={source_hash} "
+            f"drop_gate={DROP_ARRIVE_M * 100:.0f}cm(米制, 原 10px≈{10 * DROP_HEIGHT / FX * 100:.0f}cm)"
+            f" dwell={DROP_CONVERGE_EARLY:.2f}s detect_age_max={DROP_DETECT_MAX_AGE:.2f}s "
+            "camera=down_fixed(top=forward,right=right) geometry=FRD-ray-ground")
+
+    # ========== 回调 ==========
+    def _cb_status(self, m): self.status = m
+    def _cb_control_mode(self, m): self._control_mode = m
+    def _cb_land(self, m): self.landed = m.landed
+
+    def _cb_local(self, m):
+        self.x, self.y, self.z = m.x, m.y, m.z
+        # 2026-09-12 e: 记录 NED 速度供 1Hz 状态行 (判断飞机实际在怎么动)
+        if math.isfinite(m.vx): self.vx = m.vx
+        if math.isfinite(m.vy): self.vy = m.vy
+        if math.isfinite(m.vz): self.vz = m.vz
+        if math.isfinite(m.heading):
+            self.heading = m.heading
+        # 记录起飞参考点 (航向用硬编码 HEADING_DEG, 不再锁机头)
+        # 实机无 xy_valid (室内无 GPS), 有 heading 即可记录参考点
+        if self._takeoff_x is None and self.heading is not None:
+            self._takeoff_x, self._takeoff_y, self._takeoff_z = self.x, self.y, self.z
+            self.get_logger().info(
+                f"Takeoff ref: NED({self._takeoff_x:.2f},{self._takeoff_y:.2f},{self._takeoff_z:.2f}) "
+                f"HEADING_DEG={HEADING_DEG:.0f}deg (hardcoded)")
+
+    def _cb_attitude(self, m):
+        w, x, y_, z_ = float(m.q[0]), float(m.q[1]), float(m.q[2]), float(m.q[3])
+        self._roll  = math.atan2(2.0*(w*x + y_*z_), 1.0 - 2.0*(x*x + y_*y_))
+        self._pitch = math.asin(max(-1.0, min(1.0, 2.0*(w*y_ - z_*x))))
+
+    def _cb_detect(self, msg):
+        """接收 JSON 多桶检测.
+        HOVER_SEARCH (静止): ROI→NED 估算桶坐标 → 锁定.
+        TRACK/DESCEND (移动): 已知坐标→期望像素投影, 像素空间最近邻匹配.
+        """
+        try:
+            data = json.loads(msg.data)
+        except Exception:
+            return
+        detections = data.get("buckets", [])
+
+        valid = []
+        for d in detections:
+            roi = RegionOfInterest()
+            roi.x_offset = int(d["x"]); roi.y_offset = int(d["y"])
+            roi.width = int(d["w"]); roi.height = int(d["h"])
+            roi.do_rectify = False
+            est = self._roi_to_ned(roi)
+            if est is not None:
+                cx = roi.x_offset + roi.width / 2.0
+                cy = roi.y_offset + roi.height / 2.0
+                valid.append((est[0], est[1], roi, d, cx, cy))
+
+        # 2026-09-12: 同帧重复框合并 (防同一个桶被喂出两个追踪器 → 两个目标其实是同一个桶)
+        valid = self._dedup_dets(valid)
+        # 2026-09-20: 剔除"残缺框"(部分出画/贴边) —— 其中心不是桶的投影中心, 反投影可偏 0.2~3m,
+        #   偏出 1.5m 就会自建追踪器 → 候选池多出"真桶附近的幽灵" → 可能占满前两名.
+        if len(valid) >= 2:
+            sides = sorted(min(r.width, r.height) for _x, _y, r, _d, _cx, _cy in valid)
+            _thr = max(8.0, 0.5 * sides[len(sides) // 2])
+        else:
+            _thr = 8.0
+        _kept = [v for v in valid if min(v[2].width, v[2].height) >= _thr]
+        if len(_kept) != len(valid):
+            self.get_logger().info(
+                f"  DET-FILTER 剔除残缺框 {len(valid) - len(_kept)}/{len(valid)} "
+                f"(阈值{_thr:.0f}px, 本帧最小边="
+                f"{[min(v[2].width, v[2].height) for v in valid]})")
+        valid = _kept
+        self._bucket_ests = valid
+        self._update_trackers(valid)  # v9: 每帧更新追踪器
+        if not valid:
+            return
+
+        if self._current_target_ned is not None:
+            # TRACK/DESCEND/DROP: 几何身份锁 — 找 NED 估计最接近目标坐标的 ROI
+            # (不用 nearest-center, 防止多桶时追错目标)
+            best_roi = None; best_d = None
+            best_geo_dist = float('inf')
+            GEO_IDENTITY_MAX = 1.5  # 几何身份门限 (m), v6: 2.5->1.5 < 最小桶间距 2.2m
+            n_skip_served = 0
+            for bx, by, roi, d, cx, cy in valid:
+                if self._is_served(bx, by):
+                    n_skip_served += 1
+                    continue                                  # A: 已投过的桶不再作为瞄准候选
+                geo_dist = math.hypot(bx - self._current_target_ned[0],
+                                      by - self._current_target_ned[1])
+                if geo_dist < best_geo_dist:
+                    best_geo_dist = geo_dist
+                    best_roi = roi; best_d = d
+            if best_roi is not None and best_geo_dist < GEO_IDENTITY_MAX:
+                roi_key = (best_d["x"], best_d["y"], best_d["w"], best_d["h"])
+                self._update_fresh(roi_key)
+                self.latest_roi = best_roi
+                self._last_matched_detect_time = self.get_clock().now()
+            # 找不到匹配: 不更新 latest_roi, 触发丢检保护
+        else:
+            # HOVER_SEARCH: 取离图像中心最近的检测, 确保选到正下方的桶
+            best = min(valid, key=lambda v: math.hypot(v[4] - CX, v[5] - CY))
+            _, _, roi, d, _, _ = best
+            roi_key = (d["x"], d["y"], d["w"], d["h"])
+            self._update_fresh(roi_key)
+            self.latest_roi = roi
+            self._last_matched_detect_time = self.get_clock().now()
+
+    def _update_fresh(self, roi_key):
+        """更新检测新鲜度 (内联去重逻辑)."""
+        if roi_key == self._last_roi_key:
+            self._roi_dup_count += 1
+            # 视觉伺服时帧间移动 <1px 很常见, 提高阈值防误判
+            if self._roi_dup_count < 25:
+                self._last_detect_time = self.get_clock().now()
+        else:
+            self._roi_dup_count = 0
+            self._last_roi_key = roi_key
+            self._last_detect_time = self.get_clock().now()
+
+    # ========== 发布 ==========
+    def _pub_vel(self, vx, vy, vz, yaw):
+        self._last_vel_x = vx; self._last_vel_y = vy; self._last_vel_z = vz
+        self.offboard_mode_pub.publish(OffboardControlMode(
+            timestamp=self.get_clock().now().nanoseconds // 1000, velocity=True))
+        self.traj_pub.publish(TrajectorySetpoint(
+            timestamp=self.get_clock().now().nanoseconds // 1000,
+            velocity=[float(vx), float(vy), float(vz)], yaw=float(yaw),
+            position=[float('nan')]*3, acceleration=[float('nan')]*3))
+
+    def _pub_pos(self, x, y, z, yaw):
+        self.offboard_mode_pub.publish(OffboardControlMode(
+            timestamp=self.get_clock().now().nanoseconds // 1000, position=True))
+        self.traj_pub.publish(TrajectorySetpoint(
+            timestamp=self.get_clock().now().nanoseconds // 1000,
+            position=[float(x), float(y), float(z)], yaw=float(yaw),
+            velocity=[float('nan')]*3, acceleration=[float('nan')]*3))
+
+    def _send_cmd(self, cmd, **p):
+        self.cmd_pub.publish(VehicleCommand(
+            timestamp=self.get_clock().now().nanoseconds // 1000,
+            command=cmd, target_system=1, target_component=1,
+            source_system=1, source_component=1, from_external=True, **p))
+
+    # ========== 门控 ==========
+    def _confirm_detection_stable(self):
+        if not self._detect_fresh(): self._confirm_start_time = None; return False
+        roi = self.latest_roi
+        cx = roi.x_offset + roi.width / 2.0; cy = roi.y_offset + roi.height / 2.0
+        if self._confirm_start_time is None:
+            self._confirm_start_time = self.get_clock().now()
+            self._confirm_first_cx = cx; self._confirm_first_cy = cy; return False
+        drift = math.hypot(cx - self._confirm_first_cx, cy - self._confirm_first_cy)
+        if drift > TRACK_ENTRY_ROI_DRIFT: self._confirm_start_time = None; return False
+        return (self.get_clock().now() - self._confirm_start_time).nanoseconds * 1e-9 >= TRACK_ENTRY_CONFIRM_TIME
+
+    # ========== 多桶追踪器 (v9) ==========
+    def _dedup_dets(self, ests):
+        """2026-09-12: 同帧内重复检测框合并.
+
+        动机 (d 2026-09-12 仿真): HOVER_SEARCH 期间 3 个桶检测出 5 个框 (DETx5), 多出的框
+        经 _roi_to_ned 得到不同 NED → 追踪器把同一个桶记成两个 tracker, 各自通过 1.5s 确认
+        → 选桶选出两个"影子桶" (实测两目标间距 1.78m, 而场上最小真实桶间距 2.24m)
+        → 两次投弹落在同一个桶 → 有效得分 10/20. 实机 YOLO 低置信度重复框同理.
+
+        判据: 同帧内两框的 NED 估计相距 < DET_DUP_MERGE_DIST 即视为同一个桶, 保留检测框较大者.
+        安全性: 同一帧/同一机位下, 同一个桶的两个框系统性偏差完全相同 (差异仅几 cm~0.3m);
+        而最小真实桶间距 2.24m 即使各带 ±0.4m 估计噪声仍有 1.44m > 0.8m, 不会误合并真实桶.
+        """
+        if len(ests) <= 1:
+            return ests
+        kept = []
+        for e in sorted(ests, key=lambda v: -(v[2].width * v[2].height)):
+            if all(math.hypot(e[0] - k[0], e[1] - k[1]) >= DET_DUP_MERGE_DIST for k in kept):
+                kept.append(e)
+        n_drop = len(ests) - len(kept)
+        if n_drop != getattr(self, '_dedup_last_n', 0):
+            self._dedup_last_n = n_drop
+            self.get_logger().info(
+                f"  同帧重复框合并: {len(ests)} -> {len(kept)} "
+                f"(相距 < {DET_DUP_MERGE_DIST}m 视为同一个桶)")
+        return kept
+
+    # ------------------------------------------------------------------
+    # 2026-09-20 晚 (A+C): 桶身份保护 —— 已投过的不再瞄, 瞄准点用活追踪器刷新
+    # ------------------------------------------------------------------
+    def _is_served(self, nx, ny):
+        """A: 该位置是否已经投过弹 (0.6m 内视为同一个桶)."""
+        for sx, sy in self._served_targets:
+            if math.hypot(nx - sx, ny - sy) < SERVED_EXCLUDE_M:
+                return True
+        return False
+
+    def _refresh_target_from_tracker(self):
+        """C: 用"活追踪器"刷新当前目标的瞄准点; 返回是否真的改了.
+
+        身份 = 选桶时记下的 tracker id. 原因见脚本头: 选桶瞬间的单点估计在运动中偏 ~1m,
+        照它飞会停在两桶中间, 再被 refine 的最近邻锁到已投过的桶上.
+        """
+        if self._current_target_ned is None or self._bucket_idx >= len(self._target_ids):
+            return False
+        tid = self._target_ids[self._bucket_idx]
+        ox, oy = self._current_target_ned
+
+        if tid is None or tid < 0:
+            return False                     # 未绑定身份 → 不刷 (DROP 段本来每帧反投影重建)
+        cand = None
+        for t in self._trackers:
+            if t.get("id") == tid and t.get("confirmed"):
+                cand = t
+                break
+        if cand is None:
+            # id 已失效 —— 低空投弹期间该桶丢检, 追踪器被 TRACKER_TIMEOUT 裁剪后**重建会换 id**.
+            # 这里**刻意不猜身份** (从冻结的旧估计猜"最近的桶"在现场 1.66m 间距下有认错风险),
+            # 等 POSITION_REFINE 把瞄准点修正准确后由 _rebind_target_id() 重新认领.
+            return False
+        nx, ny = cand["ned"]
+        if self._is_served(nx, ny):
+            return False                                   # 该追踪器就是已投过的桶 → 拒绝刷新
+        delta = math.hypot(nx - ox, ny - oy)
+        if delta > TARGET_REFRESH_MAX_M:
+            return False                                   # 差太多 → 追踪器身份可疑, 保持原目标点
+        self._current_target_ned = (nx, ny)
+        if delta > 0.10:
+            t_now = (self.get_clock().now() - self._start_wall).nanoseconds * 1e-9
+            if t_now - self._last_refresh_log > 2.0:
+                self._last_refresh_log = t_now
+                self.get_logger().info(
+                    f"  TARGET-REFRESH id=#{cand.get('id')} NED({ox:.2f},{oy:.2f}) -> "
+                    f"NED({nx:.2f},{ny:.2f}) delta={delta:.2f}m")
+        return True
+
+    def _rebind_target_id(self):
+        """C: 用"刚被 refine 修正过的准确瞄准点"重新认领目标的追踪器 id.
+
+        追踪器在低空投弹期间会因丢检被裁剪, CLIMB 重建后 id 已变 → 这里重新认领.
+        因为锚点已被 refine 修正准确 (选桶瞬间 ~1m 的偏差已消掉), 用 0.6m 紧门限最近邻
+        认领是安全的 (现场桶间距 1.66m >> 0.6m), 并要求与第二名拉开 0.3m (无歧义),
+        同时排除已投过的桶.
+        """
+        if self._current_target_ned is None or self._bucket_idx >= len(self._target_ids):
+            return False
+        ox, oy = self._current_target_ned
+        best = None; best_d = float('inf'); second_d = float('inf')
+        for t in self._trackers:
+            if not t.get("confirmed") or self._is_served(t["ned"][0], t["ned"][1]):
+                continue
+            d = math.hypot(t["ned"][0] - ox, t["ned"][1] - oy)
+            if d < best_d:
+                second_d, best_d, best = best_d, d, t
+            elif d < second_d:
+                second_d = d
+        if best is None or best_d > TARGET_REBIND_MAX_M:
+            return False
+        if second_d - best_d < TARGET_REBIND_MARGIN:
+            return False                     # 有两个候选贴在瞄准点附近 → 不认领
+        old = self._target_ids[self._bucket_idx]
+        if best.get("id") == old:
+            return False
+        self._target_ids[self._bucket_idx] = best.get("id", -1)
+        self.get_logger().info(
+            f"  TARGET-REBIND id #{old} -> #{best.get('id')} aim=NED({ox:.2f},{oy:.2f}) "
+            f"tracker=NED({best['ned'][0]:.2f},{best['ned'][1]:.2f}) d={best_d:.2f}m")
+        return True
+
+    def _update_trackers(self, bucket_ests):
+        """v9 多桶追踪器: 每帧 NED 最近邻匹配, 每桶独立时间确认 ≥1.5s.
+
+        每个物理桶对应一个追踪器 {ned, first_seen, last_seen, confirmed, roi_center}.
+        匹配: 当前帧各检测的 NED 估计与已有追踪器做最近邻匹配 (<1.5m),
+              匹配成功 → 指数平滑更新位置 (alpha=0.3), 刷新时间, 检查确认.
+              未匹配 → 为新检测创建新追踪器.
+        清理: 超时 >2s 未更新且本轮未匹配 → 丢弃.
+
+        防御 YOLO 瞬时误检: 单个检测必须持续 ≥1.5s 才被确认(confirmed=True),
+        瞬时的背景干扰检测不会存活足够久.
+        """
+        now = self.get_clock().now()
+        now_s = now.nanoseconds * 1e-9
+        matched = set()
+
+        for bx, by, roi, d, cx, cy in bucket_ests:
+            best_t, best_d = None, float('inf')
+            for t in self._trackers:
+                dist = math.hypot(bx - t["ned"][0], by - t["ned"][1])
+                if dist < best_d:
+                    best_d = dist
+                    best_t = t
+            if best_t is not None and best_d < TRACKER_NED_MATCH:
+                if best_d > 0.8:   # 2026-09-20 诊断: 距离偏大的匹配
+                    self.get_logger().info(
+                        f"  TRK-PULL #{self._trackers.index(best_t)} dist={best_d:.2f}m "
+                        f"box(cx={cx:.0f},cy={cy:.0f}) NED({bx:.2f},{by:.2f}) "
+                        f"← tracker NED({best_t['ned'][0]:.2f},{best_t['ned'][1]:.2f})")
+                alpha = 0.3
+                old_x, old_y = best_t["ned"]
+                best_t["ned"] = (old_x + alpha * (bx - old_x),
+                                 old_y + alpha * (by - old_y))
+                best_t["last_seen"] = now_s
+                best_t["roi_center"] = (cx, cy)
+                best_t["area"] = float(roi.width * roi.height)
+                if not best_t["confirmed"] and (now_s - best_t["first_seen"]) >= TRACKER_CONFIRM_TIME:
+                    best_t["confirmed"] = True
+                    self.get_logger().info(
+                        f"Tracker confirmed: NED({best_t['ned'][0]:.1f},{best_t['ned'][1]:.1f}) "
+                        f"after {now_s - best_t['first_seen']:.1f}s")
+                matched.add(id(best_t))
+            else:
+                self._trackers.append({
+                    "id": self._next_tracker_id,          # C: 稳定 id (= 桶身份)
+                    "ned": (bx, by),
+                    "first_seen": now_s,
+                    "last_seen": now_s,
+                    "confirmed": False,
+                    "roi_center": (cx, cy),
+                    "area": float(roi.width * roi.height),
+                })
+                self._next_tracker_id += 1
+                # 2026-09-20 诊断: 新追踪器 + 来源框 (找重复计数来源)
+                self.get_logger().info(
+                    f"  TRK-NEW #{len(self._trackers) - 1} NED({bx:.2f},{by:.2f}) "
+                    f"from box(cx={cx:.0f},cy={cy:.0f},w={roi.width:.0f},h={roi.height:.0f}) "
+                    f"alive={len(self._trackers)}")
+
+        self._trackers = [t for t in self._trackers
+                          if (now_s - t["last_seen"] < TRACKER_TIMEOUT)
+                          or id(t) in matched]
+        # 2026-09-20 诊断: 1Hz 打印本帧全部检测框 + 全部存活追踪器
+        if now_s - getattr(self, '_trk_dbg_t', 0.0) > 1.0:
+            self._trk_dbg_t = now_s
+            box_txt = " ".join(
+                f"({cx:.0f},{cy:.0f})w{w:.0f}→NED({bx:.2f},{by:.2f})"
+                for bx, by, _roi, _d, cx, cy, w in
+                [(bx, by, roi, d, cx, cy, roi.width) for bx, by, roi, d, cx, cy in bucket_ests])
+            trk_txt = " ".join(
+                f"#{i}{'C' if t['confirmed'] else '-'}NED({t['ned'][0]:.2f},{t['ned'][1]:.2f})"
+                f"age{now_s - t['first_seen']:.1f}s"
+                for i, t in enumerate(self._trackers))
+            self.get_logger().info(
+                f"  TRK-DBG step={STEP_NAME.get(self.step, self.step)} nbox={len(bucket_ests)} "
+                f"boxes=[{box_txt}] trackers={len(self._trackers)}[{trk_txt}]")
+
+    def _enter_step(self, step):
+        # 2026-09-12 e: 记录前一阶段与耗时, 供下方阶段切换日志使用 (必须先于 self.step 赋值)
+        prev_step = self.step
+        prev_elapsed = self._step_elapsed()
+        if prev_step == STEP_DROP and step != STEP_DROP:
+            self._aux5_value = AUX5_LOCK   # 2026-09-20: 离开 DROP 必复位释放输出
+        self.step = step; self._step_start_time = self.get_clock().now()
+        self._stabilize_start = None
+        self._detect_loss_logged = False; self._detect_loss_start = None
+        self._confirm_start_time = None; self._stabilize_lost_frames = 0
+        self._drop_triggered = False; self._drop_signal_start = None
+        self._drop_hold_target = None
+        if step == STEP_DROP:      # 2026-10-03 i: 记录进入时刻(必投兜底计时) + 复位冻结
+            self._i_entry_t = self.get_clock().now().nanoseconds * 1e-9
+            self._i_frozen = False
+        if step == STEP_POSITION_REFINE:
+            self._refine_ests = []
+            self._roi_dup_count = 0; self._last_roi_key = None
+            self._last_detect_time = self.get_clock().now()
+        if step == STEP_VISUAL_SERVO:
+            self.pid.reset()
+            self._servo_active = True
+            self._servo_target_x = self._current_target_ned[0]
+            self._servo_target_y = self._current_target_ned[1]
+            self._servo_converge_start = None
+            self._decimation_ctr = 0
+        if step == STEP_DROP:
+            self._decimation_ctr = 0
+            # 2026-09-12 e: 收敛即投复位 (自 d). 注意: VISUAL_SERVO 俯冲段保留 c 的增量累加,
+            # 它可能攒下漂移; 进入 DROP 后反投影重建每帧重算 target, 会把这部分漂移冲掉.
+            self._last_drop_err = None
+            self._drop_converge_start = None
+            # 2026-09-24 f: 两级判据复位 (每桶/每段 DROP 重新记低谷)
+            self._drop_conv_min = None
+            self._drop_tier = None
+            # 2026-09-13: 身份锁记账 + 像素残差积分 每桶复位
+            self._geo_reject_n = 0
+            self._geo_pending_est = None
+            self._geo_mode = None
+            self._servo_bias_x = 0.0
+            self._servo_bias_y = 0.0
+            self._bias_sat_logged = False
+        if step == STEP_FORWARD:
+            self._fwd_exit_frames = 0
+            self._fwd_arrive_frames = 0
+        if step == STEP_STABILIZE: self._stabilize_yaw = None
+        if step == STEP_HOVER_SEARCH:
+            self._search_good_frames = 0
+            self._trackers = []  # v9: 新搜索, 清空旧追踪器
+        if step == STEP_RETURN:
+            self._current_target_ned = None
+            self._target_img_idx = -1
+            self._target_buckets = []
+            self._return_sub = 0
+            self._return_sub_start = None
+            self._stab_pos_hist.clear()
+        if step == STEP_LAND:
+            self._land_entry_z = None
+        if step == STEP_CLIMB:
+            self._climb_done = False
+        if step == STEP_SCOUT:
+            self._scout_hover_start = None
+            self._scout_sub = 0
+            self._scout_sub_start = None
+        if step == STEP_TAKEOFF and self._mission_start_time is None:
+            self._mission_start_time = self.get_clock().now()  # 任务计时起点 (2026-09-12 e)
+        # 2026-09-12 e: 阶段切换日志 (自 d) — 每阶段进入位置/高度 + 前一阶段耗时
+        if self.x is not None and self.home_z is not None:
+            if prev_step == step:
+                self.get_logger().info(f"STEP {STEP_NAME[step]} re-entered")
+            else:
+                self.get_logger().info(
+                    f"STEP {STEP_NAME[prev_step]}->{STEP_NAME[step]} "
+                    f"(prev {prev_elapsed:.1f}s) NED({self.x:.2f},{self.y:.2f},{self.z:.2f}) "
+                    f"H={self.home_z-self.z:.2f}m")
+
+    def _step_elapsed(self):
+        if self._step_start_time is None: return 0.0
+        return (self.get_clock().now() - self._step_start_time).nanoseconds * 1e-9
+
+    def _detect_fresh(self):
+        if self.latest_roi is None: return False
+        return (self.get_clock().now() - self._last_detect_time).nanoseconds * 1e-9 < DETECT_TIMEOUT
+
+    def _px_raw(self):
+        """当前目标 ROI 的**原始**像素偏差 (未做姿态补偿/死区), 供 1Hz 状态行复盘.
+
+        返回 (ex, ey, err): ex>0 = 桶在图像右侧, ey>0 = 桶在机头前方 (TOP=前).
+        与 PID 内部 ex/ey 的差别仅在于此函数不做 tan(roll)/tan(pitch) 补偿、不置死区,
+        因此它代表"相机实际看到的偏差", 而 PID 输出的是补偿后的控制量.
+        """
+        roi = self.latest_roi
+        if roi is None or roi.width <= 0 or roi.height <= 0: return None
+        cx = roi.x_offset + roi.width / 2.0
+        cy = roi.y_offset + roi.height / 2.0
+        ex = cx - CX
+        ey = CY - cy
+        return (ex, ey, math.hypot(ex, ey))
+
+    def _px_raw_s(self):
+        """_px_raw() 的定宽字符串形式, 供日志行内嵌 (无检测 → '--')."""
+        px = self._px_raw()
+        if px is None: return "--"
+        return f"({px[0]:+.0f},{px[1]:+.0f},err={px[2]:.0f}px)"
+
+    def _drop_detect_age(self):
+        if self.latest_roi is None or self._last_matched_detect_time is None:
+            return float('inf')
+        return (self.get_clock().now() - self._last_matched_detect_time).nanoseconds * 1e-9
+
+    def _drop_detection_fresh(self):
+        return 0.0 <= self._drop_detect_age() <= DROP_DETECT_MAX_AGE
+
+    # ========== 几何工具 ==========
+    def _roi_to_ned(self, roi):
+        """像素 → 相对home的NED偏移 (非PX4绝对坐标).
+
+        与 PID 共用 camera_pixel_to_level；H 是起飞参考平面相对高度。
+        前/右距离经航向旋转到 NED；无有效地面交点时返回 None。
+        """
+        if self.heading is None or self.home_z is None or self.home_x is None: return None
+        H = self.home_z - self.z
+        if not math.isfinite(H) or H < 0.3: return None
+        cx = roi.x_offset + roi.width / 2.0; cy = roi.y_offset + roi.height / 2.0
+        projected = camera_pixel_to_level(cx, cy, self._pitch, self._roll)
+        if projected is None: return None
+        cam_fwd, cam_right = (v * H for v in projected)
+        dx, dy, _ = self._body_to_ned(cam_fwd, cam_right)
+        return (self.x - self.home_x + dx, self.y - self.home_y + dy)
+
+    def _body_to_ned(self, v_fwd, v_lat, v_down=0.0):
+        cos_h, sin_h = math.cos(self.heading), math.sin(self.heading)
+        return (v_fwd * cos_h - v_lat * sin_h,
+                v_fwd * sin_h + v_lat * cos_h, v_down)
+
+    def _ned_to_body(self, dx, dy):
+        """NED 世界偏移 → 机体坐标系 (fwd, right)."""
+        cos_h, sin_h = math.cos(self.heading), math.sin(self.heading)
+        fwd = dx * cos_h + dy * sin_h
+        lat = -dx * sin_h + dy * cos_h
+        return fwd, lat
+
+    def _ned_to_expected_pixel(self, target_ned):
+        """已知桶 NED → 期望像素坐标 (用于 TRACK 阶段身份锁定)."""
+        if self.heading is None or self.home_z is None or self.home_x is None:
+            return None
+        H = self.home_z - self.z
+        if H < 0.3:
+            return None
+        dx = (self.home_x + target_ned[0]) - self.x
+        dy = (self.home_y + target_ned[1]) - self.y
+        cam_fwd, cam_right = self._ned_to_body(dx, dy)
+        return level_to_camera_pixel(cam_fwd, cam_right, H, self._pitch, self._roll)
+
+    def _finalize_refine(self):
+        """平均收集到的 ROI→NED 估计, 更新 _current_target_ned.
+        如果修正量 > POSITION_REFINE_MAX_CORRECTION 则拒绝 (防止身份混淆).
+        """
+        ests = getattr(self, '_refine_ests', [])
+        if len(ests) >= POSITION_REFINE_MIN_SAMPLES:
+            avg_x = sum(e[0] for e in ests) / len(ests)
+            avg_y = sum(e[1] for e in ests) / len(ests)
+            old_x, old_y = self._current_target_ned
+            correction = math.hypot(avg_x - old_x, avg_y - old_y)
+            if correction > POSITION_REFINE_MAX_CORRECTION:
+                self.get_logger().warn(
+                    f"Position refine REJECTED: correction {correction:.2f}m > "
+                    f"{POSITION_REFINE_MAX_CORRECTION}m (identity confusion)")
+            else:
+                self._current_target_ned = (avg_x, avg_y)
+                self.get_logger().info(
+                    f"Position refined: ({old_x:.2f},{old_y:.2f}) -> ({avg_x:.2f},{avg_y:.2f}) "
+                    f"delta=({avg_x-old_x:.3f},{avg_y-old_y:.3f})m n={len(ests)}")
+                self._rebind_target_id()          # C: 瞄准点已准确 → 重新认领该桶的追踪器 id
+        else:
+            self.get_logger().info(
+                f"Position refine skipped: only {len(ests)} samples (need {POSITION_REFINE_MIN_SAMPLES})")
+        self._refine_ests = []
+
+    def _bucket_target(self):
+        """FORWARD 目标点, 相对 home 的 NED 偏移."""
+        if self._heading0 is None: return (0.0, 0.0)
+        cos_h0, sin_h0 = math.cos(self._heading0), math.sin(self._heading0)
+        return (FORWARD_DIST * cos_h0,
+                FORWARD_DIST * sin_h0)
+
+    def _scout_pos_limited(self, tx, ty, z, yaw):
+        # (2026-09-30 自 h 移植) 侦察区平移限速: 把"位置阶跃"换成 SCOUT_MOVE_SPEED 等速平移 + 末段线性减速,
+        # 避免 PX4 位置环全速冲刺/硬刹车造成俯视相机晃动。参考点每帧朝子目标推进, 再以位置 setpoint 发布。
+        now = self.get_clock().now()
+        key = (getattr(self, '_scout_sub', None), round(tx, 3), round(ty, 3))
+        if getattr(self, '_scout_lim_key', None) != key:
+            self._scout_lim_key = key
+            self._scout_ref_x = self.x - self.home_x
+            self._scout_ref_y = self.y - self.home_y
+        dt = min(0.2, max(0.01, (now - getattr(self, '_scout_lim_t', now)).nanoseconds * 1e-9))
+        self._scout_lim_t = now
+        dx, dy = tx - self._scout_ref_x, ty - self._scout_ref_y
+        rem = math.hypot(dx, dy)
+        if rem > 1e-6:
+            v = SCOUT_MOVE_SPEED * min(1.0, rem / max(0.05, SCOUT_MOVE_RAMP))
+            step = min(rem, v * dt)
+            self._scout_ref_x += dx / rem * step
+            self._scout_ref_y += dy / rem * step
+        self._pub_pos(self.home_x + self._scout_ref_x, self.home_y + self._scout_ref_y, z, yaw)
+
+    def _scout_settled(self, sub_elapsed):
+        # (2026-09-30 自 h 移植) 判稳后才开始 SCOUT_PAUSE_TIME 计时: 先要 |vxy| < SCOUT_SETTLE_VMAX 持续
+        # SCOUT_SETTLE_HOLD, 之后才开始计时; 总时长超 SCOUT_PAUSE_MAX 兜底退出。
+        now = self.get_clock().now()
+        if getattr(self, '_scout_still_sub', None) != getattr(self, '_scout_sub', None):
+            self._scout_still_sub = getattr(self, '_scout_sub', None)
+            self._scout_still_start = None
+        if math.hypot(self.vx, self.vy) < SCOUT_SETTLE_VMAX:
+            if getattr(self, '_scout_still_start', None) is None:
+                self._scout_still_start = now
+        else:
+            self._scout_still_start = None
+        st = getattr(self, '_scout_still_start', None)
+        if sub_elapsed > SCOUT_PAUSE_MAX:
+            return True
+        if st is None:
+            return False
+        return (now - st).nanoseconds * 1e-9 - SCOUT_SETTLE_HOLD > SCOUT_PAUSE_TIME
+    def _scout_target(self):
+        """侦察区中心, 相对 home 的 NED 偏移."""
+        if self._heading0 is None: return (0.0, 0.0)
+        cos_h0, sin_h0 = math.cos(self._heading0), math.sin(self._heading0)
+        return (SCOUT_DIST * cos_h0,
+                SCOUT_DIST * sin_h0)
+
+    def _scout_edge_target(self):
+        """侦察区第一根线(近边)中点, 相对 home 的 NED 偏移. 2026-08-15: 直飞目标改近边防过冲."""
+        if self._heading0 is None: return (0.0, 0.0)
+        cos_h0, sin_h0 = math.cos(self._heading0), math.sin(self._heading0)
+        return (SCOUT_EDGE_DIST * cos_h0,
+                SCOUT_EDGE_DIST * sin_h0)
+
+    def _fly_toward(self, tx, ty, speed, vz=0.0):
+        """速度控制飞向绝对NED坐标 (tx, ty)。
+        tx, ty 是绝对 NED 坐标 (不是相对 home 偏移)。
+        调用方: SCOUT 传 home_x+sx, RETURN 传 home_x, home_y.
+        """
+        dist = math.hypot(tx - self.x, ty - self.y)
+        if dist > 0.1:
+            # 距离越近速度越低, dist<3m 时线性 ramp-down, 最低 FORWARD_MIN_SPEED
+            ratio = max(FORWARD_MIN_SPEED / CRUISE_SPEED, min(1.0, dist / 3.0))
+            vx = (tx - self.x) / dist * speed * ratio
+            vy = (ty - self.y) / dist * speed * ratio
+        else: vx = vy = 0.0
+        return vx, vy, dist
+
+    # 2026-09-12 e 按用户指示移除 _enforce_boundaries (软墙机制), 自 d 移植:
+    # 实机 d 试飞 — 目标桶侧向 4.21m 超出 ±4m 软墙, 软墙每 1-2s 接管并跳过状态机,
+    # 伺服 / 收敛判定 / 投弹计时全部停摆 → err 74→218px 发散 → 任务中止 (未投弹).
+
+    def _handle_detect_loss(self, target_z):
+        if not self._detect_loss_logged:
+            self._detect_loss_logged = True
+            self.get_logger().warn(f"Detection lost in {STEP_NAME[self.step]}, hovering...")
+        self._pub_vel(0.0, 0.0, (target_z - self.z) * TRACK_VZ_KP, self.heading)
+
+    def _shutdown(self, reason="unknown"):
+        self.timer.cancel()
+        self.manual_timer.cancel()
+        self._print_summary(reason)
+        self.get_logger().info("Mission complete, shutting down")
+        self.destroy_node()
+        # 2026-09-12 e: 只置退出标志, 由 main() 退出 spin 循环后再 destroy/shutdown.
+        # **不能**在回调内直接 rclpy.shutdown(): Executor.shutdown() 会 _work_tracker.wait(None)
+        # 等"正在执行的回调"结束 —— 即等自己 → 自死锁, 进程挂住 (c 继承的遗留问题)
+        self.done = True
+
+    def _print_summary(self, reason):
+        """任务总结报告 (2026-09-12 e, 自 d 移植): 结束原因/选桶/投弹明细/侦察/返航/着陆/总时长.
+
+        目的: 飞行结束后只看这一段就能拿到任务级结论; 逐秒过程看 1Hz 状态行与
+        PRE-SERVO / SERVO / DROP-SERVO 明细行.
+        """
+        L = self.get_logger().info
+        L("=" * 72)
+        L("MISSION SUMMARY (project f)")
+        L(f"  End reason: {reason}")
+        if self._mission_start_time is not None:
+            total = (self.get_clock().now() - self._mission_start_time).nanoseconds * 1e-9
+            L(f"  Total time: {total:.1f}s")
+        if self.home_x is not None:
+            L(f"  Home: NED({self.home_x:.2f},{self.home_y:.2f},{self.home_z:.2f}) "
+              f"HEADING_DEG={HEADING_DEG:.0f}deg")
+        if getattr(self, '_sel_info', None):
+            L(f"  Selection: {self._sel_info}")
+        L(f"  Buckets dropped: {len(self._drop_records)}/{getattr(self, '_target_count', 0)}")
+        for r in self._drop_records:
+            aim_str = f"NED({r['aim'][0]:.2f},{r['aim'][1]:.2f})" if r["aim"] else "unknown"
+            pos = r["pos"]
+            dev = math.hypot(pos[0] - r["aim"][0], pos[1] - r["aim"][1]) if r["aim"] else float("nan")
+            err_str = ""
+            if r["last_err"] is not None:
+                ep, exl, eyl, hh = r["last_err"]
+                err_str = f" last_err={ep:.0f}px(ex={exl:.0f},ey={eyl:.0f}@H={hh:.2f}m)"
+            L(f"  Drop #{r['idx']}: aim {aim_str} at NED({pos[0]:.3f},{pos[1]:.3f}) "
+              f"H={r['H']:.2f}m vehicle_to_anchor={dev:.3f}m actual_impact=unmeasured tier=T{r.get('tier')} conv_min={r.get('conv_min') if r.get('conv_min') is None else round(r['conv_min'] * 100, 1)}cm{err_str}")
+        if self._scout_done and self._scout_elapsed is not None:
+            L(f"  Scout: completed ({self._scout_elapsed:.1f}s, 7 sub-phases)")
+        elif self.step == STEP_SCOUT:
+            L(f"  Scout: incomplete (aborted at sub={self._scout_sub})")
+        else:
+            L("  Scout: not reached")
+        if self._return_stab_info is not None:
+            stab_t, drift = self._return_stab_info
+            L(f"  Return: stabilized in {stab_t:.1f}s (drift {drift:.2f}m)")
+        else:
+            L("  Return: no stabilization (forced land)")
+        if self._land_pos is not None and self.home_x is not None:
+            dist = math.hypot(self._land_pos[0] - self.home_x, self._land_pos[1] - self.home_y)
+            L(f"  Landing: NED({self._land_pos[0]:.2f},{self._land_pos[1]:.2f}) dist_from_home={dist:.2f}m")
+        else:
+            L("  Landing: not reached")
+        if self._search_failed:
+            L("  NOTE: no valid targets in HOVER_SEARCH, skipped drops")
+        if self._mission_timeout_forced:
+            L("  NOTE: mission timeout forced landing")
+        L("=" * 72)
+
+    # ========== ManualControlSetpoint ==========
+    def _publish_manual_control(self):
+        msg = ManualControlSetpoint()
+        msg.timestamp = self.get_clock().now().nanoseconds // 1000
+        msg.timestamp_sample = msg.timestamp
+        msg.valid = True; msg.data_source = ManualControlSetpoint.SOURCE_RC
+        msg.roll = msg.pitch = msg.yaw = 0.0; msg.throttle = -1.0; msg.flaps = 0.0
+        msg.aux1 = msg.aux2 = msg.aux3 = msg.aux4 = 0.0
+        msg.aux5 = float(self._aux5_value); msg.aux6 = 0.0
+        msg.sticks_moving = True
+        # px4_msgs 不同版本的 ManualControlSetpoint 有的没有 buttons 字段
+        if hasattr(msg, 'buttons'):
+            msg.buttons = 0
+        self.manual_pub.publish(msg)
+        if not hasattr(self, '_aux5_pwm_ctr'): self._aux5_pwm_ctr = 0
+        self._aux5_pwm_ctr += 1
+        if self._aux5_pwm_ctr >= 20:
+            self._aux5_pwm_ctr = 0
+            self.aux5_pwm_pub.publish(Float32(data=float(1500.0 + self._aux5_value * 600.0)))
+
+    # ================================================================
+    # 主循环
+    # ================================================================
+    def control_loop(self):
+        # v2: 用 _takeoff_x 做入口守卫 (home 延后到 STABILIZE 才锁定)
+        if self._takeoff_x is None or self.heading is None: return
+
+        sim_t = (self.get_clock().now() - self._start_wall).nanoseconds * 1e-9
+        self._print_ctr += 1
+        if self._print_ctr >= 20:
+            # ===== 2026-09-12 e: 1Hz 全量状态行 (固定字段顺序, 便于人读 + 脚本解析复盘) =====
+            # 字段: t=任务计时  TAG  阶段耗时  NED  H(离地高)  hdg/pit/rol  vNED(实际速度)  det/age(检测数/新鲜度)  阶段附加信息
+            tag = STEP_NAME.get(self.step, "???")
+            hdg = math.degrees(self.heading) if self.heading else 0.0
+            H = (self.home_z - self.z) if self.home_z is not None else float("nan")
+            H_str = f"{H:5.2f}" if self.home_z is not None else "   --"  # home 未锁定时 H 无意义, 不打印 nan
+            t_mission = sim_t
+            if self._mission_start_time is not None:
+                t_mission = (self.get_clock().now() - self._mission_start_time).nanoseconds * 1e-9
+            det_age = (self.get_clock().now() - self._last_detect_time).nanoseconds * 1e-9 \
+                if self._last_detect_time is not None else -1.0
+            has_det = f"det={len(self._bucket_ests)}" if self._bucket_ests else "det=0"
+            extra = ""
+            if self.step in (STEP_TRACK, STEP_VISUAL_SERVO, STEP_DROP) and self._bucket_idx < len(self._target_buckets):
+                extra = f" B{self._bucket_idx+1}/{len(self._target_buckets)}"
+            if self.step == STEP_VISUAL_SERVO and self._servo_active:
+                extra += " SERVO"
+            if self.step == STEP_POSITION_REFINE:
+                n = len(getattr(self, '_refine_ests', []))
+                extra = f" refine_samples={n} elapsed={self._step_elapsed():.1f}s"
+            if self.step == STEP_STABILIZE:
+                extra = f" stabilizing {self._step_elapsed():.1f}s/{STABILIZE_HOVER_TIME}s"
+            elif self.step == STEP_FORWARD and self.home_x is not None:
+                tx, ty = self._bucket_target()
+                extra = f" dist_to_target={math.hypot((self.x-self.home_x)-tx,(self.y-self.home_y)-ty):.1f}m"
+            elif self.step == STEP_HOVER_SEARCH:
+                conf = sum(1 for t in self._trackers if t["confirmed"])
+                extra = f" search {self._step_elapsed():.1f}s confirmed={conf}/{len(self._trackers)}"
+            elif self.step == STEP_SCOUT:
+                extra = f" scout sub={self._scout_sub}"
+            elif self.step == STEP_RETURN and self.home_x is not None:
+                dist_h = math.hypot(self.x-self.home_x, self.y-self.home_y)
+                if self._return_sub == 0:
+                    extra = f" ->home dist={dist_h:.1f}m"
+                else:
+                    drift = 0.0
+                    if self._stab_pos_hist:
+                        xs = [p[0] for p in self._stab_pos_hist]; ys = [p[1] for p in self._stab_pos_hist]
+                        drift = max(max(xs)-min(xs), max(ys)-min(ys))
+                    extra = f" stabilizing dist={dist_h:.2f}m drift={drift:.2f}m"
+            # 伺服装 (TRACK/PRE_SERVO/VISUAL_SERVO/DROP): 附当前瞄准点 + 原始像素偏差
+            if self.step in (STEP_TRACK, STEP_PRE_SERVO, STEP_VISUAL_SERVO, STEP_DROP) and self._current_target_ned:
+                tx, ty = self._current_target_ned
+                extra += f" tgt=NED({tx:.2f},{ty:.2f})"
+                px = self._px_raw()
+                if px is not None:
+                    ex, ey, err = px
+                    extra += f" px=({ex:+.0f},{ey:+.0f})err={err:.0f}px"
+            self.get_logger().info(
+                f"[t={t_mission:7.1f} {tag:<15s} ph={self._step_elapsed():5.1f}s] "
+                f"NED({self.x:7.2f},{self.y:7.2f},{self.z:6.2f}) H={H_str} "
+                f"hdg={hdg:6.1f} pit={math.degrees(self._pitch):+5.1f} rol={math.degrees(self._roll):+5.1f} "
+                f"vNED=({self.vx:+.2f},{self.vy:+.2f},{self.vz:+.2f}) "
+                f"{has_det} age={det_age:4.2f}{extra}")
+            self._print_ctr = 0
+
+        # 初始等待 (DDS 就绪)
+        if not self._initial_wait_done:
+            if self._init_wait_start is None: self._init_wait_start = self.get_clock().now()
+            self._pub_vel(0.0, 0.0, 0.0, self.heading)
+            elapsed = (self.get_clock().now() - self._init_wait_start).nanoseconds * 1e-9
+            dds_ready = self._control_mode is not None
+            if dds_ready and elapsed > 3.0: self._initial_wait_done = True
+            elif elapsed > 30.0: self._shutdown("dds_timeout"); return
+            return
+
+        # ARM / OFFBOARD (实机: VehicleControlMode 单源, 不用 VehicleStatus fallback)
+        cm = self._control_mode
+        armed = cm.flag_armed if cm is not None else False
+        offboard = cm.flag_control_offboard_enabled if cm is not None else False
+        if cm is None: self._pub_vel(0, 0, 0, self.heading); return
+        if self._mode_req_start is None: self._mode_req_start = self.get_clock().now()
+        elapsed = (self.get_clock().now() - self._mode_req_start).nanoseconds * 1e-9
+        ref_x, ref_y = self._takeoff_x, self._takeoff_y
+        ref_z = self._takeoff_z - CRUISE_HEIGHT
+        yaw_live = self.heading if self.heading else 0.0
+        if self.step == STEP_LAND and self._land_cmd_sent: pass
+        elif armed and offboard:
+            # 2026-09-12 e: 解锁+OFFBOARD 链路日志 (自 d) — 确认模式切换实际耗时
+            if not getattr(self, '_active_logged', False):
+                self._active_logged = True
+                self.get_logger().info(f"ARM + OFFBOARD active (t={elapsed:.1f}s), entering mission")
+        elif elapsed > 30.0: self.get_logger().error("Mode timeout"); self._shutdown("mode_timeout"); return
+        elif not armed:
+            if not self._arm_req or elapsed - self._last_arm_attempt > 1.0:
+                if not self._arm_req:
+                    self.get_logger().info(f"Requesting ARM... (t={elapsed:.1f}s)")
+                self._arm_req = True; self._last_arm_attempt = elapsed; send_arm(self.cmd_pub, self)
+            elif self._arm_req and not getattr(self, '_arm_ok_logged', False):
+                self._arm_ok_logged = True
+                self.get_logger().info(f"ARM request sent, waiting for armed flag... (t={elapsed:.1f}s)")
+            self._pub_pos(ref_x, ref_y, self._takeoff_z, yaw_live); return
+        elif not offboard:
+            if not self._mode_req:
+                self._mode_req = True; self._send_cmd(176, param1=1.0, param2=6.0)
+                self.get_logger().info(f"ARM OK, requesting OFFBOARD mode... (t={elapsed:.1f}s)")
+            self._pub_pos(ref_x, ref_y, self._takeoff_z, yaw_live); return
+
+        # ============================================================
+        # 状态机
+        # ============================================================
+        cruise_z = self._takeoff_z - CRUISE_HEIGHT
+        yaw_live = self.heading if self.heading is not None else 0.0
+        yaw_locked = self._heading0 if self._heading0 is not None else yaw_live
+
+        # 2026-09-12 e: 飞行边界已完全移除 (原 _enforce_boundaries 调用点 → 软墙接管会导致伺服停摆)
+
+        # 全局超时保护
+        if not self._land_cmd_sent and sim_t > MISSION_TIMEOUT:
+            self.get_logger().error(f"Mission timeout ({MISSION_TIMEOUT}s), forcing land")
+            self._mission_timeout_forced = True
+            self._enter_step(STEP_LAND)
+
+        # ---- TAKEOFF: 位置保持 → 竖直爬升到巡航高度 ----
+        if self.step == STEP_TAKEOFF:
+            if self._step_start_time is None:
+                self._enter_step(STEP_TAKEOFF)
+            elapsed_tk = self._step_elapsed()
+            if elapsed_tk < 2.0:
+                # 初始位置保持, 让飞机稳定
+                self._pub_pos(self._takeoff_x, self._takeoff_y, self._takeoff_z, yaw_live)
+            else:
+                # 竖直爬升
+                climb_elapsed = elapsed_tk - 2.0
+                z_ramp = self._takeoff_z - min(CRUISE_HEIGHT, climb_elapsed * TAKEOFF_CLIMB_RATE)
+                self._pub_pos(self._takeoff_x, self._takeoff_y, z_ramp, yaw_live)
+            if abs(self.z - cruise_z) < 0.5 and elapsed_tk > 4.0:
+                self.get_logger().info("Reached cruise height, entering STABILIZE")
+                self._enter_step(STEP_STABILIZE)
+
+        # ---- STABILIZE: 悬停稳姿态 → 锁定 heading0 和 home ----
+        elif self.step == STEP_STABILIZE:
+            # 进入时捕捉固定 yaw, 悬停让 heading 真正收敛
+            if self._stabilize_yaw is None:
+                self._stabilize_yaw = self.heading if self.heading else 0.0
+            self._pub_pos(self._takeoff_x, self._takeoff_y, cruise_z, self._stabilize_yaw)
+            if self._step_elapsed() >= STABILIZE_HOVER_TIME:
+                # 使用硬编码航向, home 用起飞点地面高度
+                self._heading0 = math.radians(HEADING_DEG)
+                self.home_x, self.home_y = self._takeoff_x, self._takeoff_y
+                self.home_z = self._takeoff_z
+                bx, by = self._bucket_target()
+                self.get_logger().info(
+                    f"Home locked: NED({self.home_x:.2f},{self.home_y:.2f},{self.home_z:.2f}) "
+                    f"heading0={HEADING_DEG:.0f}deg (hardcoded) target NED({bx:.1f},{by:.1f})")
+                self._enter_step(STEP_FORWARD)
+
+        # ---- FORWARD: 沿 heading0 盲飞 32m, 全程忽略视觉检测, 保证轨迹笔直 ----
+        elif self.step == STEP_FORWARD:
+            if self._step_elapsed() > STEP_TIMEOUT: self._enter_step(STEP_HOVER_SEARCH); return
+            tx, ty = self._bucket_target()
+            cos_h0, sin_h0 = math.cos(self._heading0), math.sin(self._heading0)
+            # 一维标量投影判断飞行进度 (区分方向: 正=接近, 负=飞过头)
+            travel = (self.x - self.home_x) * cos_h0 + (self.y - self.home_y) * sin_h0
+            remain = FORWARD_DIST - travel
+            # 过冲检测: 飞过目标 0.5m 以上, 连续 N 帧确认 (防 GPS 跳变)
+            if remain < -POS_ARRIVE_DIST:
+                self._fwd_exit_frames += 1
+                if self._fwd_exit_frames >= FORWARD_EXIT_CONFIRM_FRAMES:
+                    self.get_logger().info(f"Overshot target travel={travel:.2f}m > {FORWARD_DIST}m, entering HOVER_SEARCH")
+                    self._enter_step(STEP_HOVER_SEARCH); return
+            else:
+                self._fwd_exit_frames = 0
+            # 非对称 ramp-down: effective_dist = max(0, remain), 飞过头不加速 (防止越飞越远)
+            effective_dist = max(0.0, remain)
+            ratio = max(FORWARD_MIN_SPEED / CRUISE_SPEED, min(1.0, effective_dist / FORWARD_RAMP_DIST))
+            speed = CRUISE_SPEED * ratio
+            vx = speed * cos_h0; vy = speed * sin_h0
+            self._pub_vel(vx, vy, (cruise_z - self.z) * TRACK_VZ_KP, self._heading0)
+            # 二维欧氏距离兜底 — 连续 N 帧确认
+            dist2d = math.hypot((self.x - self.home_x) - tx, (self.y - self.home_y) - ty)
+            if dist2d < POS_ARRIVE_DIST:
+                self._fwd_arrive_frames += 1
+                if self._fwd_arrive_frames >= FORWARD_EXIT_CONFIRM_FRAMES:
+                    self.get_logger().info(f"Arrived at target, dist={dist2d:.2f}m, entering HOVER_SEARCH")
+                    self._enter_step(STEP_HOVER_SEARCH)
+            else:
+                self._fwd_arrive_frames = 0
+
+        # ---- HOVER_SEARCH: 目标点悬停, 搜索全部桶, 选最近2个 ----
+        elif self.step == STEP_HOVER_SEARCH:
+            if self._step_elapsed() > HOVER_SEARCH_TIMEOUT:
+                self._search_failed = True
+                self.get_logger().info("No valid targets, going to scout zone")
+                self._enter_step(STEP_SCOUT); return
+            tx, ty = self._bucket_target()
+            self._pub_pos(self.home_x + tx, self.home_y + ty, cruise_z, yaw_locked)
+
+            # 驻留等 MPC 刹车, 期间跳过门控
+            if self._step_elapsed() < HOVER_SEARCH_SETTLE_TIME:
+                return
+
+            # 零检测超时: 连续 N 秒一个桶都没看到 → 判定此处无目标, 转侦察区
+            if not self._detect_fresh() or not self._bucket_ests:
+                if not hasattr(self, '_zero_detect_start'): self._zero_detect_start = self.get_clock().now()
+                if hasattr(self, '_zero_detect_start') and self._zero_detect_start is not None:
+                    zero_elapsed = (self.get_clock().now() - self._zero_detect_start).nanoseconds * 1e-9
+                    if zero_elapsed > HOVER_SEARCH_ZERO_DETECT_TIMEOUT:
+                        self._search_failed = True
+                        self.get_logger().info(
+                            f"No detection for {zero_elapsed:.1f}s > {HOVER_SEARCH_ZERO_DETECT_TIMEOUT}s, going to scout zone")
+                        self._enter_step(STEP_SCOUT); return
+            else:
+                self._zero_detect_start = None
+
+            # 从已确认的追踪器中选检测框面积最大的 2 个桶
+            confirmed = [t for t in self._trackers if t["confirmed"]]
+            if len(confirmed) < 2:
+                return  # 确认不足 2 个, 继续等待
+
+            # 2026-09-12 e 选桶策略改版 (自 d): "检测框面积降序" → "优先选离航向中线最近的桶".
+            # 动机 (实机 d_mission_20260911_170203.log): 面积最大 ≠ 最合适 —— 该轮按面积选中
+            # 侧向 lateral -4.21m 的桶当第一目标, 几乎正前方的 -0.42m 桶反被丢弃, 既贴飞行边界
+            # 又落进 85° 广角镜头像场边缘 (定位偏差最大) 的区域.
+            if self._heading0 is not None:
+                s_h0, c_h0 = math.sin(self._heading0), math.cos(self._heading0)
+                # 主键 |lateral| 升序 (正值=heading0 右侧); 次键 面积降序 (两侧向接近时仍优先更近/更大的桶)
+                confirmed.sort(key=lambda t: (
+                    abs(-t["ned"][0] * s_h0 + t["ned"][1] * c_h0),
+                    -t.get("area", 0)))
+            else:
+                confirmed.sort(key=lambda t: t.get("area", 0), reverse=True)
+            # 2026-09-20: 两个目标必须由画面里"两个不同的框"支撑 (防真桶+残框幽灵占满两名).
+            #   追踪器记有 roi_center(最近一次匹配框中心); 两框中心相距 <25px 视为同一个框.
+            picked = []
+            for _t in confirmed:
+                if all(math.hypot(_t["roi_center"][0] - _p["roi_center"][0],
+                                  _t["roi_center"][1] - _p["roi_center"][1]) >= 25.0
+                       for _p in picked):
+                    picked.append(_t)
+                if len(picked) == 2:
+                    break
+            if len(picked) < 2:
+                # 没有两个"由不同框支撑"的已确认目标: 继续悬停搜索, 不用同一桶的两个候选占位
+                self.get_logger().info(
+                    f"  SELECT-HOLD 已确认 {len(confirmed)} 个但只有 {len(picked)} 个由不同框支撑, 继续搜索")
+                return
+            selected = [(t["ned"][0], t["ned"][1]) for t in picked]
+            self._target_buckets = selected
+            self._target_ids = [t.get("id", -1) for t in picked]   # C: 记下桶身份 (追踪器 id)
+            self._target_count = len(selected)      # 2026-09-12 e: MISSION SUMMARY 分母
+            self._bucket_idx = 0
+            self._current_target_ned = self._target_buckets[self._bucket_idx]
+            self._target_img_idx = -1
+            lateral_txt = ", ".join(
+                f"lat={-t['ned'][0]*math.sin(self._heading0)+t['ned'][1]*math.cos(self._heading0):+.2f}m"
+                for t in picked) if self._heading0 is not None else ""
+            self.get_logger().info(
+                f"Selected {len(selected)} buckets: "
+                + ", ".join(f"NED({bx:.1f},{by:.1f})"
+                          for bx, by in selected)
+                + (f"  [{lateral_txt}]" if lateral_txt else ""))
+            # 2026-09-12 e: 记录选桶依据 (全部已确认桶的 lateral + 面积), 复盘时判断选桶是否合理
+            if self._heading0 is not None:
+                all_txt = ", ".join(
+                    f"NED({t['ned'][0]:.2f},{t['ned'][1]:.2f})"
+                    f"[lat={-t['ned'][0]*math.sin(self._heading0)+t['ned'][1]*math.cos(self._heading0):+.2f}m"
+                    f",area={t.get('area', 0):.0f}]"
+                    for t in confirmed)
+                self.get_logger().info(f"  Selection basis (all {len(confirmed)} confirmed, |lateral| asc): {all_txt}")
+                self._sel_info = (f"{len(selected)}/{len(confirmed)} chosen: "
+                                  + ", ".join(f"NED({bx:.2f},{by:.2f})" for bx, by in selected)
+                                  + f"  [{lateral_txt}]")
+            self.pid.reset(); self._enter_step(STEP_TRACK)
+
+        # ---- TRACK: 位置控制飞向已知桶坐标 + 到位后视觉确认 ----
+        elif self.step == STEP_TRACK:
+            self._refresh_target_from_tracker()            # C: 逼近途中持续用活追踪器刷瞄准点
+            if self._step_elapsed() > STEP_TIMEOUT: self._enter_step(STEP_RETURN); return
+            tx, ty = self._current_target_ned
+            dist_to_target = math.hypot((self.x - self.home_x) - tx, (self.y - self.home_y) - ty)
+            # 全程位置控制, 让 PX4 自己处理导航和刹车
+            self._pub_pos(self.home_x + tx, self.home_y + ty, cruise_z, self.heading)
+            # 到位判断: 接近目标即可 (视觉确认在到位后)
+            if dist_to_target < POS_ARRIVE_DIST:
+                self._stabilize_lost_frames = 0
+                if self._stabilize_start is None: self._stabilize_start = self.get_clock().now()
+                elif (self.get_clock().now()-self._stabilize_start).nanoseconds > STABILIZE_TIME*1e9: self._enter_step(STEP_POSITION_REFINE)
+            elif self._step_elapsed() > self._track_max_time: self._enter_step(STEP_POSITION_REFINE)
+            else:
+                self._stabilize_lost_frames += 1
+                if self._stabilize_lost_frames > STABILIZE_LOST_FRAMES_MAX: self._stabilize_start = None; self._stabilize_lost_frames = 0
+
+        # ---- POSITION_REFINE: 悬停稳定后重新估算桶坐标 ----
+        elif self.step == STEP_POSITION_REFINE:
+            if self._step_elapsed() > 5.0:
+                self._finalize_refine()
+                self._enter_step(STEP_PRE_SERVO); return
+
+            self._refresh_target_from_tracker()            # C: 用活追踪器刷新后再做候选选择
+            tx, ty = self._current_target_ned
+            self._pub_pos(self.home_x + tx, self.home_y + ty, cruise_z, self.heading)
+
+            if not hasattr(self, '_refine_ests'):
+                self._refine_ests = []
+
+            # 几何身份锁: 从当前帧检测中找 NED 估计最接近原始目标的那一个
+            if self._bucket_ests:
+                best_est = None; best_dist = float('inf')
+                for bx, by, roi, d, cx, cy in self._bucket_ests:
+                    if self._is_served(bx, by):
+                        continue                                  # A: 已投过的桶不参与 refine
+                    geo_dist = math.hypot(bx - tx, by - ty)
+                    if geo_dist < best_dist:
+                        best_dist = geo_dist; best_est = (bx, by)
+                if best_est is not None and best_dist < POSITION_REFINE_IDENTITY_MAX:
+                    self._refine_ests.append(best_est)
+                # 每秒打印候选信息
+                if not hasattr(self, '_last_refine_log'):
+                    self._last_refine_log = 0.0
+                if sim_t - self._last_refine_log > 1.0:
+                    self._last_refine_log = sim_t
+                    cands = ", ".join(f"({bx:.1f},{by:.1f})d={math.hypot(bx-tx,by-ty):.1f}"
+                                     for bx, by, *_ in self._bucket_ests)
+                    self.get_logger().info(
+                        f"  REFINE candidates vs target({tx:.1f},{ty:.1f}): {cands} "
+                        f"best_dist={best_dist:.1f} n={len(self._refine_ests)}")
+
+            if self._step_elapsed() >= POSITION_REFINE_DURATION:
+                self._finalize_refine()
+                self._enter_step(STEP_PRE_SERVO)
+
+        # ---- PRE_SERVO: 下降到低空提升 pinhole 精度, 再切 VISUAL_SERVO (v7.1) ----
+        elif self.step == STEP_PRE_SERVO:
+            self._refresh_target_from_tracker()            # C: 下降前再刷一次瞄准点
+            if self._step_elapsed() > STEP_TIMEOUT: self._enter_step(STEP_VISUAL_SERVO); return
+            pre_z = self.home_z - PRE_SERVO_HEIGHT
+            # 匀速下降到目标高度, 位置保持在当前目标
+            target_z = max(pre_z, self.z - SERVO_DESCENT_SPEED * 0.05)
+            tx, ty = self._current_target_ned
+            self._pub_pos(self.home_x + tx, self.home_y + ty, target_z, self.heading)
+            # 2026-09-12 e: PRE_SERVO 下降速率观测 (e 保留 c 的"快速俯冲"行为, 必须可复盘)
+            # 每秒一行: 目标高度 / 当前高度 / 瞬时下降率, 用于判断是否"目标瞬间跳变→全速俯冲"
+            if sim_t - self._desc_log_t > 1.0:
+                self._desc_log_t = sim_t
+                down_rate = self.vz  # NED z 向下为正 → vz>0 即下降; 正数=下降速率
+                self.get_logger().info(
+                    f"  PRE-SERVO H={self.home_z-self.z:5.2f}m target_z-GND={pre_z-self.z:+.2f}m "
+                    f"cmd_z={target_z:+.2f} 下降率={down_rate:.2f}m/s "
+                    f"tgt=NED({tx:.2f},{ty:.2f}) 横向偏差={math.hypot((self.x-self.home_x)-tx,(self.y-self.home_y)-ty):.2f}m")
+            if self.z > pre_z - 0.3:
+                # 低空了, 用最新 ROI 更新桶坐标 (pinhole 更准), 切 VISUAL_SERVO
+                if self._detect_fresh() and self.latest_roi is not None and self._bucket_ests:
+                    # 几何身份锁: 找离当前目标最近的检测, 更新 NED 估计
+                    best_est = None; best_dist = float('inf')
+                    for bx, by, roi, d, cx, cy in self._bucket_ests:
+                        geo_dist = math.hypot(bx - tx, by - ty)
+                        if geo_dist < best_dist:
+                            best_dist = geo_dist; best_est = (bx, by)
+                    if best_est is not None and best_dist < 2.0:
+                        self._current_target_ned = best_est
+                        self.get_logger().info(
+                            f"PRE_SERVO update target: ({best_est[0]:.2f},{best_est[1]:.2f}) "
+                            f"H={self.home_z-self.z:.1f}m")
+                self._enter_step(STEP_VISUAL_SERVO)
+
+        # ---- VISUAL_SERVO: 单目标纯视觉伺服 (v7: 从低空开始, 精度有保证) ----
+        elif self.step == STEP_VISUAL_SERVO:
+            if self._step_elapsed() > VISUAL_SERVO_TIMEOUT:
+                self.get_logger().info("VISUAL_SERVO timeout, dropping")
+                self._enter_step(STEP_DROP); return
+            drop_z = self.home_z - DROP_HEIGHT
+            target_z = max(drop_z, self.z - SERVO_DESCENT_SPEED * 0.05)
+
+            if not self._detect_fresh() or self.latest_roi is None:
+                # 丢检: 保持当前伺服目标位置继续下降, 重置抽帧
+                self._pub_pos(self.home_x + self._servo_target_x, self.home_y + self._servo_target_y, target_z, self.heading)
+                self._decimation_ctr = 0
+            else:
+                roi = self.latest_roi
+                self._decimation_ctr += 1
+                if self._decimation_ctr % PID_DECIMATION_SERVO == 0:
+                    dt = PID_DECIMATION_SERVO * 0.05
+                    dz_h = max(0.3, self.home_z - self.z)
+                    offset_body_y = PAYLOAD_OFFSET_BODY_Y_B1 if self._drop_count == 0 else PAYLOAD_OFFSET_BODY_Y_B2
+                    offset_body_xf = PAYLOAD_OFFSET_BODY_XF_B1 if self._drop_count == 0 else PAYLOAD_OFFSET_BODY_XF_B2
+                    pixel_offset = offset_body_y * FX / dz_h
+                    pixel_offset_y = offset_body_xf * FY / dz_h
+                    height_scale = dz_h / CRUISE_HEIGHT
+                    v_fwd, v_lat, err_px, ex, ey = self.pid.compute(
+                        roi, dt, pixel_offset, self._pitch, self._roll, height_scale, pixel_offset_y)
+                    dx_ned, dy_ned, _ = self._body_to_ned(v_fwd * dt, v_lat * dt)
+                    if not I_LOW_ALT_FREEZE:   # 2026-10-03 i: 下降段不做增量伺服(避免俯冲漂移)
+                        self._servo_target_x += dx_ned
+                        self._servo_target_y += dy_ned
+                    # v6: 漂移保护
+                    anchor_x, anchor_y = self._current_target_ned
+                    drift = math.hypot(self._servo_target_x - anchor_x,
+                                       self._servo_target_y - anchor_y)
+                    if drift > SERVO_MAX_DRIFT:
+                        self._servo_target_x = 0.5 * (self._servo_target_x + anchor_x)
+                        self._servo_target_y = 0.5 * (self._servo_target_y + anchor_y)
+                        self.get_logger().warn(
+                            f"SERVO drift {drift:.2f}m > {SERVO_MAX_DRIFT}m, "
+                            f"pulling back to ({self._servo_target_x:.2f},{self._servo_target_y:.2f})")
+                    # 每秒打印 PID 状态
+                    if not hasattr(self, '_last_servo_log'):
+                        self._last_servo_log = 0.0
+                    if sim_t - self._last_servo_log > 1.0:
+                        self._last_servo_log = sim_t
+                        # 2026-09-12 e: 补 下降率 / 俯冲进度 / 原始像素偏差, 便于复盘"边冲边伺服"的过程
+                        self.get_logger().info(
+                            f"  SERVO err={err_px:.0f}px ex={ex:.0f} ey={ey:.0f} "
+                            f"v_fwd={v_fwd:.3f} v_lat={v_lat:.3f} "
+                            f"H={dz_h:.2f}m 下降率={self.vz:.2f}m/s drop_z剩余={self.z-drop_z:+.2f}m "
+                            f"target=({self._servo_target_x:.2f},{self._servo_target_y:.2f}) "
+                            f"px_raw={self._px_raw_s()} dec={PID_DECIMATION_SERVO}x")
+                    # 收敛检测
+                    if err_px < VISUAL_SERVO_ARRIVE_PX:
+                        if self._servo_converge_start is None:
+                            self._servo_converge_start = self.get_clock().now()
+                        elif (self.get_clock().now() - self._servo_converge_start).nanoseconds * 1e-9 > VISUAL_SERVO_CONVERGE_TIME:
+                            self.get_logger().info(f"Servo converged! err={err_px:.0f}px, dropping")
+                            self._enter_step(STEP_DROP)
+                    else:
+                        self._servo_converge_start = None
+                # 非抽帧: 重发当前位置维持 offboard >2Hz
+                self._pub_pos(self.home_x + self._servo_target_x, self.home_y + self._servo_target_y, target_z, self.heading)
+
+            # 到达投放高度直接投
+            if self.z > drop_z - 0.2:
+                self._enter_step(STEP_DROP)
+
+        # ---- DROP: 投弹 ----
+        elif self.step == STEP_DROP:
+            if self._drop_triggered:
+                # 2026-09-20: 释放后固定本次设定点, 独立计时; 不读下一瓶补偿/不再判收敛
+                self._pub_pos(*self._drop_hold_target)
+                held_s = (self.get_clock().now() - self._drop_signal_start).nanoseconds * 1e-9
+                if held_s >= AUX5_DROP_HOLD:
+                    self._aux5_value = AUX5_LOCK
+                    self.get_logger().info(f"DROP signal reset after {held_s:.2f}s (command hold)")
+                    self._enter_step(STEP_CLIMB)
+                return
+            if self._step_elapsed() > STEP_TIMEOUT: self._aux5_value = AUX5_LOCK; self._enter_step(STEP_CLIMB); return
+            # ===== 2026-10-03 项目 i: 低空一次性相对修正 + 定点保持 + 停留 + 必投 =====
+            # 设计: S1 = S0 + (桶估计 - 飞机当前位置) + 两瓶补偿. 因位置环稳态偏差 b 近似固定,
+            # 飞机随后停在 S1 + b = 桶上 (b 自动抵消), 且全程无反馈 => 不会自激振荡.
+            if I_LOW_ALT_FREEZE:
+                drop_z = self.home_z - DROP_HEIGHT   # i模式: 本块先于原赋值执行, 自行定义(原处再赋一次同样的值)
+                if not getattr(self, '_i_frozen', False):
+                    _est = None
+                    if self._drop_detection_fresh() and self.latest_roi is not None:
+                        _est = self._roi_to_ned(self.latest_roi)
+                    _forced = (sim_t - (self._i_entry_t or sim_t)) > I_RELEASE_TIMEOUT
+                    if _est is not None or _forced:
+                        _dy = PAYLOAD_OFFSET_BODY_Y_B1 if self._drop_count == 0 else PAYLOAD_OFFSET_BODY_Y_B2
+                        _dx = PAYLOAD_OFFSET_BODY_XF_B1 if self._drop_count == 0 else PAYLOAD_OFFSET_BODY_XF_B2
+                        _ddx = (_est[0] - (self.x - self.home_x)) if _est is not None else 0.0
+                        _ddy = (_est[1] - (self.y - self.home_y)) if _est is not None else 0.0
+                        self._i_hold_x = (self._servo_target_x + _ddx
+                                          + _dy * math.sin(self.heading) - _dx * math.cos(self.heading))
+                        self._i_hold_y = (self._servo_target_y + _ddy
+                                          - _dy * math.cos(self.heading) - _dx * math.sin(self.heading))
+                        self._i_frozen = True
+                        self._i_freeze_t = sim_t
+                        self.get_logger().warn(
+                            f"i模式: 1.2m 一次性修正 delta=({_ddx:+.3f},{_ddy:+.3f})m "
+                            f"(桶估计={_est}) → 冻结保持点 ({self._i_hold_x:+.3f},{self._i_hold_y:+.3f}) "
+                            f"补偿B{self._drop_count + 1}=({_dy:+.3f},{_dx:+.3f}){' [兜底:无检测]' if _est is None else ''}")
+                    else:
+                        self._pub_pos(self.x, self.y, drop_z, self.heading)   # 等检测: 原地保持
+                        return
+                if not self._drop_triggered:
+                    self._pub_pos(self.home_x + self._i_hold_x, self.home_y + self._i_hold_y, drop_z, self.heading)
+                    _dwell = sim_t - self._i_freeze_t
+                    _vxy = math.hypot(self.vx, self.vy)
+                    if _dwell >= I_DWELL_S and _vxy < I_VMAX:
+                        self._drop_triggered = True; self._drop_signal_start = self.get_clock().now()
+                        self._served_targets.append((self._i_hold_x, self._i_hold_y))
+                        self._drop_hold_target = (self.home_x + self._i_hold_x, self.home_y + self._i_hold_y,
+                                                  drop_z, self.heading)
+                        _dv = AUX5_DROP if self._drop_count == 0 else AUX5_DROP2
+                        self._aux5_value = _dv
+                        self._drop_count += 1
+                        self.impact_pub.publish(Point(x=float(self.x), y=float(self.y), z=float(self.home_z)))
+                        self._drop_records.append({
+                            "idx": self._drop_count,
+                            "aim": (self.home_x + self._i_hold_x, self.home_y + self._i_hold_y),
+                            "pos": (self.x, self.y), "H": self.home_z - self.z,
+                            "last_err": self._last_drop_err, "tier": "i",
+                            "conv_m": math.hypot(self.x - self.home_x - self._i_hold_x,
+                                                 self.y - self.home_y - self._i_hold_y),
+                            "conv_min": None, "pred_m": None, "t_eff": None,
+                            "vxy": _vxy, "reappr": 0, "actual_impact": None,
+                        })
+                        self.get_logger().info(
+                            f">>> DROP #{self._drop_count}! PWM={1500 + _dv * 600:.0f}us "
+                            f"NED({self.x:.3f},{self.y:.3f},{self.z:.3f}) 触发方式=i模式(1.2m一次性修正 "
+                            f"停留{_dwell:.1f}s vxy={_vxy:.3f}m/s hold=({self._i_hold_x:+.3f},{self._i_hold_y:+.3f}))")
+                    return
+            if getattr(self, '_i_frozen', False) and not self._drop_triggered:
+                return    # 已冻结: 后续由上方 i 分支处理 (防止落入原闭环逻辑)
+
+            drop_z = self.home_z - DROP_HEIGHT
+            if self._servo_active and self._drop_detection_fresh():
+                roi = self.latest_roi
+                if roi is not None:
+                    self._decimation_ctr += 1
+                    if self._decimation_ctr % PID_DECIMATION_DROP == 0:
+                        dt = PID_DECIMATION_DROP * 0.05
+                        dz_h = max(0.3, self.home_z - self.z)
+                        offset_body_y = PAYLOAD_OFFSET_BODY_Y_B1 if self._drop_count == 0 else PAYLOAD_OFFSET_BODY_Y_B2
+                        offset_body_xf = PAYLOAD_OFFSET_BODY_XF_B1 if self._drop_count == 0 else PAYLOAD_OFFSET_BODY_XF_B2
+                        pixel_offset = offset_body_y * FX / dz_h
+                        pixel_offset_y = offset_body_xf * FY / dz_h
+                        height_scale = dz_h / CRUISE_HEIGHT
+                        v_fwd, v_lat, err_px, ex, ey = self.pid.compute(
+                            roi, dt, pixel_offset, self._pitch, self._roll, height_scale, pixel_offset_y)
+                        self._last_drop_err = (err_px, ex, ey, dz_h)
+                        # 2026-09-12 e: 锚点+反投影重建 target (自 d 移植, 仅 DROP 段 = 已降到投弹高度之后).
+                        # 每帧用 _roi_to_ned() 反投影重建, 不再 `_servo_target += v·dt` 增量累加,
+                        # 消除纯积分器在"追不上目标"时的漂移正反馈 (实机 c 时代投弹偏右的根因).
+                        # 副作用: 进入 DROP 时会把 VISUAL_SERVO 俯冲段攒下的漂移一并冲掉.
+                        est = self._roi_to_ned(roi)
+                        anchor_x, anchor_y = self._current_target_ned
+                        lock_mode = 'no_est'; lock_dist = float('nan')
+                        est_x = est_y = float('nan')
+                        if est is not None:
+                            est_x, est_y = est
+                            lock_dist = math.hypot(est_x - anchor_x, est_y - anchor_y)
+                            # 2026-09-13 身份锁改造 (实机 9-13 投弹偏差修复): 原"超门限即冻结在锚点"会把随高度变化的
+                            # 反投影漂移 (同一静止桶 5m→1.5m 漂 0.65m) 判成误检 → target 永远停在旧锚点 → err 不收敛
+                            # → 只能 25s 兜底投弹, 落点偏 0.235m. 改为"连续一致即重锚定"(疑桶仍由 reanchor_max 挡住).
+                            lock_mode, lx, ly, self._geo_reject_n, self._geo_pending_est = geo_lock_decide(
+                                est_x, est_y, anchor_x, anchor_y, SERVO_GEO_LOCK_MAX, SERVO_EST_WEIGHT,
+                                self._geo_pending_est, self._geo_reject_n,
+                                SERVO_GEO_REANCHOR_N, SERVO_GEO_REANCHOR_RAD, SERVO_GEO_REANCHOR_MAX)
+                            if lock_mode == 'reanchor':
+                                # 认可新位置: 锚点同步更新 (此后检测不新鲜时回退目标也用新锚点)
+                                self._current_target_ned = (est_x, est_y)
+                                anchor_x, anchor_y = est_x, est_y
+                            self._servo_target_x, self._servo_target_y = lx, ly
+                        else:
+                            self._servo_target_x, self._servo_target_y = anchor_x, anchor_y
+                        if lock_mode != self._geo_mode:
+                            self._geo_mode = lock_mode
+                            self.get_logger().info(
+                                f"  DROP-LOCK {lock_mode} est=({est_x:.2f},{est_y:.2f}) "
+                                f"anchor=({anchor_x:.2f},{anchor_y:.2f}) dist={lock_dist:.2f}m "
+                                f"reject_n={self._geo_reject_n} err={err_px:.0f}px")
+                        # 2026-09-13 像素残差积分 (闭环项): v_fwd/v_lat 是像素 PID 输出, 原本只打日志 → DROP 段
+                        # 是"纯反投影开环", 反投影的系统性偏置 (内参/镜头/框中心定义) 100% 变成投弹偏差. 这里把它
+                        # 的积分加到重建目标上, 让 err_px 真正收敛 → 释放瞬间桶在画面中心 (不依赖地面标定).
+                        # 只在身份锁采信/重锚 (确认还是同一个桶) 且像素偏差合理时积分, 防误检把目标拖偏.
+                        if (lock_mode in ('accept', 'reanchor')
+                                and math.hypot(ex * dz_h / FX, ey * dz_h / FY) < SERVO_BIAS_ERR_MAX_M
+                            and math.hypot(self.vx, self.vy) < SERVO_BIAS_VMAX):
+                            # 低空 height_scale(=H/CRUISE_HEIGHT=0.3) 会把速率压到 1/3.3, 部分反除 (最多 2x):
+                            # 该缩放是为防 bbox jitter 引起的高频振荡, 而积分项本身低通 (jitter 被平均掉);
+                            # 但不反除则 0.24m 偏置要 ~17s 才收敛. 实测 3.3x 反除会与内环迟滞绕圈振荡
+                            # (2026-09-13 SITL d 首投 target ±0.4m 摆振 → 0.236m/6分), 故 2x + 准静止门控.
+                            sc = 1.0 / max(0.5, height_scale)
+                            bvf = max(-MAX_HORIZ_VEL, min(MAX_HORIZ_VEL, v_fwd * sc))
+                            bvl = max(-MAX_HORIZ_VEL, min(MAX_HORIZ_VEL, v_lat * sc))
+                            bdx, bdy, _ = self._body_to_ned(bvf * dt, bvl * dt)
+                            self._servo_bias_x += bdx
+                            self._servo_bias_y += bdy
+                            bias_norm = math.hypot(self._servo_bias_x, self._servo_bias_y)
+                            if bias_norm > SERVO_BIAS_MAX:
+                                k = SERVO_BIAS_MAX / bias_norm
+                                self._servo_bias_x *= k
+                                self._servo_bias_y *= k
+                                if not self._bias_sat_logged:
+                                    self._bias_sat_logged = True
+                                    self.get_logger().warn(
+                                        f"DROP bias saturated {SERVO_BIAS_MAX:.2f}m (err={err_px:.0f}px) "
+                                        f"— 反投影偏置超预期, 建议实机地面标定相机内参")
+                        self._servo_target_x += self._servo_bias_x
+                        self._servo_target_y += self._servo_bias_y
+                        # 2026-09-23: 两轴投放补偿 (横向 offset_body_y + 前向 offset_body_xf), 按 9-23 实飞落点标定
+                        self._servo_target_x += offset_body_y * math.sin(self.heading)
+                        self._servo_target_y -= offset_body_y * math.cos(self.heading)
+                        # 2026-09-23: 前向补偿 (正值=瞄准点后移) — 后向单位向量 = (-cos h, -sin h)
+                        self._servo_target_x -= offset_body_xf * math.cos(self.heading)
+                        self._servo_target_y -= offset_body_xf * math.sin(self.heading)
+                        # DROP 保持期伺服明细 (自 d), 每秒一行便于观察收敛
+                        if not hasattr(self, '_last_servo_log'): self._last_servo_log = 0.0
+                        if sim_t - self._last_servo_log > 1.0:
+                            self._last_servo_log = sim_t
+                            # 2026-09-12 e: 补 px_raw / 收敛计时 / 高度, 便于复盘投弹时机
+                            conv = f"{sim_t - self._drop_converge_start:.1f}s/T{self._drop_tier}" if self._drop_converge_start is not None else "--"
+                            _cmin_s = f"{self._drop_conv_min * 100:.1f}cm" if self._drop_conv_min is not None else "--"
+                            self.get_logger().info(
+                                f"  DROP-SERVO err={err_px:.0f}px ex={ex:.0f} ey={ey:.0f} "
+                                f"v_fwd={v_fwd:.3f} v_lat={v_lat:.3f}(bias-input) "
+                                f"H={dz_h:.2f}m drop_z剩余={self.z-drop_z:+.2f}m "
+                                f"target=({self._servo_target_x:.2f},{self._servo_target_y:.2f}) "
+                                f"px_raw={self._px_raw_s()} 收敛计时={conv} 段内最小={_cmin_s} dec={PID_DECIMATION_DROP}x "
+                            f"lock={lock_mode} dist={lock_dist:.2f}m "
+                            f"bias=({self._servo_bias_x:+.2f},{self._servo_bias_y:+.2f}) pitch={self._pitch:+.3f} "
+                            f"roll={self._roll:+.3f} vxy={math.hypot(self.vx, self.vy):.3f}m/s "
+                            f"det_age={self._drop_detect_age():.3f}s "
+                            f"等效地面={math.hypot(ex * dz_h / FX, ey * dz_h / FY) * 100:.1f}cm(门限T1={DROP_ARRIVE_M * 100:.0f}cm/T2={DROP_ARRIVE_M_LATE * 100:.0f}cm)")
+                self._pub_pos(self.home_x + self._servo_target_x, self.home_y + self._servo_target_y, drop_z, self.heading)
+            else:
+                # 2026-09-20: 检测陈旧 → 保持最后伺服目标(不要跳回锚点), 清误差与收敛计时
+                self._last_drop_err = None
+                self._drop_converge_start = None
+                self._decimation_ctr = 0
+                self._pub_pos(self.home_x + self._servo_target_x, self.home_y + self._servo_target_y, drop_z, self.heading)
+            # 2026-09-12 e / 2026-09-23 改米制: 收敛即投 — conv_m<DROP_ARRIVE_M 持续 DROP_CONVERGE_EARLY → 提前投弹.
+            # 高度门控 (self.z > drop_z - 0.2) 必需: VISUAL_SERVO 可在任意高度因收敛切 DROP (实测 H=2.23m),
+            # 只判 err 会高空投弹. 不满足则 DROP_AFTER_DELAY=35s 兜底.
+            release_valid = (self._drop_detection_fresh() and self._last_drop_err is not None
+                             and self.z > drop_z - 0.2)
+            # 2026-09-23: 判据改米制 —— 把最近一帧 (ex, ey, H) 折算成"到补偿后瞄准点的地面距离"
+            # (= 预测落点与桶心距离的代理量). ex/ey 已含 2026-09-23 两轴瞄准补偿.
+            conv_m = float('inf')
+            if self._last_drop_err is not None:
+                _ep, _exl, _eyl, _hh = self._last_drop_err
+                conv_m = math.hypot(_exl * _hh / FX, _eyl * _hh / FY)
+            # ===== 2026-09-24 f: 两级释放判据 (方案 B) =====
+            # 低谷判定: 本段残差最小值 (下限夹 DROP_CONV_MIN_FLOOR 防单帧噪声把门槛带偏)
+            if math.isfinite(conv_m):
+                _prev_min = self._drop_conv_min if self._drop_conv_min is not None else conv_m
+                self._drop_conv_min = max(DROP_CONV_MIN_FLOOR, min(_prev_min, conv_m))
+            in_valley = (self._drop_conv_min is not None
+                         and conv_m <= self._drop_conv_min + DROP_CONV_MIN_BAND)
+            stay_still = math.hypot(self.vx, self.vy) < DROP_ARRIVE_VMAX
+            tier = None
+            if release_valid and conv_m < DROP_ARRIVE_M and in_valley and stay_still:
+                tier = 1     # Tier1 优选: 5cm + 低谷 + 准静止
+            elif (release_valid and self._step_elapsed() >= DROP_PREFER_WINDOW
+                  and conv_m < DROP_ARRIVE_M_LATE):
+                tier = 2     # Tier2 保底: e 的旧判据 (10cm/1.0s), 先让 Tier1 用完优先窗口
+            if tier != self._drop_tier:          # 档位变化即重启确认计时 (避免混档提前放行)
+                self._drop_tier = tier
+                self._drop_converge_start = sim_t if tier is not None else None
+            early_ok = False
+            if tier is not None and self._drop_converge_start is not None:
+                _need_t = DROP_CONVERGE_EARLY if tier == 1 else DROP_CONVERGE_LATE
+                if sim_t - self._drop_converge_start > _need_t:
+                    early_ok = True
+            if not self._drop_triggered and not early_ok and self._step_elapsed() < DROP_AFTER_DELAY: return
+            if not release_valid:
+                # 2026-09-20: 只有"高度门控不成立"才放弃释放; 检测陈旧时仍按原行为兜底释放
+                if not (self.z > drop_z - 0.2):
+                    self.get_logger().warn("DROP timeout without valid height; skip release and climb")
+                    self._aux5_value = AUX5_LOCK
+                    self._enter_step(STEP_CLIMB)
+                    return
+                self.get_logger().warn("DROP timeout with stale detection; fallback release at held aim")
+            if not self._drop_triggered:
+                self._drop_triggered = True; self._drop_signal_start = self.get_clock().now()
+                # A: 登记已投过的桶 (home 相对), 之后任何匹配/refine/选桶都不再考虑它
+                self._served_targets.append((self._servo_target_x, self._servo_target_y))
+                self.get_logger().info(
+                    f"  SERVED +1 bucket NED({self._servo_target_x:.2f},{self._servo_target_y:.2f}) "
+                    f"→ 共 {len(self._served_targets)} 个已投")
+                self._drop_hold_target = (self.home_x + self._servo_target_x,
+                                          self.home_y + self._servo_target_y, drop_z, self.heading)
+                # B1→2000us, B2→1000us
+                drop_val = AUX5_DROP if self._drop_count == 0 else AUX5_DROP2
+                pwm_us = 1500 + drop_val * 600
+                self._aux5_value = drop_val
+                self._drop_count += 1
+                self.impact_pub.publish(Point(x=float(self.x), y=float(self.y), z=float(self.home_z)))
+                # 2026-09-12 e: 追加投放瞬间像素误差 (自 d), 供实机标定投放补偿用
+                err_str = ""
+                if self._last_drop_err is not None:
+                    ep, exl, eyl, hh = self._last_drop_err
+                    err_str = f" last_err={ep:.0f}px(ex={exl:.0f},ey={eyl:.0f}@H={hh:.1f}m)"
+                # 2026-09-12 e: 记录本次投放明细 (aim 存绝对 NED, 与 pos 同系) 供 MISSION SUMMARY 复盘
+                aim_abs = (self.home_x + self._current_target_ned[0],
+                           self.home_y + self._current_target_ned[1]) if self._current_target_ned else None
+                dev = math.hypot(self.x - aim_abs[0], self.y - aim_abs[1]) if aim_abs else float("nan")
+                self._drop_records.append({
+                    "idx": self._drop_count,
+                    "aim": aim_abs,
+                    "pos": (self.x, self.y),
+                    "H": self.home_z - self.z,
+                    "last_err": self._last_drop_err,
+                    "tier": self._drop_tier,          # 2026-09-24 f: 释放档位 (1=优选/2=保底)
+                    "conv_m": conv_m,                 # 释放瞬间 conv_m (m)
+                    "conv_min": self._drop_conv_min,  # 本段残差最小值 (m)
+                })
+                if early_ok:
+                    _cminways = f"{self._drop_conv_min * 100:.1f}cm" if self._drop_conv_min is not None else "--"
+                    _tname = "5cm低谷准静止" if self._drop_tier == 1 else "10cm保底"
+                    drop_way = f"收敛即投(Tier{self._drop_tier} {_tname} 段内最小={_cminways})"
+                else:
+                    drop_way = f"{self._step_elapsed():.1f}s/{DROP_AFTER_DELAY:.0f}s 兜底"
+                aim_str = f"NED({aim_abs[0]:.3f},{aim_abs[1]:.3f})" if aim_abs else "unknown"
+                self.get_logger().info(
+                    f">>> DROP #{self._drop_count}! PWM={pwm_us:.0f}us NED({self.x:.3f},{self.y:.3f},{self.z:.3f}) "
+                    f"heading={math.degrees(self.heading):.1f}deg "
+                    f"aim={aim_str} vehicle_to_anchor={dev:.3f}m "
+                        f"pitch={self._pitch:+.3f} roll={self._roll:+.3f} "
+                        f"vxy={math.hypot(self.vx, self.vy):.3f}m/s det_age={self._drop_detect_age():.3f}s "
+                        f"hold_target={self._drop_hold_target} event=release_command "
+                    f"触发方式={drop_way}{err_str}"); return
+            if (self.get_clock().now()-self._drop_signal_start).nanoseconds*1e-9 < AUX5_DROP_HOLD: return
+            self._aux5_value = AUX5_LOCK; self._drop_triggered = False; self._drop_signal_start = None
+            self._enter_step(STEP_CLIMB)
+
+        # ---- CLIMB: 投弹后爬升 → 下一桶或侦察区 ----
+        elif self.step == STEP_CLIMB:
+            if self._step_elapsed() > STEP_TIMEOUT: self._enter_step(STEP_RETURN); return
+            # 阶段1: 竖直爬升到巡航高度
+            if not hasattr(self, '_climb_done'): self._climb_done = False
+            if not self._climb_done:
+                vz = CLIMB_VZ + (cruise_z-self.z)*TRACK_VZ_KP
+                self._pub_vel(0, 0, vz, yaw_locked)
+                if abs(self.z-cruise_z) < 0.5:
+                    self._climb_done = True
+                    self._bucket_idx += 1
+                return
+            # 阶段2: 直接进 TRACK 飞向下一个桶 (用最初锁定的坐标, 不重搜)
+            self._climb_done = False
+            if self._bucket_idx < len(self._target_buckets):
+                self._current_target_ned = self._target_buckets[self._bucket_idx]
+                self._refresh_target_from_tracker()        # C: 立刻用活追踪器修正 (选桶估计可能偏 ~1m)
+                self._target_img_idx = -1
+                self.get_logger().info(
+                    f"Next bucket {self._bucket_idx+1}/{len(self._target_buckets)}: "
+                    f"NED({self._current_target_ned[0]:.1f},{self._current_target_ned[1]:.1f})")
+                self.pid.reset(); self._enter_step(STEP_TRACK)
+            else:
+                self.get_logger().info("All buckets done, flying to SCOUT zone")
+                self._enter_step(STEP_SCOUT)
+
+        # ---- SCOUT (2026-08-15 重写): 直飞近边 → 降1m → 10s缓移至预定点 → 左1.5m → 停5s → 右3m → 停5s → 返航 ----
+        elif self.step == STEP_SCOUT:
+            if self._step_elapsed() > STEP_TIMEOUT: self._enter_step(STEP_RETURN); return
+            sx, sy = self._scout_target()       # 预定点 (侦察区正上方)
+            ex, ey = self._scout_edge_target()   # 第一根线(近边)中点
+            if self._scout_sub == 0:
+                # 子阶段0: 速度控制直飞近边 (不再直冲预定点, 防过冲出侦察区)
+                dist_to_edge = math.hypot((self.x - self.home_x) - ex, (self.y - self.home_y) - ey)
+                if dist_to_edge > POS_ARRIVE_DIST:
+                    vx, vy, _ = self._fly_toward(self.home_x + ex, self.home_y + ey, CRUISE_SPEED)
+                    self._pub_vel(vx, vy, (cruise_z - self.z) * TRACK_VZ_KP, yaw_locked)
+                    return
+                self._scout_sub = 1
+                self._scout_sub_start = self.get_clock().now()
+                self.get_logger().info("Scout: arrived at zone near edge, descending 1m first")
+                return
+            sub_elapsed = (self.get_clock().now() - self._scout_sub_start).nanoseconds * 1e-9
+            # 机体左/右向单位向量 (基于锁定航向)
+            left_x, left_y = math.sin(yaw_locked), -math.cos(yaw_locked)
+            scout_z = cruise_z + SCOUT_DESCENT_DELTA
+            if self._scout_sub == 1:
+                # 子阶段1: 先下降 1m (5m→4m)
+                self._pub_pos(self.home_x + ex, self.home_y + ey, scout_z, yaw_locked)
+                if sub_elapsed > SCOUT_SUB_TIMEOUT:
+                    self.get_logger().warn("Scout descend timeout, starting slow move")
+                    self._scout_sub = 2; self._scout_sub_start = self.get_clock().now(); return
+                if abs(self.z - scout_z) < SCOUT_SUB_ARRIVE:
+                    self._scout_sub = 2; self._scout_sub_start = self.get_clock().now()
+                    self.get_logger().info(
+                        f"Scout: descended 1m, slow moving {SCOUT_SLOW_MOVE_TIME:.0f}s to zone center")
+                return
+            if self._scout_sub == 2:
+                # 子阶段2: 10s 缓慢移动到预定点 (时间锚定线性插值, 0.45m/s 防过冲)
+                t = min(1.0, sub_elapsed / SCOUT_SLOW_MOVE_TIME)
+                tx = ex + (sx - ex) * t
+                ty = ey + (sy - ey) * t
+                self._pub_pos(self.home_x + tx, self.home_y + ty, scout_z, yaw_locked)
+                if sub_elapsed >= SCOUT_SLOW_MOVE_TIME:
+                    self._scout_sub = 3; self._scout_sub_start = self.get_clock().now()
+                    self.get_logger().info("Scout: slow move done, moving left 1.5m")
+                return
+            if self._scout_sub == 3:
+                # 子阶段3: 机体左移 1.5m
+                tx, ty = sx + left_x * SCOUT_LEFT_DIST, sy + left_y * SCOUT_LEFT_DIST
+                self._scout_pos_limited(tx, ty, scout_z, yaw_locked)
+                if sub_elapsed > SCOUT_SUB_TIMEOUT:
+                    self.get_logger().warn("Scout left-move timeout, pausing")
+                    self._scout_sub = 4; self._scout_sub_start = self.get_clock().now(); return
+                if math.hypot((self.x - self.home_x) - tx, (self.y - self.home_y) - ty) < SCOUT_SUB_ARRIVE:
+                    self._scout_sub = 4; self._scout_sub_start = self.get_clock().now()
+                    self.get_logger().info("Scout: left 1.5m done, pausing 5s")
+                return
+            if self._scout_sub == 4:
+                # 子阶段4: 停 5s (位置保持)
+                tx, ty = sx + left_x * SCOUT_LEFT_DIST, sy + left_y * SCOUT_LEFT_DIST
+                self._pub_pos(self.home_x + tx, self.home_y + ty, scout_z, yaw_locked)
+                if self._scout_settled(sub_elapsed):   # 2026-09-30 自 h: 判稳后才开始计时
+                    self._scout_sub = 5; self._scout_sub_start = self.get_clock().now()
+                    self.get_logger().info("Scout: pause done, moving right 3m")
+                return
+            if self._scout_sub == 5:
+                # 子阶段5: 机体右移 3m (终点=预定点右侧1.5m)
+                tx = sx + left_x * SCOUT_LEFT_DIST - left_x * SCOUT_RIGHT_DIST
+                ty = sy + left_y * SCOUT_LEFT_DIST - left_y * SCOUT_RIGHT_DIST
+                self._scout_pos_limited(tx, ty, scout_z, yaw_locked)
+                if sub_elapsed > SCOUT_SUB_TIMEOUT:
+                    self.get_logger().warn("Scout right-move timeout, pausing")
+                    self._scout_sub = 6; self._scout_sub_start = self.get_clock().now(); return
+                if math.hypot((self.x - self.home_x) - tx, (self.y - self.home_y) - ty) < SCOUT_SUB_ARRIVE:
+                    self._scout_sub = 6; self._scout_sub_start = self.get_clock().now()
+                    self.get_logger().info("Scout: right 3m done, pausing 5s")
+                return
+            # 子阶段6: 停 5s → 返航
+            tx = sx + left_x * SCOUT_LEFT_DIST - left_x * SCOUT_RIGHT_DIST
+            ty = sy + left_y * SCOUT_LEFT_DIST - left_y * SCOUT_RIGHT_DIST
+            self._pub_pos(self.home_x + tx, self.home_y + ty, scout_z, yaw_locked)
+            if self._scout_settled(sub_elapsed):   # 2026-09-30 自 h: 判稳后才开始计时
+                self._scout_done = True                    # 2026-09-12 e: 写入 MISSION SUMMARY
+                self._scout_elapsed = self._step_elapsed()
+                self.get_logger().info(
+                    f"Scout maneuver complete ({self._scout_elapsed:.1f}s, 7 sub-phases), returning home")
+                self._enter_step(STEP_RETURN)
+
+        # ---- RETURN (2026-08-15): 飞回 home → 位置保持判稳 (漂移<0.3m/3s) → LAND ----
+        elif self.step == STEP_RETURN:
+            if self._step_elapsed() > STEP_TIMEOUT: self._enter_step(STEP_LAND); return
+            dist_to_home = math.hypot(self.x - self.home_x, self.y - self.home_y)
+            if self._return_sub == 0:
+                # 子阶段0: 速度控制飞回 home 上方 (末段 ramp-down)
+                vx, vy, _ = self._fly_toward(self.home_x, self.home_y, RETURN_SPEED)
+                self._pub_vel(vx, vy, (cruise_z-self.z)*TRACK_VZ_KP, yaw_locked)
+                if dist_to_home < POS_ARRIVE_DIST and abs(self.z-cruise_z) < 0.5:
+                    self._return_sub = 1
+                    self._return_sub_start = self.get_clock().now()
+                    self.get_logger().info("Return: over home, stabilizing before land")
+                return
+            # 子阶段1: 位置保持 home 上方 (MPC 隐式修正残余偏差), 漂移窗口判稳
+            sub_elapsed = (self.get_clock().now() - self._return_sub_start).nanoseconds * 1e-9
+            self._pub_pos(self.home_x, self.home_y, cruise_z, yaw_locked)
+            self._stab_pos_hist.append((self.x, self.y))
+            if sub_elapsed > RETURN_STAB_TIMEOUT:
+                self.get_logger().warn(
+                    f"Return stabilize timeout {sub_elapsed:.1f}s > {RETURN_STAB_TIMEOUT}s, landing anyway")
+                self._return_stab_info = (sub_elapsed, float("nan"))  # 2026-09-12 e: 记录超时未判稳
+                self._enter_step(STEP_LAND); return
+            if sub_elapsed >= RETURN_STAB_WINDOW:
+                xs = [p[0] for p in self._stab_pos_hist]
+                ys = [p[1] for p in self._stab_pos_hist]
+                drift = max(max(xs)-min(xs), max(ys)-min(ys))
+                if drift < RETURN_STAB_DRIFT_MAX:
+                    self.get_logger().info(
+                        f"Return: stable (drift {drift:.2f}m over {RETURN_STAB_WINDOW:.0f}s), landing")
+                    self._return_stab_info = (sub_elapsed, drift)  # 2026-09-12 e: 写入 MISSION SUMMARY
+                    self._enter_step(STEP_LAND)
+
+        # ---- LAND (2026-08-15: 时间锚定限速下降 0.4m/s, 防降太猛) ----
+        elif self.step == STEP_LAND:
+            if self._step_elapsed() > STEP_TIMEOUT: self._send_cmd(400, param1=0.0); self._shutdown("land_step_timeout"); return
+            if not self._land_cmd_sent:
+                low_z = self.home_z - 0.5
+                if self._land_entry_z is None:
+                    self._land_entry_z = self.z
+                # 时间锚定: 目标从入口高度以 LAND_DESCENT_SPEED 匀速下移, min() 封顶 (独立于飞机实时位置)
+                target_z = min(low_z, self._land_entry_z + LAND_DESCENT_SPEED * self._step_elapsed())
+                self._pub_pos(self.home_x, self.home_y, target_z, yaw_locked)
+                if abs(self.z-low_z) < 0.5:
+                    self._land_cmd_sent = True
+                    self._land_cmd_time = self.get_clock().now()
+                    # 2026-09-12 e: LAND 命令日志 (自 d) + 下降段实际速率复盘
+                    self.get_logger().info(
+                        f"Sending MAV_CMD_NAV_LAND at NED({self.x:.2f},{self.y:.2f},{self.z:.2f}) "
+                        f"H={self.home_z-self.z:.2f}m (下降用时 {self._step_elapsed():.1f}s, "
+                        f"实测 {self.vz:.2f}m/s, 限速 {LAND_DESCENT_SPEED:.2f}m/s)")
+                    self._send_cmd(21, param1=0.0, param2=0.0, param7=float('nan'))
+            elif (self.get_clock().now() - self._land_cmd_time).nanoseconds * 1e-9 > 15.0:
+                self.get_logger().info("LAND timeout after cmd, forcing disarm")
+                self._land_pos = (self.x, self.y)  # 2026-09-12 e
+                self._send_cmd(400, param1=0.0); self._shutdown("land_timeout"); return
+            else:
+                if self.landed:
+                    if self._land_dwell_start is None:
+                        self._land_dwell_start = self.get_clock().now()
+                        self._land_pos = (self.x, self.y)  # 2026-09-12 e
+                    elif (self.get_clock().now()-self._land_dwell_start).nanoseconds > LAND_DWELL_TIME*1e9:
+                        self._land_pos = (self.x, self.y)
+                        self.get_logger().info(
+                            f"Landed (vehicle_land_detected), NED({self.x:.2f},{self.y:.2f},{self.z:.2f}) "
+                            f"dist_from_home={math.hypot(self.x-self.home_x,self.y-self.home_y):.2f}m")
+                        self._send_cmd(400, param1=0.0); self._shutdown("normal")
+                elif abs(self.home_z - self.z) < 0.15:
+                    if self._land_dwell_start is None:
+                        self._land_dwell_start = self.get_clock().now()
+                        self._land_pos = (self.x, self.y)  # 2026-09-12 e
+                    elif (self.get_clock().now()-self._land_dwell_start).nanoseconds > LAND_DWELL_TIME*1e9:
+                        self._land_pos = (self.x, self.y)
+                        self.get_logger().info(
+                            f"Landed (height fallback H={self.home_z-self.z:.2f}m), "
+                            f"NED({self.x:.2f},{self.y:.2f}) "
+                            f"dist_from_home={math.hypot(self.x-self.home_x,self.y-self.home_y):.2f}m")
+                        self._send_cmd(400, param1=0.0); self._shutdown("normal")
+                else: self._land_dwell_start = None
+
+
+def main():
+    rclpy.init()
+    node = IMission()
+    try:
+        # 2026-09-12 e: 用 spin_once 循环替代 rclpy.spin —— 便于 _shutdown() 置标志后立即收尾退出
+        # (rclpy.spin 会一直阻塞到 context 关闭, 而 context 不能在回调内关闭 → 进程挂住)
+        while rclpy.ok() and not node.done:
+            rclpy.spin_once(node, timeout_sec=0.1)
+    except KeyboardInterrupt:
+        node.get_logger().info("Interrupted by user (Ctrl+C)")
+    if rclpy.ok():
+        node.destroy_node()
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()
