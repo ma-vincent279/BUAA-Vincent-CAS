@@ -272,4 +272,4 @@ ros2 topic echo --qos-reliability best_effort /fmu/out/vehicle_control_mode --on
 
 ## 七、下一章
 
-→ [`03_从零开始的仿真生活.md`](从零开始的仿真生活.md)：在电脑上把整个系统跑起来
+→ [`从零开始的仿真生活.md`](从零开始的仿真生活.md)：在电脑上把整个系统跑起来
