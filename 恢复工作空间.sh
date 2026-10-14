@@ -15,6 +15,10 @@ for d in src worlds gz_models gz_models_combined gz_models_cuadc gz_worlds gz_wo
   if [ -e "SITL/工作空间/$d" ]; then cp -r "SITL/工作空间/$d" .; echo "   $d ✓"; fi
 done
 
+# ★ 归档的外层有 COLCON_IGNORE (防止 colcon 看到重名包), 恢复时要清掉内层的
+find src -name COLCON_IGNORE -delete 2>/dev/null || true
+find fly -name COLCON_IGNORE -delete 2>/dev/null || true
+
 echo "② 恢复脚本 → 顶层 scripts/ ..."
 mkdir -p scripts && cp -r SITL/脚本/* scripts/ 2>/dev/null || true
 chmod +x scripts/*.sh 2>/dev/null || true
