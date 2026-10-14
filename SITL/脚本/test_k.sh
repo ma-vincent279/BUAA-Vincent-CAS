@@ -18,8 +18,10 @@
 # ================================================================
 set -e
 
-SITL_DIR="/home/vincent/SITL"
-PX4_DIR="/home/vincent/PX4-Autopilot"
+# ★ 自定位: 脚本在哪, 仓库根就在哪 (别人 clone 到别的路径也能跑)
+#   可用环境变量覆盖: SITL_DIR=... PX4_DIR=... bash scripts/test_k.sh
+SITL_DIR="${SITL_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+PX4_DIR="${PX4_DIR:-$HOME/PX4-Autopilot}"
 PX4_BUILD="$PX4_DIR/build/px4_sitl_default"
 PX4_ROOTFS="$PX4_BUILD/rootfs"
 # 世界可覆盖 (隔离实验用): WORLD_FILE=/abs/path/world.world bash scripts/test_k.sh hover_probe
