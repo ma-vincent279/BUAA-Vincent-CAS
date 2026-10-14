@@ -1,0 +1,576 @@
+================================================================
+  SITL 终极项目 final_mission v8 — 专项技术总结
+  日期: 2026-08-07
+  文件: src/drone_drl/drone_drl/final_mission.py (1027 行)
+================================================================
+
+目录:
+  一、项目概述
+  二、系统架构
+  三、12 状态机全流程
+  四、视觉检测与选桶逻辑
+  五、视觉伺服与投放控制
+  六、安全保障系统
+  七、完整参数表
+  八、仿真验证结果
+  九、已知问题与解决方案
+  十、阶段性总结
+  十一、坐标系与通信参考
+
+================================================================
+一、项目概述
+================================================================
+
+ROS 2 (Humble) 工作空间，PX4 SITL 无人机 offboard 控制。
+主包 drone_drl，通过 XRCE-DDS 与 PX4 飞控通信。
+任务: 起飞后前飞 12.5m 到 8m×5m 矩形区域上空，视觉检测 3 个红桶，选 2 个最近桶依次用 PID 视觉伺服飞到桶正上方，AUX5 舵机投弹，最后返航着陆。
+
+环境:
+- PX4-Autopilot: ~/PX4-Autopilot/
+- Gazebo Classic, iris_mono_cam_down 模型 (下视 RGB 摄像头)
+- 世界: worlds/final.world (3 红桶在 8m×5m 矩形, 黄色边框+橙色角标)
+- 桶参数: 半径 0.125m, 高度 0.25m
+- 桶1: Gazebo (12.51, -0.52, 0.25) → NED (-1.50, 11.50, 0.58)
+- 桶2: Gazebo (14.01,  2.98, 0.25) → NED ( 2.00, 13.00, 0.58)
+- 桶3: Gazebo (15.01,  0.98, 0.25) → NED ( 0.00, 14.00, 0.58)
+- 飞机 heading0≈92-93° (接近纯东方向)
+- PX4 NED 原点 ≠ Gazebo 世界原点 (生成点偏移 1.01, 0.98, 0.83)
+
+启动: bash ~/SITL/scripts/test_final.sh
+  → 清理残留 → 重置 PX4 状态 → 编译 → Agent → PX4+Gazebo → DDS等待
+  → yolov8_bucket_detector (YOLOv8 sim 模式, bucket_count=3, conf=0.3)
+  → final_judge (独立裁判, 3 桶真值)
+  → final_mission (主任务节点)
+
+================================================================
+二、系统架构
+================================================================
+
+通信链路:
+  YOLOv8 检测器 → /bucket/detections (JSON 字符串, 多桶检测)
+  PX4 飞控 ←→ uxrce_dds_client ←→ MicroXRCEAgent ←→ ROS 2 DDS ←→ final_mission
+  final_mission → /fmu/in/trajectory_setpoint (位置/速度指令)
+  final_mission → /fmu/in/offboard_control_mode
+  final_mission → /fmu/in/vehicle_command (ARM/模式/着陆)
+  final_mission → /fmu/in/manual_control_input (AUX5 舵机 PWM)
+  final_mission → /drop/impact_point (落点记录, 裁判用)
+  /fmu/out/vehicle_local_position_v1 → final_mission (NED 位置/航向)
+  /fmu/out/vehicle_status_v4 → final_mission (ARM/模式状态)
+  /fmu/out/vehicle_attitude → final_mission (姿态四元数, PID 补偿用)
+  /fmu/out/vehicle_land_detected → final_mission (落地检测)
+
+QoS: /fmu/out/* 话题全部使用 BEST_EFFORT 可靠性 (PX4 uxrce_dds_client 发布)
+
+控制方式:
+- _pub_pos(x, y, z, yaw): 位置控制 — 发布 TrajectorySetpoint position + yaw
+- _pub_vel(vx, vy, vz, yaw): 速度控制 — 发布 TrajectorySetpoint velocity + yaw
+- _send_cmd(cmd, param1~7): 发送 VehicleCommand (ARM=400, 切模式=176, LAND=21)
+- ManualControlSetpoint.aux5: 200Hz PWM 舵机 (LOCK=1500us, DROP=2000us/1000us)
+
+坐标系:
+- PX4 使用 NED (北-东-地): x=北 y=东 z=下 (负值=上升)
+- heading 弧度, 0=北, 正值=右转
+- 前向单位向量: (cos(heading), sin(heading))
+- 左向单位向量: (sin(heading), -cos(heading))
+- PX4 NED 原点 = 飞机 Gazebo 生成点 (1.01, 0.98, 0.83)
+- Gazebo→NED 转换: bucket_ned_x=gz_y-spawn_y, bucket_ned_y=gz_x-spawn_x, bucket_ned_z=-(gz_z-spawn_z)
+- 地面 NED z = 0.83 (SITL) / 0.0 (实机)
+
+================================================================
+三、12 状态机全流程
+================================================================
+
+状态序列:
+  TAKEOFF → STABILIZE → FORWARD → HOVER_SEARCH → TRACK
+    → POSITION_REFINE → PRE_SERVO → VISUAL_SERVO → DROP
+    → CLIMB → (下一桶 TRACK) ... → RETURN → LAND
+
+各阶段详细说明:
+
+--- TAKEOFF (起飞) ---
+- 控制: _pub_pos 位置保持 + 竖直爬升
+- 条件: 前 2s 保持位置, 之后匀速爬升 TAKEOFF_CLIMB_RATE=0.8m/s
+- 退出: abs(self.z - cruise_z) < 0.5m AND 持续 > 4s
+- 辅助: 起飞瞬间记录 _takeoff_x/y/z 作为整个任务的参考点
+
+--- STABILIZE (稳定悬停) ---
+- 控制: _pub_pos 保持 home 位置 + cruise_z 高度
+- 锁定: 悬停 3s 后锁定 heading0 和 home 位置 (延迟锁定防止起飞振荡)
+- 目标点计算: target = (home_x + FORWARD_DIST*cos_h0, home_y + FORWARD_DIST*sin_h0)
+- 退出: _step_elapsed > STABILIZE_HOVER_TIME(3s)
+
+--- FORWARD (前飞) --- [v8 一维投影+方向感知 ramp-down]
+- 控制: _pub_vel 速度控制沿 heading0 直飞
+- 速度公式:
+    travel = (self.x - home_x)*cos_h0 + (self.y - home_y)*sin_h0  # 一维投影
+    remain = FORWARD_DIST - travel  # 正=未到, 负=飞过头
+    effective_dist = max(0.0, remain)  # 非对称: 只减速不加速
+    ratio = max(MIN_SPEED/CRUISE_SPEED, min(1.0, effective_dist/RAMP_DIST))
+    speed = CRUISE_SPEED * ratio
+    vx = speed * cos_h0; vy = speed * sin_h0
+- 退出:
+    1. remain < -POS_ARRIVE_DIST → 飞过头, 立即 HOVER_SEARCH
+    2. dist_2d < POS_ARRIVE_DIST(0.5m) → 二维距离兜底
+    3. _step_elapsed > STEP_TIMEOUT(120s) → 超时
+- 特点: 盲飞阶段, 忽略视觉检测; 速度方向与 yaw 方向严格一致 (同=heading0)
+- 参数: CRUISE_SPEED=2.0, FORWARD_RAMP_DIST=3.0, FORWARD_MIN_SPEED=0.5
+
+--- HOVER_SEARCH (目标点搜索) ---
+- 控制: _pub_pos(tx, ty, cruise_z, yaw_locked) 位置保持
+- 四阶段:
+  a) 驻留 1.5s (HOVER_SEARCH_SETTLE_TIME): 等 MPC 刹车收敛, 跳过门控
+  b) 第 1 层 — 几何围栏: NED y∈[10,15], x∈[-4,4], 距离 <6m
+  c) 第 2 层 — 帧间稳定性: NED 跳变 <1.5m, 至少 2 个桶稳定
+  d) 决策: 围栏内桶按距离排序, 选最近 2 个 → _target_buckets
+- 零检测超时 (v8): 连续 5s _detect_fresh()=False 或 _bucket_ests 为空 → RETURN
+- 超时: HOVER_SEARCH_TIMEOUT=10s 无有效目标 → RETURN
+
+--- TRACK (粗导飞向目标) ---
+- 控制: _pub_pos 位置控制飞向 _current_target_ned 坐标
+- 特点: 交由 PX4 MPC 自己导航刹车
+- 退出: dist_to_target < POS_ARRIVE_DIST(0.5m) → POSITION_REFINE
+- 超时: TRACK_MAX_TIME=60s
+
+--- POSITION_REFINE (位置修正) ---
+- 控制: _pub_pos 悬停 2s 收集多帧 ROI→NED 估算
+- 几何身份锁: 只收集 NED 最近邻检测, 防身份混淆
+- 修正: 平均多帧 NED 估计 → 更新 _current_target_ned
+- 哨兵: 修正量 > 1.5m → 拒绝 (判定为身份混淆)
+- 最少样本: 5 帧
+- 退出: _step_elapsed > 2s → PRE_SERVO
+
+--- PRE_SERVO (预伺服下降) --- [v7.1]
+- 控制: _pub_pos 位置保持, 匀速下降 0.25m/s 到 PRE_SERVO_HEIGHT=2.5m
+- 目的: 在低空 (2.5m) 更新桶 NED 估计, pinhole 模型在此高度更精确
+- 低空更新: H < 2.5m 时用几何身份锁找最近检测 → 更新 _current_target_ned
+- 退出: self.z > pre_z - 0.3 → VISUAL_SERVO
+- 超时: STEP_TIMEOUT=120s
+
+--- VISUAL_SERVO (纯视觉伺服) --- [v5]
+- 控制: PID 像素偏差 → 机体速度 → NED 位置增量 → _pub_pos
+- 每帧计算:
+    PID.compute(roi, dt=0.05, pixel_offset, pitch, roll, height_scale)
+    → v_fwd, v_lat (机体坐标系速度 m/s)
+    → dx_ned, dy_ned = _body_to_ned(v_fwd*0.05, v_lat*0.05)
+    → _servo_target_x += dx_ned; _servo_target_y += dy_ned
+    → _pub_pos(_servo_target_x, _servo_target_y, target_z, heading)
+- 下降: target_z = max(drop_z, self.z - SERVO_DESCENT_SPEED*0.05), 速度 0.25m/s
+- 姿态补偿: ex -= FX*tan(roll), ey -= FY*tan(pitch) (实机 YOLOv8 真摄像头需要)
+- 高度缩放: KP/KD *= H/CRUISE_HEIGHT, 低空自动缩小增益防摇晃
+- PID: 纯 PD (KI=0), KP=0.0015, KD=0.001, MAX_VEL=0.3, DEAD_ZONE_PX=5
+- 漂移保护: _servo_target 距锚点 >1.5m → 拉回 50%
+- 收敛检测: err < 8px 持续 2.5s → DROP
+- 高度到达: self.z > drop_z - 0.2 → DROP (下降速度有限时的兜底)
+- 丢检测: 保持当前伺服目标继续下降
+- 超时: VISUAL_SERVO_TIMEOUT=35s → 强投
+
+--- DROP (投弹) ---
+- 控制: 继续位置增量伺服 + AUX5 舵机投放
+- 投放流程:
+    1. 高度保持 at drop_z = GROUND_NED_Z - DROP_HEIGHT
+    2. AUX5 信号: B1→0.83333 (PWM 2000us), B2→-0.83333 (PWM 1000us)
+    3. 保持 AUX5_DROP_HOLD=1.0s
+    4. 发布落点: /drop/impact_point (飞机 NED 坐标, 裁判用)
+    5. 恢复 AUX5_LOCK → CLIMB
+- 超时: STEP_TIMEOUT=120s
+
+--- CLIMB (爬升切换) ---
+- 阶段1: _pub_vel(0, 0, -0.8, yaw_locked) 竖直爬升回巡航高度
+- 阶段2: 检查下一桶
+    - 还有桶 → _current_target_ned = _target_buckets[++idx] → TRACK
+    - 全部完成 → RETURN
+- 特点: 不回中心! 直接用最初 HOVER_SEARCH 锁定的坐标飞 TRACK (CLIMB 直达)
+
+--- RETURN (返航) ---
+- 控制: _fly_toward(home_x, home_y, CRUISE_SPEED) → _pub_vel
+- yaw: yaw_locked (heading0)
+- 退出: dist_to_home < 0.5m AND abs(z-cruise_z) < 0.5m → LAND
+- 超时: STEP_TIMEOUT=120s
+
+--- LAND (着陆) ---
+- 阶段1: _pub_pos 降到 home 上方 0.5m (GROUND_NED_Z - 0.5)
+- 阶段2: _send_cmd(21) MAV_CMD_NAV_LAND, PX4 自主着陆
+- 阶段3: 落地检测 → 3s dwell → _send_cmd(400, param1=0) disarm
+- 兜底: 15s 超时强制 disarm
+- 高度回退: abs(z) < 0.15 也触发 dwell 计时
+
+================================================================
+四、视觉检测与选桶逻辑
+================================================================
+
+--- 检测器: yolov8_bucket_detector ---
+- 模式: sim (合成图像 GT 投影 + 噪声背景 + 白圆) / real (YOLOv8 推理)
+- 模型: ~/SITL/yolo_v8/best2.pt, class={0: 'bucket'}
+- 输出: /bucket/detections (String, JSON 格式)
+    {"buckets": [{"x": cx, "y": cy, "w": bw, "h": bh}, ...]}
+- 推理节流: 10Hz, 跳帧重发缓存 ROI
+- ROI 去重: 连续 25 帧相同 ROI → 不刷新时间戳 (防 YOLO 节流误判)
+- 参数: sim 模式 conf_threshold=0.3, real 模式 0.5
+
+--- 检测接收 (_cb_detect) ---
+- 订阅: /bucket/detections (String)
+- 处理: JSON 解析 → _bucket_ests = [(ned_x, ned_y, roi, d, cx, cy), ...]
+    - 每个检测 → ROI→NED 反投影 (单目+已知高度)
+    - 几何身份锁: 如果 _current_target_ned 已锁定, 找 NED 最近邻的检测赋给 latest_roi
+    - 否则: 找图像中心最近的检测
+- _detect_fresh(): latest_roi 时间戳 < DETECT_TIMEOUT(3s)
+- ROI→NED 反投影 (单目 pinhole):
+    H_eff = H / cos(pitch), pitch_shift_px = FY*tan(pitch)
+    cam_right = (cx - CX) * H_eff / FX
+    cam_fwd = (CY + pitch_shift_px - cy) * H_eff / FY
+    dx_ned, dy_ned = _body_to_ned(cam_fwd, cam_right)
+    桶估计 NED = (飞机NED_x + dx_ned, 飞机NED_y + dy_ned)
+
+--- HOVER_SEARCH 选桶策略 ---
+- 围栏过滤: NED y∈[10,15], x∈[-4,4] (矩形区域), 距离 <6m
+- 帧间稳定性: 连续帧间 NED 跳变 <1.5m, 至少 2 桶稳定
+- 连续确认: _search_good_frames >= 5 (连续 5 帧满足条件)
+- 排序: 按距离 (dist = hypot(bx-drone_x, by-drone_y)) 升序
+- 选择: in_fence[:2] (最近 2 个)
+- 锁定: _target_buckets = [(ned_x, ned_y), (ned_x, ned_y)]
+- 身份锁: 后续全程用 NED 最近邻匹配, 不再用图像 center-nearest
+
+================================================================
+五、视觉伺服与投放控制
+================================================================
+
+--- PIDController ---
+- 类型: 纯 PD (KI=0)
+- 输入: RegionOfInterest (bbox), dt, pixel_offset_x, pitch, roll, height_scale
+- 像素误差:
+    ex = cx - CX - pixel_offset_x  (水平)  [正值=偏右, 负值=偏左]
+    ey = CY - cy                   (垂直)  [TOP=前约定]
+- 姿态补偿: ex -= FX*tan(roll), ey -= FY*tan(pitch)
+- 死区: |ex| < DEAD_ZONE_PX → ex=0; |ey| < DEAD_ZONE_PX → ey=0
+- 高度缩放: kp *= height_scale, kd *= height_scale
+    height_scale = H / CRUISE_HEIGHT  (低空自动缩小增益)
+- 输出: v_fwd (机体前向 m/s), v_lat (机体左向 m/s), err_px, ex, ey
+- 参数: KP=0.0015, KD=0.001, MAX_VEL=0.3, DEAD_ZONE_PX=5
+
+--- PID 输出 → NED 位置增量 ---
+    v_fwd, v_lat = PID output (机体坐标系)
+    dx_body = v_fwd * dt  (机体前向位移)
+    dy_body = v_lat * dt  (机体左向位移)
+    dx_ned, dy_ned = _body_to_ned(dx_body, dy_body)  (机体→NED 旋转)
+    _servo_target_x += dx_ned  (累积位置增量)
+    _servo_target_y += dy_ned
+    _pub_pos(_servo_target_x, _servo_target_y, target_z, heading)
+
+--- 投放执行 ---
+- AUX5 PWM 信号 (ManualControlSetpoint.aux5, 200Hz):
+    LOCK:  aux5_value =  0.0    → PWM = 1500 + 0.0*600   = 1500us
+    DROP1: aux5_value =  0.833  → PWM = 1500 + 0.833*600 = 2000us (B1)
+    DROP2: aux5_value = -0.833  → PWM = 1500 - 0.833*600 = 1000us (B2)
+- 投放时机: VISUAL_SERVO 收敛 (err<8px 持续 2.5s) OR 高度到达 (z > drop_z-0.2)
+- 保持时间: AUX5_DROP_HOLD=1.0s
+- 落点发布: /drop/impact_point → final_judge 裁判节点计分
+
+--- 独立裁判 (final_judge) ---
+- 订阅: /drop/impact_point (Point)
+- 匹配: 落点 → 3 个预配置桶真值 → 最近邻匹配
+- 输出: 距离误差 (m), 命中桶 ID
+- 桶参数: bucket_radius=0.125m
+
+================================================================
+六、安全保障系统
+================================================================
+
+--- 飞行边界软墙 (v8) ---
+方法: _enforce_boundaries() (状态机入口调用, TAKEOFF/LAND 豁免)
+- 横向 (cross-track): lateral = -dx*sin_h0 + dy*cos_h0, 边界 ±4m
+- 前向 (along-track): forward = dx*cos_h0 + dy*sin_h0, 边界 16m
+- 越界处理:
+    lateral > +4m  → _pub_vel(-0.5*sin_h0, +0.5*cos_h0, 0, heading0)  [右推]
+    lateral < -4m  → _pub_vel(+0.5*sin_h0, -0.5*cos_h0, 0, heading0)  [左推]
+    forward > 16m  → _pub_vel(-0.5*cos_h0, -0.5*sin_h0, 0, heading0)  [后推]
+    多重越界时速度向量叠加
+- 特点: 软墙而非硬边界 — 温和推回 (0.5m/s), 回界内即解除, 不触发返航
+
+--- FORWARD 过冲保护 (v8) ---
+- 一维投影判断: travel = (x-home_x)*cos_h0 + (y-home_y)*sin_h0
+- remain < -POS_ARRIVE_DIST(0.5m) → 判定飞过头 → 立即 HOVER_SEARCH
+- ramp-down 非对称: effective_dist = max(0, remain), 过零后不加速
+- 二维距离兜底: dist_2d < 0.5m → HOVER_SEARCH
+
+--- HOVER_SEARCH 零检测返航 (v8) ---
+- _zero_detect_start 时间戳: 首次零检测帧开始计时
+- 连续 5s _detect_fresh()=False 或 _bucket_ests 为空 → 判定此处无目标 → RETURN
+- 检测恢复时清除计时器
+
+--- 全局超时 ---
+- MISSION_TIMEOUT = 300s (5min) → 超时强制 LAND
+- 各阶段 STEP_TIMEOUT = 120s → 超时跳下一阶段
+- VISUAL_SERVO_TIMEOUT = 35s → 超时强投
+- TRACK_MAX_TIME = 60s → 超时推进
+- HOVER_SEARCH_TIMEOUT = 10s → 超时返航
+
+--- 其他保护 ---
+- 漂移保护: SERVO_MAX_DRIFT=1.5m, _servo_target 超限拉回 50%
+- LAND 反弹保护: MAV_CMD_NAV_LAND 发送后 15s 强制 disarm
+- ARM/OFFBOARD 重试: 最多等待 30s, 间隔 1s 重试
+- 死区防振荡: |err| < 5px → 清零, 不累积积分
+- 高度回退 disarm: abs(GROUND_NED_Z - self.z) < 0.15 也触发着陆计时
+
+================================================================
+七、完整参数表 (v8)
+================================================================
+
+# --- 飞行参数 ---
+GROUND_NED_Z              = 0.83     # SITL iris 地面 NED z (实机=0.0)
+CRUISE_HEIGHT             = 5.0      # 巡航高度 (m)
+DROP_HEIGHT               = 1.5      # 投弹高度 (m) [v8: 1.0→1.5]
+FORWARD_DIST              = 12.5     # 前飞目标距离 (m)
+MISSION_TIMEOUT           = 300.0    # 全局超时 (s)
+
+# --- PID 控制器 (纯 PD) ---
+KP_H                      = 0.0015   # 比例增益
+KI_H                      = 0.0      # 积分增益
+KD_H                      = 0.001    # 微分增益
+MAX_HORIZ_VEL             = 0.3      # 最大水平速度 (m/s)
+INTEGRAL_LIMIT            = 0.0      # 积分限幅
+DEAD_ZONE_PX              = 5.0      # 像素死区
+
+# --- FORWARD (v8: 一维投影+方向感知 ramp-down) ---
+CRUISE_SPEED              = 2.0      # 巡航速度 (m/s)
+FORWARD_RAMP_DIST         = 3.0      # ramp-down 触发距离 (m)
+FORWARD_MIN_SPEED         = 0.5      # ramp-down 最低速度 (m/s)
+SEARCH_SPEED              = 0.3      # 搜索速度 (m/s, 已废弃)
+
+# --- VISUAL_SERVO (v5: 单目标纯伺服) ---
+SERVO_DESCENT_SPEED       = 0.25     # 伺服阶段下降速率 (m/s)
+PRE_SERVO_HEIGHT          = 2.5      # 预伺服目标高度 (m) [v7.1]
+VISUAL_SERVO_ARRIVE_PX    = 8.0      # 收敛像素阈值
+VISUAL_SERVO_CONVERGE_TIME= 2.5      # 收敛稳定时间 (s)
+VISUAL_SERVO_TIMEOUT      = 35.0     # 伺服总超时 (s)
+SERVO_MAX_DRIFT           = 1.5      # 位置增量最大漂移 (m)
+
+# --- 飞行边界 (v8: 软墙) ---
+LATERAL_BOUNDARY          = 4.0      # 横向边界 ±4m
+FORWARD_BOUNDARY          = 16.0     # 前向边界 16m
+BOUNDARY_PUSH_SPEED       = 0.5      # 边界推回速度 (m/s)
+
+# --- HOVER_SEARCH ---
+HOVER_SEARCH_TIMEOUT      = 10.0     # 搜索超时 (s)
+HOVER_SEARCH_SETTLE_TIME  = 1.5      # MPC 刹车驻留时间 (s)
+HOVER_SEARCH_ZERO_DETECT_TIMEOUT = 5.0  # 零检测返航超时 (s) [v8]
+
+# --- POSITION_REFINE ---
+POSITION_REFINE_DURATION   = 2.0     # 悬停收集时间 (s)
+POSITION_REFINE_MIN_SAMPLES= 5       # 最少有效样本
+POSITION_REFINE_CENTER_MAX = 150.0   # ROI 中心偏差门限 (px)
+POSITION_REFINE_MAX_CORRECTION = 1.5 # 最大修正距离 (m)
+POSITION_REFINE_IDENTITY_MAX   = 1.5 # 几何身份锁门限 (m)
+
+# --- 四层门控 ---
+TRACK_ENTRY_DIST_MAX      = 3.0      # 距离门 (m)
+TRACK_ENTRY_CONFIRM_TIME  = 1.5      # 时空确认时间 (s)
+TRACK_ENTRY_ROI_DRIFT     = 120.0    # ROI 漂移门限 (px)
+TRACK_ENTRY_GEO_ERR_MAX   = 1.5      # 几何一致性门限 (m)
+TRACK_ARRIVE_PX           = 40.0     # TRACK 收敛像素阈值
+STABILIZE_LOST_FRAMES_MAX = 10       # 收敛容错帧数
+TRACK_MAX_TIME            = 60.0     # TRACK 最大时间 (s)
+HOVER_MAX_TIME            = 30.0     # HOVER 最大时间 (s)
+
+# --- 检测/超时 ---
+DETECT_TIMEOUT            = 3.0      # 检测新鲜度超时 (s)
+STEP_TIMEOUT              = 120.0    # 单阶段超时 (s)
+
+# --- 起飞/着陆 ---
+STABILIZE_HOVER_TIME      = 3.0      # 起飞后稳定悬停时间 (s)
+STABILIZE_TIME            = 5.0      # TRACK 收敛稳定时间 (s)
+TAKEOFF_CLIMB_RATE        = 0.8      # 竖直爬升速率 (m/s)
+POS_ARRIVE_DIST           = 0.5      # 位置到达判定距离 (m)
+LAND_DWELL_TIME           = 3.0      # 着陆后等待 disarm 时间 (s)
+
+# --- 投放 ---
+AUX5_LOCK                 = 0.0      # 锁定 (PWM 1500us)
+AUX5_DROP                 = 0.83333  # B1 投放 (PWM 2000us)
+AUX5_DROP2                = -0.83333 # B2 投放 (PWM 1000us)
+AUX5_DROP_HOLD            = 1.0      # 投放信号保持时间 (s)
+DROP_AFTER_DELAY          = 0.0      # 投放后延迟 (s)
+PAYLOAD_OFFSET_BODY_Y     = 0.0      # 载荷机体偏移 (m)
+
+# --- 相机参数 (640x360 16:9, 85°HFOV/54°VFOV) ---
+IMG_W = 640; IMG_H = 360
+CX = 320; CY = 180
+HFOV = 85°; VFOV = 54°
+FX ≈ 349; FY ≈ 353
+MANUAL_TIMER_PERIOD = 0.005  (200Hz AUX5 PWM)
+
+# --- 杂项 ---
+HOVER_VZ_KP = 0.8; TRACK_VZ_KP = 0.5; CLIMB_VZ = -0.8
+
+================================================================
+八、仿真验证结果
+================================================================
+
+--- v8 (2026-08-07, DROP_HEIGHT=1.5m) ---
+环境: final.world, heading0≈93°, 2 桶选近
+
+| 桶 | 落点 NED         | 真值 NED         | 误差   | 投弹高度 | 状态       |
+|----|-----------------|-----------------|--------|---------|-----------|
+| B1 | (-1.36, 11.24)  | (-1.50, 11.50)  | 0.29m  | 1.70m   | 精度良好   |
+| B3 | (-0.14, 13.37)  | (0.00, 14.00)   | 0.65m  | 1.68m   | overshoot 后 B2 被跳过 |
+
+FORWARD 过冲检测: Overshot travel=13.02m > 12.5m → HOVER_SEARCH
+边界软墙: 全程未触发 (飞行在界内)
+零检测: 未触发 (目标正常检测)
+
+--- v7.2 (2026-08-07, DROP_HEIGHT=1.0m, 历史最佳) ---
+| 桶 | 落点 NED         | 真值 NED         | 误差   |
+|----|-----------------|-----------------|--------|
+| B1 | (-1.43, 11.29)  | (-1.50, 11.50)  | 0.23m  |
+| B3 | (0.01, 13.90)   | (0.00, 14.00)   | 0.10m  |
+| B2 | (1.94, 12.87)   | (2.00, 13.00)   | 0.15m  |
+全部 <0.25m, B3=0.10m 为项目历史最佳。
+
+================================================================
+九、已知问题与解决方案
+================================================================
+
+1. FORWARD _pub_vel 过冲无限飞走 [v8 已修复]
+   原因: distance-based ramp-down 对称 — 过冲后距离增大 → 速度增大
+   修复: 一维投影 + 方向感知非对称 ramp-down
+
+2. cv_bridge + numpy 2.x 不兼容
+   现象: imgmsg_to_cv2 segfault
+   绕过: np.frombuffer(msg.data).reshape(h,w,-1) 手动转换
+
+3. Gazebo Classic 下视 RGB 摄像头不渲染 3D 物体
+   影响: 无法用真实视觉仿真
+   绕过: YOLOv8 sim 模式 GT 投影合成图像
+
+4. PX4 NED 原点 ≠ Gazebo 世界原点
+   关键: 所有 Gazebo→NED 转换必须扣减飞机生成点 (1.01, 0.98, 0.83)
+
+5. PX4 SITL 低速速度控制跟踪极差
+   现象: vy=-0.21m/s 指令 → 实际 +0.02m/s
+   绕过: PID 输出转位置增量 → _pub_pos 位置控制
+
+6. PX4 持久化状态未重置 → 飞机位置错乱
+   修复: 每次启动前删除 dataman/eeprom/parameters.bson
+
+7. SITL 重机仿真不可行 (5.3kg)
+   原因: PX4 默认飞控增益无法稳定重机
+   结论: 视觉伺服外环 PID 对动力学不敏感, SITL 用默认 Iris 物理即可
+
+8. set_drone_params.sh inertia 标签污染 [已修复]
+   原因: re.sub 替换所有 ixx/iyy/izz 标签 (含 IMU 和旋翼)
+   修复: replace_nth() 仅替换第 0 个出现 (base_link)
+
+9. TRACK_MAX_TIME 死代码 [已修复]
+   现象: 丢检测路径跳过 track_max_time → 无限悬停
+   修复: 丢检路径先检查 track_max_time
+
+10. PID y 轴符号反了 → 正反馈发散 [已修复]
+    修复: 统一 10 文件为 TOP=前 约定
+
+11. 实机 20Hz PID 高频振动 [已修复]
+    修复: 抽帧控制 TRACK=5Hz, DESCEND/HOVER=4Hz
+
+12. YOLO 推理节流重发缓存 ROI → px_err 锁死 [已修复]
+    修复: 连续 25 帧相同 ROI → 不刷新时间戳
+
+13. 姿态补偿 + GT 投影正反馈 → SITL PID 振荡 [已修复]
+    修复: PID.compute 中移除 pitch/roll 参数, 实机恢复补偿
+
+14. 广角摄像头 HOVER 低空振荡 [已修复]
+    修复: PID 死区 DEAD_ZONE_PX=3, 低空 height_scale
+
+15. ROI→NED 估计 H 偏差 [v6 已修复]
+    修复: 新增 GROUND_NED_Z 常量, 统一 6 文件
+
+16. 多桶身份混淆 [v6 已缓解]
+    缓解: 几何身份锁 GEO_IDENTITY_MAX=1.5m
+
+17. YOLOv8 sim 检测器 body_fwd < -0.5 误杀 [v5 已修复]
+    修复: 删除门槛, 下视摄像头像素边界已够
+
+================================================================
+十、阶段性总结
+================================================================
+
+--- 项目流程 ---
+v0→v3: 投放精度优化 (drop_opt_mission), DESCEND 混合视觉伺服
+   四轮仿真迭代 精度 0.68→0.26m, PX4 低速速度跟踪定位, ROI 去重
+v4: 实机摄像头适配 (640×360/85°)
+   7 文件相机参数同步, FORWARD+HOVER_SEARCH 位置控制迁移 + PID height_scale
+v5: 单目标纯视觉伺服 (final_mission)
+   APPROACH 隔离 + VISUAL_SERVO 收敛 + 几何身份锁, 架构重构
+v6: H 估计修复 + 身份锁收紧 + 漂移保护
+   6 文件 GROUND_NED_Z 统一, GEO_IDENTITY_MAX 2.5→1.5m
+v7/v7.1: FORWARD _pub_vel 同步 + PRE_SERVO + CLIMB 优化
+   FORWARD 方向正确修复, PRE_SERVO 改善 pinhole, CLIMB 不返回中心省时
+v7.2: CRUISE_HEIGHT 5m + 选近 2 桶
+   3 桶全识别, 全部 <0.25m (历史最佳)
+v8: DROP_HEIGHT 1.5m + FORWARD 过冲修复 + 边界软墙 + 零检测返航
+   投弹安全性提升, FORWARD 过冲检测, 飞行边界多道安全防线
+
+--- 项目成果 ---
+- 最大精度: 0.10m (v7.2, B3)
+- 当前精度: 0.29m (v8, B1 @ 1.5m 投弹高度)
+- 端到端时间: ~3-4 分钟 (含 TAKEOFF→LAND)
+- 状态机: 12 步, 支持多桶循环
+- 安全系统: 边界软墙 + 零检测返航 + 全局超时 + 各阶段超时 + 漂移保护
+- 坐标系: NED (北-东-地), 支持 SITL(0.83) 和实机(0.0) 自动切换
+- 相机: 640x360 16:9, 85°HFOV/54°VFOV, 统一 sim/real 参数
+
+--- 核心技术手段 ---
+- 视觉伺服: PID 纯 PD 像素偏差 → 位置增量 → PX4 位置控制
+- 姿态补偿: PID 输入补偿 roll/pitch 引起的光轴偏移
+- 高度缩放: KP/KD *= H/CRUISE_HEIGHT 防止低空增益过大
+- 单目定位: ROI→NED 反投影 (pinhole, pitch 补偿)
+- 几何身份锁: NED 最近邻匹配替代图像 center-nearest
+- 位置增量控制: 绕过 PX4 SITL 低速速度控制跟踪问题
+- 一维投影: 沿 heading0 标量投影判断飞行方向和过冲
+- 非对称 ramp-down: 接近减速、飞过头不加速
+- 软墙边界: 温和速度推回替代硬边界返航
+- Yaw 分层: 盲飞阶段 yaw=heading0, 视觉伺服阶段 yaw=live heading
+- AUX5 双路 PWM: B1→2000us, B2→1000us, ManualControlSetpoint 200Hz
+- PX4 自主着陆: MAV_CMD_NAV_LAND + 高度回退 disarm 兜底
+
+--- 影响文件 ---
+| src/drone_drl/drone_drl/final_mission.py | 主任务节点 (1027 行, v8) |
+| src/drone_drl/drone_drl/final_judge.py    | 独立裁判节点            |
+| src/drone_drl/drone_drl/yolov8_bucket_detector.py | YOLOv8 检测器 |
+| worlds/final.world                        | 场景定义 (3 桶矩形区)   |
+| scripts/test_final.sh                     | 一键启动脚本            |
+| docs/project_log.md                       | 完整开发日志            |
+| CLAUDE.md                                 | 项目指南+参数+架构      |
+
+================================================================
+十一、坐标系与通信参考
+================================================================
+
+--- NED 坐标系 ---
+x = 北 (+前), y = 东 (+右), z = 下 (+下降, -上升)
+heading: 弧度, 0=北, 正值=右转 (π/2=东)
+
+--- 机体坐标系 → NED ---
+def _body_to_ned(fwd, lat):  # fwd=前, lat=左
+    dx =  fwd * cos(heading) + lat * sin(heading)    # NED x
+    dy =  fwd * sin(heading) - lat * cos(heading)    # NED y
+    return dx, dy, 0
+
+--- 标量投影 (沿 heading0) ---
+forward (along-track)  = dx * cos_h0 + dy * sin_h0  # 沿 heading0 的距离
+lateral  (cross-track) = -dx * sin_h0 + dy * cos_h0 # 垂直 heading0 左侧距离
+
+--- GAZEBO → NED ---
+bucket_ned_x  = bucket_gz_y - spawn_gz_y    # Gazebo y(北) - 0.98
+bucket_ned_y  = bucket_gz_x - spawn_gz_x    # Gazebo x(东) - 1.01
+bucket_ned_z  = -(bucket_gz_z - spawn_gz_z) # 高度差取反
+
+--- 关键 ROS2 话题 ---
+/fmu/in/trajectory_setpoint       (发布) 位置/速度/偏航指令
+/fmu/in/offboard_control_mode     (发布) 声明 setpoint 生效字段
+/fmu/in/vehicle_command           (发布) ARM(400)/切模式(176)/LAND(21)
+/fmu/in/manual_control_input      (发布) AUX5 舵机 PWM
+/drop/impact_point                (发布) 投放落点
+/drop/aux5_pwm                    (发布) AUX5 实时监控
+/fmu/out/vehicle_local_position_v1(订阅) NED 位置/航向/有效性
+/fmu/out/vehicle_status_v4        (订阅) ARM 状态/飞行模式
+/fmu/out/vehicle_control_mode     (订阅) flag_armed/flag_offboard
+/fmu/out/vehicle_attitude         (订阅) 姿态四元数
+/fmu/out/vehicle_land_detected    (订阅) 落地检测
+/bucket/detections                (订阅) 多桶 JSON 检测结果

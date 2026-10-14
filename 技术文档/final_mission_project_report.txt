@@ -1,0 +1,587 @@
+================================================================================
+  final_mission 实机部署项目报告 (v9)
+  日期: 2026-08-08
+  平台: NVIDIA Jetson Orin NX + PX4 1.17.0 + ROS 2 Humble
+================================================================================
+
+一、项目概述
+============
+多桶自主视觉检测与投放任务。无人机起飞后沿航向直飞至投放区域，下视摄像头
+YOLOv8 实时检测 3 个目标桶，通过多桶追踪器进行时间确认（防御瞬时误检），
+选取最近 2 个桶依次进行视觉伺服投放（3 选 2）。B1 投放 PWM 2000us，B2 投放
+PWM 1000us。
+
+二、期望指标
+============
+| 指标               | 目标值         | SITL v9 验证              |
+|-------------------|---------------|--------------------------|
+| 单桶投放精度        | < 0.3m        | B1=0.028m, B3=0.14m      |
+| 两桶平均精度        | < 0.2m        | 0.084m                   |
+| 任务总时长          | < 5min        | ~180s                    |
+| FORWARD 到位精度    | 矩形中心 1m    | travel=12.5m (过冲0.5m)   |
+| 桶检出率           | 3/3 (100%)    | 3/3                      |
+| 选桶正确性          | 选最近2个      | 正确                      |
+| 误检防御           | 瞬时假阳性过滤  | 追踪器时间确认 1.5s        |
+| 丢检恢复           | 盲降+强制投弹  | 正确                      |
+| 着陆精度           | < 1m          | ~0.5m                    |
+
+三、状态机架构 (12 步)
+======================
+TAKEOFF → STABILIZE → FORWARD → HOVER_SEARCH → TRACK → POSITION_REFINE
+                                                       |
+                                                    PRE_SERVO
+                                                       |
+                                                  VISUAL_SERVO
+                                                       |
+                                                      DROP
+                                                       |
+                                                     CLIMB --→ (下一桶 TRACK)
+                                                       | (全部完成)
+                                                    RETURN → LAND
+
+四、各阶段技术细节
+==================
+
+4.1 TAKEOFF
+-----------
+- 位置保持 2s，竖直爬升到 CRUISE_HEIGHT=5.0m
+- 记录起飞参考点 (_takeoff_x/y/z)
+- 超时保护: 30s
+
+4.2 STABILIZE
+-------------
+- 固定 yaw 悬停 3s 稳定姿态
+- 锁定 heading0 (机头朝向) 和 home 坐标
+- 计算目标点: home + FORWARD_DIST x (cos(h0), sin(h0))
+- 目的: 起飞振荡期航向不准，延迟锁定
+
+4.3 FORWARD (v8: 一维投影 + 方向感知 ramp-down)
+----------------------------------------------
+- 速度控制 _pub_vel: vx,vy = speed x (cos(h0), sin(h0))
+- 速度方向 = yaw方向 = heading0，严格一致
+- 一维投影判断过冲:
+    travel = (x-home_x)*cos(h0) + (y-home_y)*sin(h0)   // 标量投影
+    remain = FORWARD_DIST - travel
+    effective_dist = max(0, remain)  // 非对称: 飞过头不加速
+- 退出条件: travel >= FORWARD_DIST (一维过冲) 或 dist_2d < POS_ARRIVE_DIST (兜底)
+- FORWARD_DIST = 12.0m，预设 0.5m undershoot 利用 PX4 MPC 过冲到达中心
+- ramp-down: 近目标 3m 内线性减速至最低 0.5m/s
+
+4.4 HOVER_SEARCH (v9: 追踪器时间确认)
+-------------------------------------
+- 驻留 1.5s 等 MPC 收敛 (跳过门控)
+- _update_trackers() 每帧更新多桶追踪器
+- 追踪器结构: {ned(x,y), first_seen, last_seen, confirmed(bool), roi_center(cx,cy)}
+- 检测 → NED 最近邻匹配已有追踪器 (<1.5m)
+- 匹配: 指数平滑更新位置 (alpha=0.3), 刷新时间戳
+- 持续时间 >=1.5s → confirmed = True
+- 新检测: 创建追踪器; 超时 >2s: 清理
+- 决策: 已确认追踪器 >=2 个 → 选距离最近的 2 个 → TRACK
+- 零检测超时: 连续 5s 无检测 → RETURN
+
+4.5 TRACK
+---------
+- 位置控制 _pub_pos 飞向锁定桶坐标
+- PX4 MPC 自行导航和刹车
+- 到位: dist < POS_ARRIVE_DIST 且稳定 5s → POSITION_REFINE
+- 超时: track_max_time=60s → 强制 POSITION_REFINE
+
+4.6 POSITION_REFINE
+-------------------
+- 悬停 2s，几何身份锁收集多帧 ROI→NED
+- 与已知桶坐标最近邻匹配 (<1.5m)
+- 平均修正 _current_target_ned
+- 最少 5 个有效样本，最大修正 1.5m
+
+4.7 PRE_SERVO
+-------------
+- 位置保持匀速下降到 PRE_SERVO_HEIGHT=2.5m
+- 低空更新桶 NED 估计 (pinhole 模型低空更准)
+- H <= 2.5m → 几何身份锁更新目标 → VISUAL_SERVO
+
+4.8 VISUAL_SERVO (PID 抽帧控制)
+-------------------------------
+- 单目标纯 PID 像素伺服
+- PID(roi) → v_fwd,v_lat → dx_ned,dy_ned → servo_target += delta → _pub_pos
+- PID 抽帧: 20Hz / PID_DECIMATION_SERVO = 4Hz (抑制 YOLO jitter 谐振)
+- dt 同步缩放: dt = PID_DECIMATION_SERVO x 0.05
+- 非抽帧: 重发当前位置维持 offboard >2Hz
+- 高度缩放: height_scale = H/CRUISE_HEIGHT (低空 KP/KD 等比缩小)
+- 收敛: err < 8px 持续 2.5s → DROP
+- 漂移保护: servo_target 距锚点 >1.5m → 拉回 50%
+- 兜底: 到达投放高度 → DROP; 总超时 35s → 强投
+
+4.9 DROP
+--------
+- 继续位置增量伺服 + AUX5 舵机投放
+- B1: PWM 2000us (AUX5_DROP=0.83333), B2: PWM 1000us (AUX5_DROP2=-0.83333)
+- PWM 保持 1s 后锁定
+- _drop_count 递增, 记录落点 NED
+
+4.10 CLIMB
+----------
+- 竖直爬升到巡航高度 (CLIMB_VZ=-0.8m/s)
+- _bucket_idx 递增 → 直接 TRACK 下一桶 (不返回中心)
+
+4.11 RETURN
+-----------
+- _pub_vel 飞回 home 上方, yaw 锁定 heading0
+
+4.12 LAND
+---------
+- PX4 自主着陆 (MAV_CMD_NAV_LAND)
+- 高度回退 disarm 兜底
+
+五、关键技术
+============
+
+5.1 多桶追踪器 (v9)
+-------------------
+防御瞬时 YOLO 误检。每个候选桶独立追踪，需持续观测 >=1.5s 才确认。
+
+_cb_detect (每帧) → _update_trackers()
+  ├─ 检测 → NED 最近邻匹配已有追踪器
+  ├─ 匹配: 更新位置 + 刷新时间 + 检查确认
+  ├─ 新检测: 创建追踪器
+  └─ 超时: 清理 >2s 未更新的追踪器
+
+HOVER_SEARCH (决策):
+  → confirmed trackers → sort by distance → pick top 2
+
+5.2 几何身份锁 (Anti-Identity-Swap)
+------------------------------------
+多桶场景下防止追错目标。VISUAL_SERVO/DESCEND/DROP 阶段，_cb_detect 遍历
+所有检测找 NED 最接近 _current_target_ned 的 ROI (非 nearest-center)。
+
+    for each detection:
+      geo_dist = hypot(det_ned - current_target_ned)
+      if geo_dist < GEO_IDENTITY_MAX (1.5m):
+        best = argmin(geo_dist)
+
+5.3 PID 高度缩放
+----------------
+低空像素/物理比增大，KP 不变会导致有效增益翻倍 → 过调振荡。
+
+    height_scale = H / CRUISE_HEIGHT
+    kp_effective = KP_H x height_scale
+    kd_effective = KD_H x height_scale
+
+5.4 位置增量控制
+----------------
+绕过 PX4 SITL 低速速度跟踪问题 (<0.3m/s 跟踪极差)。
+
+    PID → v_fwd, v_lat (机体速度)
+    dx_ned, dy_ned = body_to_ned(v_fwd x dt, v_lat x dt)
+    servo_target_x += dx_ned
+    servo_target_y += dy_ned
+    _pub_pos(servo_target_x, servo_target_y, z, yaw)
+
+5.5 飞行边界软墙 (v8)
+----------------------
+温和推回优于硬边界返航。
+
+    lateral = -dx*sin(h0) + dy*cos(h0)   // 横向偏移
+    forward =  dx*cos(h0) + dy*sin(h0)   // 前向偏移
+    if |lateral| > 4m or forward > 16m:
+      _pub_vel 推回安全区 (0.5m/s)
+
+5.6 实机 vs SITL 差异
+---------------------
+| 项                  | SITL                   | fly (实机)              |
+|--------------------|------------------------|------------------------|
+| PX4 话题后缀        | 无                     | _v1                     |
+| GROUND_NED_Z       | 0.83                   | 0.0                     |
+| ARM/OFFBOARD 检测   | VehicleStatus fallback | VehicleControlMode 单源 |
+| xy_valid           | 检查                   | 不检查                   |
+| PID 抽帧           | 无 (20Hz)              | SERVO=4Hz, DROP=4Hz     |
+| 摄像头              | sim 合成图像            | V4L2 直读 /dev/video0   |
+| YOLO 模型           | PyTorch .pt            | TensorRT .engine        |
+| common.py          | 外部导入                | 内联                     |
+
+5.7 坐标系
+----------
+- NED: x=北, y=东, z=下 (正值=下降)
+- 机体: x=前, y=右, z=下
+- 下视摄像头: 图像上方(TOP)=机头前方
+- PID ey: ey = CY - cy (前方物体 cy<CY → ey>0 → v_fwd>0 → 前进)
+
+5.8 ROI→NED 反投影 (单目 + 已知高度)
+-------------------------------------
+    H_eff = H / cos(pitch)
+    pitch_shift_px = FY x tan(pitch)
+    cam_right = (cx - CX) x H_eff / FX
+    cam_fwd   = (CY + pitch_shift_px - cy) x H_eff / FY
+    dx, dy = body_to_ned(cam_fwd, cam_right)
+    桶 NED = (drone_x + dx, drone_y + dy)
+
+六、启动方式
+============
+
+Jetson Orin NX 上一键启动:
+
+    cd ~/fly
+    ./final.sh          # 前台运行, Ctrl+C 停止
+    ./final.sh --log    # 日志保存到 ~/fly_logs/
+
+启动链路: DDS Agent (串口) → see.py (YOLOv8 多桶检测) → final_mission.py (投放任务)
+
+七、参数表 (实机 v9)
+====================
+飞行参数:
+  GROUND_NED_Z = 0.0        CRUISE_HEIGHT = 5.0       DROP_HEIGHT = 1.5
+  FORWARD_DIST = 12.0        MISSION_TIMEOUT = 300.0
+
+追踪器 (v9):
+  TRACKER_CONFIRM_TIME = 1.5   TRACKER_TIMEOUT = 2.0   TRACKER_NED_MATCH = 1.5
+
+PID (纯 PD):
+  KP_H = 0.0015    KI_H = 0.0    KD_H = 0.001    MAX_HORIZ_VEL = 0.3    DEAD_ZONE_PX = 5.0
+
+PID 抽帧 (实机):
+  PID_DECIMATION_SERVO = 5 (4Hz)    PID_DECIMATION_DROP = 5 (4Hz)
+
+FORWARD:
+  CRUISE_SPEED = 2.0    FORWARD_RAMP_DIST = 3.0    FORWARD_MIN_SPEED = 0.5
+
+边界 (v8):
+  LATERAL_BOUNDARY = 4.0    FORWARD_BOUNDARY = 16.0    BOUNDARY_PUSH_SPEED = 0.5
+
+VISUAL_SERVO:
+  SERVO_DESCENT_SPEED = 0.25    PRE_SERVO_HEIGHT = 2.5
+  VISUAL_SERVO_ARRIVE_PX = 8.0  VISUAL_SERVO_CONVERGE_TIME = 2.5
+  VISUAL_SERVO_TIMEOUT = 35.0   SERVO_MAX_DRIFT = 1.5
+
+POSITION_REFINE:
+  POSITION_REFINE_DURATION = 2.0    POSITION_REFINE_MIN_SAMPLES = 5
+  POSITION_REFINE_IDENTITY_MAX = 1.5
+
+投放:
+  AUX5_LOCK = 0.0 (PWM 1500us)
+  AUX5_DROP = 0.83333 (PWM 2000us, B1)
+  AUX5_DROP2 = -0.83333 (PWM 1000us, B2)
+  AUX5_DROP_HOLD = 1.0
+
+相机 (640x360 16:9, 85 deg HFOV / 54 deg VFOV):
+  IMG_W=640 IMG_H=360 CX=320 CY=180 HFOV=85deg VFOV=54deg FX~349 FY~353
+
+八、已知限制
+============
+1. 单目定位精度: ROI→NED 反投影依赖高度估计，+-39cm 随机噪声
+2. 下洗气流: H=1.5m 投放高度旋翼下洗气流可能扰动目标
+3. YOLO 检测距离: 5m 高度时桶像素半径小，YOLO 可能漏检
+4. 选桶不可控: 距离排序选最近 2 个，无法指定特定桶
+5. 无独立误检分类器: 完全信任 YOLO，持续稳定的假阳性可骗过追踪器
+6. 实机未验证: 当前仅 SITL 仿真验证，实机动力学和风扰待测试
+
+================================================================================
+附录 A: see.py (多桶 YOLOv8 检测节点)
+================================================================================
+
+#!/usr/bin/env python3
+"""
+多桶检测器 see.py -- YOLOv8 真机推理，发布所有检测结果到 /bucket/detections。
+配合 final_mission.py 使用（多桶 3 选 2 任务）。
+
+与 yolo.py 的区别:
+- yolo.py: 只选一个最佳检测框 -> /bucket/detection (RegionOfInterest)
+- see.py:  发布所有检测框 -> /bucket/detections (String JSON 数组)
+"""
+
+import json
+import math
+import time
+import threading
+import numpy as np
+import cv2
+import rclpy
+from rclpy.node import Node
+from std_msgs.msg import String
+from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
+
+
+class MultiBucketDetector(Node):
+    def __init__(self):
+        super().__init__('see')
+
+        self.declare_parameter('model_path', '/home/nvidia/balloon.engine')
+        self.declare_parameter('camera_device', '/dev/video0')
+        self.declare_parameter('conf_threshold', 0.4)
+        self.declare_parameter('target_class', 'balloon')
+        self.declare_parameter('infer_hz', 10.0)
+        self.declare_parameter('img_width', 640)
+        self.declare_parameter('img_height', 360)
+        self.declare_parameter('visualize', True)
+
+        self.img_w = self.get_parameter('img_width').value
+        self.img_h = self.get_parameter('img_height').value
+        self.conf_threshold = self.get_parameter('conf_threshold').value
+        self.target_class = self.get_parameter('target_class').value
+        self.infer_hz = self.get_parameter('infer_hz').value
+        self.visualize = self.get_parameter('visualize').value
+
+        self._load_model()
+
+        self.det_pub = self.create_publisher(String, '/bucket/detections', 10)
+
+        self._last_detections_json = "{}"
+        self._last_infer_time = 0.0
+        self._infer_interval = 1.0 / self.infer_hz
+
+        self._init_camera()
+
+        self.get_logger().info(
+            f"see ready [Multi-Bucket Detector] model={self._model_names} "
+            f"conf={self.conf_threshold} infer={self.infer_hz}Hz "
+            f"image={self.img_w}x{self.img_h}")
+
+    def _load_model(self):
+        model_path = self.get_parameter('model_path').value
+        try:
+            from ultralytics import YOLO
+            self.model = YOLO(model_path)
+        except ImportError:
+            self.get_logger().fatal("ultralytics not installed. Jetson: conda activate <env>")
+            raise
+        t0 = time.time()
+        dummy = np.random.randint(0, 255, (self.img_h, self.img_w, 3), dtype=np.uint8)
+        self.model(dummy, verbose=False)
+        self.get_logger().info(f"Model warm-up: {(time.time()-t0)*1000:.0f}ms")
+        self._model_names = getattr(self.model, 'names', {})
+        self._target_cls_idx = None
+        if not self._model_names:
+            self.get_logger().error("Model has no class names!")
+        elif self.target_class:
+            for idx, name in self._model_names.items():
+                if name == self.target_class:
+                    self._target_cls_idx = idx
+                    break
+            if self._target_cls_idx is not None:
+                self.get_logger().info(f"Target '{self.target_class}' -> cls_idx={self._target_cls_idx}")
+            else:
+                self.get_logger().warn(f"Class '{self.target_class}' not in model, falling back to any")
+
+    def _init_camera(self):
+        camera_device = self.get_parameter('camera_device').value
+        self._cap = cv2.VideoCapture(camera_device, cv2.CAP_V4L2)
+        if not self._cap.isOpened():
+            self.get_logger().fatal(f"Cannot open camera: {camera_device}")
+            raise RuntimeError(f"Cannot open camera: {camera_device}")
+        self._cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
+        self._cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
+        self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+        self.get_logger().info(
+            f"Camera opened: {camera_device} "
+            f"({self._cap.get(cv2.CAP_PROP_FRAME_WIDTH):.0f}x"
+            f"{self._cap.get(cv2.CAP_PROP_FRAME_HEIGHT):.0f}) "
+            f"-> resize to {self.img_w}x{self.img_h}")
+        self._frame = None
+        self._frame_lock = threading.Lock()
+        self._cam_running = True
+        self._cam_thread = threading.Thread(target=self._camera_loop, daemon=True)
+        self._cam_thread.start()
+        self._cam_timer = self.create_timer(1.0 / self.infer_hz, self._tick)
+
+    def _camera_loop(self):
+        while self._cam_running:
+            ret, frame = self._cap.read()
+            if ret and frame is not None:
+                with self._frame_lock:
+                    self._frame = frame
+
+    def _tick(self):
+        with self._frame_lock:
+            frame = self._frame
+        if frame is None:
+            return
+        frame = cv2.resize(frame, (self.img_w, self.img_h))
+        now = time.time()
+        if now - self._last_infer_time < self._infer_interval:
+            self.det_pub.publish(String(data=self._last_detections_json))
+            return
+        self._last_infer_time = now
+        try:
+            results = self.model(frame, verbose=False)
+        except Exception as e:
+            self.get_logger().error(f"Inference error: {e}", throttle_duration_sec=5)
+            return
+        buckets = self._all_detections(results)
+        self._last_detections_json = json.dumps({"buckets": buckets})
+        self.det_pub.publish(String(data=self._last_detections_json))
+        if self.visualize:
+            for b in buckets:
+                x, y, w, h = b["x"], b["y"], b["w"], b["h"]
+                cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+            cv2.putText(frame, f"see: {len(buckets)} buckets", (10, 25),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+            cv2.imshow('see Multi-Bucket Detector', frame)
+            cv2.waitKey(1)
+
+    def _all_detections(self, results):
+        boxes = results[0].boxes
+        if boxes is None or len(boxes) == 0:
+            return []
+        conf = boxes.conf.cpu().numpy().ravel()
+        cls_arr = boxes.cls.cpu().numpy().ravel()
+        thresh = self.conf_threshold
+        target_cls = self._target_cls_idx
+        imw, imh = self.img_w, self.img_h
+        mask = conf >= thresh
+        if target_cls is not None:
+            mask &= (cls_arr == target_cls)
+        if not mask.any():
+            return []
+        xyxy = boxes.xyxy.cpu().numpy()
+        valid_idx = np.where(mask)[0]
+        buckets = []
+        for idx in valid_idx:
+            x1 = max(0, int(xyxy[idx, 0]))
+            y1 = max(0, int(xyxy[idx, 1]))
+            x2 = min(imw - 1, int(xyxy[idx, 2]))
+            y2 = min(imh - 1, int(xyxy[idx, 3]))
+            w, h = x2 - x1, y2 - y1
+            if w <= 0 or h <= 0:
+                continue
+            buckets.append({"x": x1, "y": y1, "w": w, "h": h})
+        return buckets
+
+
+def main(args=None):
+    rclpy.init(args=args)
+    node = MultiBucketDetector()
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        node._cam_running = False
+        if hasattr(node, '_cap') and node._cap is not None:
+            node._cap.release()
+        cv2.destroyAllWindows()
+        node.destroy_node()
+        rclpy.shutdown()
+
+
+if __name__ == '__main__':
+    main()
+
+================================================================================
+附录 B: final.sh (Jetson 一键启动脚本)
+================================================================================
+
+#!/bin/bash
+# DDS + see (多桶检测) + final_mission (多桶投放) 一键启动脚本
+# 用法: ./final.sh [--log]
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+DDS_AGENT="MicroXRCEAgent"
+DDS_DEV="/dev/ttyTHS1"
+DDS_BAUD="921600"
+CONDA_ENV="yolov8"
+CONDA_PYTHONPATH="$HOME/miniforge3/envs/yolov8/lib/python3.10/site-packages"
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+
+LOG_DIR="$HOME/fly_logs"
+if [[ "$1" == "--log" ]]; then
+    mkdir -p "$LOG_DIR"
+    LOG_DDS="$LOG_DIR/dds_$TIMESTAMP.log"
+    LOG_SEE="$LOG_DIR/see_$TIMESTAMP.log"
+    LOG_MISSION="$LOG_DIR/final_mission_$TIMESTAMP.log"
+    echo "[$(date)] Logging to $LOG_DIR/"
+fi
+
+_CLEANED=false
+cleanup() {
+    if $_CLEANED; then return; fi
+    _CLEANED=true
+    echo ""
+    echo "=== 正在停止所有后台进程... ==="
+    [[ -n "$WATCHDOG_PID" ]] && kill "$WATCHDOG_PID" 2>/dev/null && echo "  watchdog ($WATCHDOG_PID) 已终止"
+    [[ -n "$SEE_PID" ]] && kill "$SEE_PID" 2>/dev/null && echo "  see ($SEE_PID) 已终止"
+    [[ -n "$DDS_PID" ]] && kill "$DDS_PID" 2>/dev/null && echo "  dds  ($DDS_PID) 已终止"
+    [[ -n "$MISSION_PID" ]] && kill "$MISSION_PID" 2>/dev/null && echo "  final_mission ($MISSION_PID) 已终止"
+    echo "=== 清理完成 ==="
+}
+trap cleanup INT TERM EXIT
+
+watchdog() {
+    while true; do
+        if ! kill -0 "$SEE_PID" 2>/dev/null; then
+            echo "[FATAL] see 节点意外退出!" >&2
+            kill "$$" 2>/dev/null; exit 1
+        fi
+        if ! kill -0 "$DDS_PID" 2>/dev/null; then
+            echo "[FATAL] DDS Agent 意外退出!" >&2
+            kill "$$" 2>/dev/null; exit 1
+        fi
+        sleep 2
+    done
+}
+
+echo "=== 检查环境 ==="
+[ ! -f /opt/ros/humble/setup.bash ] && echo "[FATAL] ROS 2 Humble not found" && exit 1
+! command -v "$DDS_AGENT" &>/dev/null && echo "[FATAL] DDS Agent not found" && exit 1
+[ ! -e "$DDS_DEV" ] && echo "[FATAL] DDS device not found: $DDS_DEV" && exit 1
+[ ! -f "$SCRIPT_DIR/install/setup.bash" ] && echo "[FATAL] Workspace not built" && exit 1
+! command -v conda &>/dev/null && echo "[FATAL] conda not found" && exit 1
+echo "  All checks passed"
+
+source /opt/ros/humble/setup.bash
+source "$SCRIPT_DIR/install/setup.bash"
+
+echo ""
+echo "=== 1/3 启动 DDS Agent ==="
+EXISTING=$(pgrep -f "MicroXRCEAgent serial" 2>/dev/null || true)
+[[ -n "$EXISTING" ]] && kill $EXISTING 2>/dev/null && sleep 1
+if [[ -n "$LOG_DDS" ]]; then
+    sg dialout -c "$DDS_AGENT serial --dev $DDS_DEV -b $DDS_BAUD" > "$LOG_DDS" 2>&1 &
+else
+    sg dialout -c "$DDS_AGENT serial --dev $DDS_DEV -b $DDS_BAUD" &
+fi
+DDS_PID=$!
+echo "  DDS Agent PID=$DDS_PID"
+sleep 5
+kill -0 "$DDS_PID" 2>/dev/null || { echo "[FATAL] DDS Agent died"; exit 1; }
+
+echo ""
+echo "=== 2/3 启动 see 多桶检测节点 ==="
+eval "$(conda shell.bash hook)"
+conda activate "$CONDA_ENV"
+export PYTHONPATH="$CONDA_PYTHONPATH:$PYTHONPATH"
+if [[ -n "$LOG_SEE" ]]; then
+    ros2 run fly see > "$LOG_SEE" 2>&1 &
+else
+    ros2 run fly see &
+fi
+SEE_PID=$!
+echo "  see PID=$SEE_PID"
+sleep 8
+kill -0 "$SEE_PID" 2>/dev/null || { echo "[FATAL] see node died"; exit 1; }
+
+watchdog &
+WATCHDOG_PID=$!
+
+echo ""
+echo "=== 3/3 启动 final_mission 多桶投放任务 (前台) ==="
+echo "    按 Ctrl+C 停止所有节点"
+echo ""
+if [[ -n "$LOG_MISSION" ]]; then
+    ros2 run fly final_mission > "$LOG_MISSION" 2>&1 &
+    MISSION_PID=$!
+    echo "  final_mission PID=$MISSION_PID (日志模式, 后台运行)"
+    wait "$MISSION_PID"
+else
+    ros2 run fly final_mission
+fi
+cleanup
+
+================================================================================
+附录 C: final_mission.py 完整源代码 (1089 行, fly 实机版 v9)
+================================================================================
+
+(完整源代码已在 /home/vincent/SITL/fly/src/fly/fly/final_mission.py，
+ 此处省略重复粘贴，参见该文件。启动方式: ros2 run fly final_mission)
+
+================================================================================
+报告结束
+================================================================================

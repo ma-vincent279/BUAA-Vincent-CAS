@@ -1,0 +1,142 @@
+==================================================================
+ 部署 2026-10-09 标定常量 → Jetson (precheck)
+==================================================================
+
+=== 0. 本地自检 ===
+  ✓ 四份 k/l 的 9 个标定常量完全一致 (SITL k/l + fly k/l)
+  ✓ TARGET_PLANE_H = A − R     = -0.2780   (账本 -0.2780, 容差 1e-09)
+  ✓ FX = 斜率 × 深度               = +321.1190   (账本 +321.3203, 容差 1.0)
+  ✓ VFOV = 2atan((H/2)/FX)     = +1.0210   (账本 +1.0218, 容差 0.001)
+  ✓ HFOV = 2atan((W/2)/FX)     = +1.5673   (账本 +1.5673, 容差 1e-06)
+  ✓ Y_B1 = c_right + 0.055     = +0.1460   (账本 +0.1460, 容差 0.002)
+  ✓ Y_B2 = c_right − 0.055     = +0.0360   (账本 +0.0360, 容差 0.002)
+  ✓ XF = −c_fwd                = -0.0210   (账本 -0.0208, 容差 0.002)
+  ✓ 两瓶纵向前向常数相同 (XF_B1 == XF_B2)
+  ✓ SITL install 副本与 src 一致: k.py  83b1f939668c5ab1
+  ✓ SITL install 副本与 src 一致: l.py  3afe1e2073c5b88a
+  ✓ 期望板载 k.py sha (航向规范为 212.0 之后) = c4edf0b8d1272ed7
+  ✓ 期望板载 l.py sha (航向规范为 212.0 之后) = 9ee488a712ae78cd
+  ── 本地自检全部通过 ──
+
+=== 1. 板载只读自检 (不改任何东西) ===
+  磁盘可用: 69G
+  ── 将被覆盖的文件现值 ──
+    k.py 存在  sha=c4edf0b8d1272ed7  HEADING_DEG = 212.0  
+    l.py 存在  sha=9ee488a712ae78cd  HEADING_DEG = 212.0  
+  ── 必须保住 / 不许动的文件 ──
+    i.py sha=1bc27e2a82e5017d  HEADING_DEG = 212.0  
+    see.py sha=154901ec0a481d90
+  ── FX 有效前提: see.py 裁剪 ──
+    crop_fov=True  120->136  ratio=0.6998
+    ⇒ 若相机 110° ⇒ 发布帧 FOV=89.97°  (标定实测 89.80° ⇒ 同一帧 ✓)
+
+=== --precheck 完成: 未写入任何东西 ===
+
+################ 正式部署 (第二次运行 = 幂等性验证) ################
+
+==================================================================
+ 部署 2026-10-09 标定常量 → Jetson (full)
+==================================================================
+
+=== 0. 本地自检 ===
+  ✓ 四份 k/l 的 9 个标定常量完全一致 (SITL k/l + fly k/l)
+  ✓ TARGET_PLANE_H = A − R     = -0.2780   (账本 -0.2780, 容差 1e-09)
+  ✓ FX = 斜率 × 深度               = +321.1190   (账本 +321.3203, 容差 1.0)
+  ✓ VFOV = 2atan((H/2)/FX)     = +1.0210   (账本 +1.0218, 容差 0.001)
+  ✓ HFOV = 2atan((W/2)/FX)     = +1.5673   (账本 +1.5673, 容差 1e-06)
+  ✓ Y_B1 = c_right + 0.055     = +0.1460   (账本 +0.1460, 容差 0.002)
+  ✓ Y_B2 = c_right − 0.055     = +0.0360   (账本 +0.0360, 容差 0.002)
+  ✓ XF = −c_fwd                = -0.0210   (账本 -0.0208, 容差 0.002)
+  ✓ 两瓶纵向前向常数相同 (XF_B1 == XF_B2)
+  ✓ SITL install 副本与 src 一致: k.py  83b1f939668c5ab1
+  ✓ SITL install 副本与 src 一致: l.py  3afe1e2073c5b88a
+  ✓ 期望板载 k.py sha (航向规范为 212.0 之后) = c4edf0b8d1272ed7
+  ✓ 期望板载 l.py sha (航向规范为 212.0 之后) = 9ee488a712ae78cd
+  ── 本地自检全部通过 ──
+
+=== 1. 板载只读自检 (不改任何东西) ===
+  磁盘可用: 69G
+  ── 将被覆盖的文件现值 ──
+    k.py 存在  sha=c4edf0b8d1272ed7  HEADING_DEG = 212.0  
+    l.py 存在  sha=9ee488a712ae78cd  HEADING_DEG = 212.0  
+  ── 必须保住 / 不许动的文件 ──
+    i.py sha=1bc27e2a82e5017d  HEADING_DEG = 212.0  
+    see.py sha=154901ec0a481d90
+  ── FX 有效前提: see.py 裁剪 ──
+    crop_fov=True  120->136  ratio=0.6998
+    ⇒ 若相机 110° ⇒ 发布帧 FOV=89.97°  (标定实测 89.80° ⇒ 同一帧 ✓)
+
+=== 2. 板载备份 (src/fly + install/fly) ===
+  ✓ ~/fly_backups/fly_src_install_20261009_113201.tar.gz (2.7M)
+
+=== 3. 推送 k.py + l.py ===
+  k.py  本地 2546905a1ec343cf  →  板载 2546905a1ec343cf
+  l.py  本地 e0dc5e3c0c41929d  →  板载 e0dc5e3c0c41929d
+
+=== 4. 航向规范化 (HEADING_DEG → 212.0) ===
+  ✓ k.py 航向规范化为 212.0 (备份 k.py.bak.20261009_113206_heading212)
+  ✓ l.py 航向规范化为 212.0 (备份 l.py.bak.20261009_113206_heading212)
+  ── 逐字节核对: 板载 == 本地(仅航向行换成 212.0) ──
+    ✓ k.py 与本地基线只差航向行 (该行=212.0)
+    ✓ l.py 与本地基线只差航向行 (该行=212.0)
+    HEADING_DEG = 212.0  # 2026-10-07 现场航向 (用户给定 213°); 原 180.0 (仓库) / 161.0 (10-06 实飞)
+    HEADING_DEG = 212.0  # 2026-10-08: 现场航向 (与板载 i.py 一致); 仓库 fly 基线是 180.0
+    HEADING_DEG = 212.0  # 2026-10-08: 现场航向 (与板载 i.py 一致); 仓库 fly 基线是 180.0
+
+=== 5. setup.py 入口 ===
+  · 已有 k / l 入口, 跳过
+    46:            'i = fly.i:main',
+    47:            'k = fly.k:main',
+    48:            'l = fly.l:main',
+
+=== 6. 生成 ~/fly/l.sh ===
+  ✓ ~/fly/l.sh 已生成 (755), 由 i.sh 派生
+    ✓ l.sh 语法 OK
+    i.sh → l.sh 差异:
+      < # DDS + see + i 一键启动脚本
+      < # 用法: ./i.sh
+      > # DDS + see + l 一键启动脚本 (l = 全任务; 2026-10-09 标定常量)
+      > # 用法: ./l.sh
+      < # 所有输出自动记录到 ~/fly_logs/i_mission_<timestamp>.log
+      > # 所有输出自动记录到 ~/fly_logs/l_mission_<timestamp>.log
+      < LOG_FILE="$LOG_DIR/i_mission_$TIMESTAMP.log"
+      > LOG_FILE="$LOG_DIR/l_mission_$TIMESTAMP.log"
+      <     [[ -n "$I_PID" ]] && kill "$I_PID" 2>/dev/null && echo "  i ($I_PID) 已终止"
+      >     [[ -n "$L_PID" ]] && kill "$L_PID" 2>/dev/null && echo "  l ($L_PID) 已终止"
+      < # ---- 3. 启动 i 任务节点 (前台运行, Ctrl+C 退出) ----
+      > # ---- 3. 启动 l 任务节点 (前台运行, Ctrl+C 退出) ----
+      < echo "=== 3/3 启动 i 双桶投水+侦察任务节点 (前台) ==="
+      > echo "=== 3/3 启动 l 全任务节点 (投放区 30m + 侦察区动作序列) (前台) ==="
+      < ros2 run fly i &
+      < I_PID=$!
+      < echo "  i PID=$I_PID"
+      < wait "$I_PID"
+      > ros2 run fly l &
+      > L_PID=$!
+      > echo "  l PID=$L_PID"
+      > wait "$L_PID"
+
+=== 7. colcon build ===
+Finished <<< fly [2.19s]
+
+Summary: 1 package finished [2.81s]
+
+=== 8. 板载校验 ===
+  ✓ i.py  src==install (1bc27e2a82e5017d, 151409B)
+  ✓ k.py  src==install (c4edf0b8d1272ed7, 165971B)
+  ✓ l.py  src==install (9ee488a712ae78cd, 158600B)
+  install 可执行: 1 个 k, 1 个 l
+  k  TARGET_PLANE_H=-0.278  HFOV=89.80deg  FX=321.1  Y_B1=+0.146  Y_B2=+0.036  XF_B1=-0.021  XF_B2=-0.021  HEADING_DEG=212.0
+  l  TARGET_PLANE_H=-0.278  HFOV=89.80deg  FX=321.1  Y_B1=+0.146  Y_B2=+0.036  XF_B1=-0.021  XF_B2=-0.021  HEADING_DEG=212.0
+  OK 运行时读回: 9 个标定常量 + 航向 212.0 全部与账本一致
+  see.py 前提: 1 处 crop_fov=True (需为 1)
+
+==================================================================
+部署完成
+  现场启动: cd ~/fly && ./k.sh   (小场地投放精度台, 单桶 3m 两投 5s/30s)
+            cd ~/fly && ./l.sh   (全任务: 投放区 30m + 侦察区动作序列)
+  日志: ~/fly_logs/{k,l}_mission_*.log
+  回退: bash scripts/deploy_calib_jetson_20261009.sh --rollback
+  注意: 本次只改常量, 三个几何开关仍是默认关 (TARGET_PLANE_H 除外)
+        TARGET_PLANE_H=-0.278 已生效; L_BODY_GATE_M=0.0 / J_DEV_GATE_M=0.00 保持关闭
+==================================================================

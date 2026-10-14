@@ -1,0 +1,1331 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## CLAUDE.md 维护规范
+
+**文件结构**：
+- `CLAUDE.md`（本文件）— 日常操作必需信息：构建、启动、架构、坐标系、QoS、已知问题、当前活跃节点架构摘要 + 最优参数。**不设字数限制**，只要求内容准确、逻辑清晰、不冗余。
+- `docs/project_log.md` — 完整历史日志：开发迭代记录、已修复 bug、参数演进历史、性能对比表、阶段性总结。按需查阅。
+- `docs/reports/` — 各阶段的详细开发报告。
+
+**更新规则**：
+1. 新的开发迭代记录（改动动机、核心改动、仿真验证、问题与解决方案）→ 追加到 `docs/project_log.md`
+2. 当前最优参数变化 → 更新本文件中对应节点的参数块
+3. 新增节点 → 在本文件"包：drone_drl"表格添加一行 + 在对应架构章节添加架构摘要+参数块
+4. 新的已知问题 → 追加到本文件"已知问题"章节
+5. 阶段性总结 → 追加到 `docs/project_log.md`，本文件添加摘要引用即可
+6. 当本文件中某个节点的参数块/架构摘要与实际代码不一致时，及时更新而非保留过时信息
+
+**项目重启时如何使用本文件**：
+1. 先通读本文件，掌握：项目是什么、怎么构建启动、架构和坐标系、有哪些活跃节点、当前参数是什么
+2. 如需了解某个节点的开发背景和迭代历史，再查阅 `docs/project_log.md` 中对应日期的记录
+3. 如需更深层的设计决策和实验细节，查阅 `docs/reports/` 中对应主题的报告
+
+---
+
+## 项目概述
+
+ROS 2 (Humble) 工作空间，用于 PX4 SITL 无人机控制。主包 `drone_drl` 包含 offboard 任务节点，通过 XRCE-DDS 桥接与 PX4 通信（话题位于 `/fmu/in/` 和 `/fmu/out/`）。外部依赖：PX4-Autopilot 位于 `~/PX4-Autopilot/`。
+
+## 构建
+
+```bash
+colcon build --packages-select drone_drl
+source install/setup.bash
+```
+
+构建产物输出到 `build/drone_drl` 和 `install/drone_drl`。
+
+## 磁盘维护
+
+项目依赖大量编译产物和仿真临时文件，定期清理可避免根分区爆满。
+
+```bash
+# 查看空间
+df -h / /home
+
+# Claude Code 会话临时文件 (仿真日志累积快, 每次重启后清理)
+rm -rf /tmp/claude-1000/
+
+# ROS1 参考工作空间编译产物 (源码保留, 可重编译)
+rm -rf ~/cwkj_ws/build ~/cwkj_ws/devel
+
+# XRCE Agent 编译产物 (可重编译)
+rm -rf ~/Micro-XRCE-DDS-Agent/build
+
+# apt 缓存
+sudo apt clean
+
+# snap 旧版本
+sudo snap list --all | awk '/disabled/{print $1, $3}' | while read name rev; do sudo snap remove "$name" --revision="$rev"; done
+```
+
+历史清理记录见 [`docs/project_log.md`](docs/project_log.md#磁盘清理记录-原-claudemd-63-70-行)。
+
+## 仿真启动流程
+
+### 仿真物理参数调校 (匹配实机动力学)
+
+使用 `scripts/set_drone_params.sh` 调整 SITL Iris 模型的物理参数，使仿真动力学更接近实机，从而在仿真中更准确地调 PID。
+
+```bash
+# 查看当前参数
+bash ~/SITL/scripts/set_drone_params.sh --list
+
+# 设置实机参数 (例: 2.0kg F450 + Jetson)
+bash ~/SITL/scripts/set_drone_params.sh mass=2.0 tc_up=0.02 tc_down=0.04
+
+# 查看完整默认值
+bash ~/SITL/scripts/set_drone_params.sh --defaults
+
+# 恢复 Iris 默认值
+bash ~/SITL/scripts/set_drone_params.sh --restore
+```
+
+关键可调参数:
+- `mass` — 机身质量 (kg), Iris 默认 1.5。带 Jetson+载荷的 F450 通常 1.8~2.5kg
+- `tc_up` / `tc_down` — 电机加减速时间常数 (s), Iris 默认 0.0125/0.025。实机电机通常更慢 (0.02~0.05)
+- `motor_k` — 推力常数 (N·s²), 影响推力-转速曲线，默认 5.84e-06
+- `drag_coef` — 旋翼阻力系数, 默认 0.000175，影响水平阻尼
+- 转动惯量 (`ixx/iyy/izz`) 按质量等比自动缩放
+
+修改后需重新编译: `cd ~/PX4-Autopilot && make px4_sitl gazebo-classic`
+
+### 干净启动（推荐）
+
+```bash
+# v1 原版 (硬编码航点选桶)
+bash ~/SITL/scripts/clean_start.sh
+
+# v2 A3 (中心悬停 + 视觉面积排序自主选桶)
+bash ~/SITL/scripts/clean_start_v2.sh
+
+# 投放精度优化 — 单桶测试 (drop_opt.world)
+bash ~/SITL/scripts/test_drop.sh
+
+# 实机投放任务 (YOLO + AUX5舵机)
+bash ~/SITL/scripts/real_drop_start.sh
+
+# 真实环境仿真 (风力 + YOLOv8检测 + 质量突变 + 坐标监视)
+bash ~/SITL/scripts/test_drop_realistic.sh
+
+# 独立 NED 坐标监视器 (观察风力和投放瞬间位置变化)
+bash ~/SITL/scripts/monitor_position.sh
+
+# 随机桶位置测试 (桶在标准位置 2m 半径内随机摆放, N 轮)
+python3 ~/SITL/scripts/test_drop_random.py --count 6 --radius 2.0
+```
+
+一键完成：进程清理 → PX4 状态重置 → 编译 → Agent → PX4+Gazebo → DDS等待 → 辅助节点 → 任务节点。
+
+### 手动分步启动
+
+```bash
+# 终端 1：Agent（必须最先启动）
+MicroXRCEAgent udp4 -p 8888
+
+# 终端 2：PX4 + Gazebo
+cd ~/PX4-Autopilot && make px4_sitl gazebo-classic
+
+# 终端 3：运行任务
+source ~/SITL/install/setup.bash
+ros2 run drone_drl offboard_mission
+```
+
+重启前务必清理残留进程，否则 Gazebo 会累积多个飞机模型：
+```bash
+# 推荐用 lsof 释放端口（比 pkill 可靠）
+for port in 11345 8888; do for pid in $(lsof -ti:$port 2>/dev/null); do kill -9 $pid 2>/dev/null; done; done
+pkill -9 -x "px4"; pkill -9 -x "gzserver"; pkill -9 -f "MicroXRCEAgent"
+# PX4 持久化状态重置（关键！否则飞机出现在远处）
+PX4_B=~/PX4-Autopilot/build/px4_sitl_default
+rm -f $PX4_B/dataman $PX4_B/rootfs/dataman $PX4_B/rootfs/parameters.bson
+rm -rf $PX4_B/rootfs/eeprom
+```
+
+无 GUI 模式：`HEADLESS=1 make px4_sitl gazebo-classic`
+
+### 启动顺序关键点
+
+1. **Agent 必须先于 PX4**：否则 PX4 的 uxrce_dds_client 连接失败，`/fmu/out/*` 话题无数据。
+2. **ROS2 节点应在 PX4 前启动**：visual_servo_mission 需在 PX4 初始化 OFFBOARD 模式前就开始发布 setpoint，否则 PX4 触发 offboard failsafe → 进入 AUTO_LAND 无法切换。
+3. **PX4 模式切换前提**：必须持续发布 OffboardControlMode + TrajectorySetpoint（>2Hz），PX4 才允许切到 OFFBOARD。
+
+## 架构
+
+### 通信链路
+
+```
+PX4 飞控 → uxrce_dds_client → MicroXRCEAgent → ROS 2 DDS → drone_drl 节点
+                                                                  ↓
+PX4 飞控 ← TrajectorySetpoint ← /fmu/in/trajectory_setpoint ←──┘
+```
+
+关键话题：
+- `/fmu/out/vehicle_local_position_v1` — NED 位置、航向角、有效性标志
+- `/fmu/out/vehicle_status_v4` — 解锁状态、飞行模式（14 = OFFBOARD）
+- `/fmu/out/vehicle_land_detected` — 落地检测标志
+- `/fmu/in/trajectory_setpoint` — 位置/速度/偏航指令
+- `/fmu/in/offboard_control_mode` — 声明哪些 setpoint 字段生效
+- `/fmu/in/vehicle_command` — 解锁(cmd=400)、切模式(cmd=176)、降落(cmd=21)、AUX5舵机(cmd=187)
+- `/drop/aux5_pwm` — AUX5 PWM 信号实时监控 (Float32, 1000us LOCK / 1500us DROP)
+- `/drop/impact_point` — 投放落点记录 (Point, 飞机地面投影 NED 坐标)
+- `/bucket/detection` — 桶检测 ROI (RegionOfInterest, 仿真 GT 投影 / 实机 YOLOv8, 单桶模式)
+- `/bucket/detections` — 多桶检测 JSON 数组 (String, `{"buckets":[{"x":..,"y":..,"w":..,"h":..}]}`, final_mission 使用)
+- `/fmu/out/vehicle_attitude` — 姿态四元数 (final_mission 姿态补偿用)
+
+### MAVROS → ROS 2 映射（来自 cwkj_ws 参考）
+
+| ROS1 MAVROS | ROS2 XRCE-DDS |
+|---|---|
+| `/mavros/setpoint_raw/local` (PositionTarget) | `/fmu/in/trajectory_setpoint` |
+| `/mavros/state` | `/fmu/out/vehicle_status_v4` |
+| `/mavros/local_position/odom` | `/fmu/out/vehicle_local_position_v1` |
+| `/mavros/cmd/arming` | `/fmu/in/vehicle_command` cmd=400 |
+| `/mavros/set_mode` | `/fmu/in/vehicle_command` cmd=176 |
+
+### 坐标系
+
+PX4 使用 NED（北-东-地）：x=北、y=东、z=下（负值=上升）。`heading` 为弧度，0=北，正值=右转。前向单位向量：`(cos(heading), sin(heading))`。左向单位向量：`(sin(heading), -cos(heading))`。
+
+**相对坐标设计 (2026-08-09)**: PX4 本地 NED 原点每次上电不同（EKF 初始化依赖 GPS/气压计），绝对坐标不可靠。final_mission 采用**相对 home (起飞点) 坐标系**：桶位置 `_roi_to_ned()` 返回 `(self.x-home_x+dx, self.y-home_y+dy)`，`_pub_pos()` 发送前加 home 转绝对。`_fly_toward()` 是唯一用绝对坐标的函数（RETURN 回 home）。高度统一用 `self.home_z - self.z`。
+
+**关键**：PX4 NED 原点 = 飞机在 Gazebo 中的生成点（sitl_run.sh 固定为 `(1.01, 0.98, 0.83)`），而非 Gazebo 世界原点。将 Gazebo 世界坐标转为 NED 时，必须扣除生成点偏移：
+
+```python
+# Gazebo 世界坐标 → NED 局部坐标（须扣除飞机生成点）
+bucket_ned_x = bucket_gz_y - spawn_gz_y   # Gazebo y(北) - 1.0 → NED x ≈ 0
+bucket_ned_y = bucket_gz_x - spawn_gz_x   # Gazebo x(东) - 1.0 → NED y ≈ 7
+bucket_ned_z = -(bucket_gz_z - spawn_gz_z)  # 高度差取反
+```
+
+### 包：drone_drl
+
+`setup.py` 入口映射：
+
+| 命令 | 源文件 | 用途 |
+|---|---|---|
+| `forward` | `forward.py` | 对称横向扫描任务 |
+| `offboard_mission` | `offboard_mission.py` | 简单 FWD→HOVER→LAND 任务 |
+| `search_mission` | `search_mission.py` | 搜索并投放任务 |
+| `bucket_detector` | `bucket_detector.py` | 视觉桶检测 |
+| `water_dropper` | `water_dropper.py` | 投水执行器控制 |
+| `gazebo_bridge` | `gazebo_bridge.py` | 从 Gazebo 发布桶位姿到 ROS |
+| `px4_bridge` | `px4_bridge.py` | PX4-ROS 桥接工具 |
+| `spawn_bucket` | `spawn_bucket.py` | 在 Gazebo 中生成桶模型 |
+| `bucket_vision_detector` | `bucket_vision_detector.py` | 桶视觉检测（参数配置桶位姿，Ground Truth投影，Int32 切目标）|
+| `visual_servo_mission` | `visual_servo_mission.py` | 视觉伺服定点任务（PID像素偏差→机体速度→桶正上方悬停）|
+| `payload_dropper` | `payload_dropper.py` | 载荷投放节点（/drop_payload 每次一枚，左右交替）|
+| `drop_judge` | `drop_judge.py` | 独立裁判节点（/model_states 获取落点，A/B/Miss 打分）|
+| `scout_detector` | `scout_detector.py` | 侦察检测节点（5 白筒 Ground Truth 投影，/scout/target_id 切换）|
+| `scout_mission` | `scout_mission.py` | 侦察任务节点（55m 远处逐个视觉伺服悬停侦察 5 个筒）|
+| `full_mission` | `full_mission.py` | 全任务串联节点（投放+侦察）|
+| `mission_judge` | `mission_judge.py` | 统一裁判节点（投放+侦察+着陆+计时+总分）|
+| `single_bucket_detector` | `single_bucket_detector.py` | 单桶 GT 投影检测器 (130 行, 仿真 YOLOv8) |
+| `single_drop_mission` | `single_drop_mission.py` | 单桶投弹任务 (sim/real 双模式, AUX5 PWM 可视化, 螺旋搜索, 虚拟落点) |
+| `drop_opt_mission` | `drop_opt_mission.py` | **投放精度优化** 单桶最简任务 (11 状态机, 丢检测悬停恢复, 强制投弹超时, 投放质量突变仿真, PX4 自主着陆, 全状态超时保护)|
+| `drop_opt_judge` | `drop_opt_judge.py` | **投放精度优化** 细化计分裁判（10/8/6/4/2/1/0）|
+| `yolo_bucket_detector` | `yolo_bucket_detector.py` | **v2 A3** 多 bbox 仿真 YOLO 检测器 (3 桶聚类面积排序 + 位置记忆追踪, 357 行)|
+| `yolov8_bucket_detector` | `yolov8_bucket_detector.py` | **v3** 统一 sim/real YOLOv8 检测器 (同一推理链路, 合成图像/真实摄像头)。**sim 模式默认 `sim_gt_direct:=true`**: 直接发 GT 圆心框、跳过 CPU YOLO (框零延迟); `:=false` 退回"合成图+YOLOv8"旧路径 |
+| `full_mission_v2` | `full_mission_v2.py` | **v2 A3** 全任务节点 (中心悬停 + 视觉自主选目标, 15 状态机, PX4 自主着陆)|
+| `camera_viewer` | `camera_viewer.py` | 下视摄像头实时画面查看器 (OpenCV 窗口, 按 Q 退出)|
+| `path_follow` | `path_follow.py` | **轨迹复现** 纯位置控制复现 v2 全任务空间轨迹 (4 状态机, 9 航点, 平滑限速 2.0/0.8m/s, 零外部依赖)|
+| `aux5_ramp` | `aux5_ramp.py` | **AUX5 舵机控制蓝本** (解锁后 ManualControlSetpoint.aux5 200Hz 往复, 不切换 OFFBOARD, 投放机构伺服控制参考实现) |
+| `ground_test_mission` | `ground_test_mission.py` | **地面测试** (不装桨原地验证 ARM→OFFBOARD→视觉检测→AUX5投放 全链路, 5 状态机)|
+| `detection_noise_injector` | `detection_noise_injector.py` | **检测噪声注入器** (透明代理模拟 YOLO 不稳定: 丢帧/假阳性/抖动, 6 参数)|
+| `drop_opt_mission_wide` | `drop_opt_mission_wide.py` | **投放精度优化 130° 广角版** (HFOV=130°, FX/FY≈149px, PID×3.72)|
+| `single_bucket_detector_wide` | `single_bucket_detector_wide.py` | 单桶 GT 投影检测器 130° 广角版 (HFOV=130°)|
+| `yolov8_bucket_detector_wide` | `yolov8_bucket_detector_wide.py` | YOLOv8 sim/real 检测器 130° 广角版 (HFOV=130°)|
+| `drop_wide` | `fly/src/fly/fly/drop_wide.py` | **实机投放 130° 广角版** (fly 包, Jetson Orin)|
+| `final_mission` | `final_mission.py` | **终极项目 v9** 多桶纯视觉伺服 (12 状态机, 多桶追踪器时间确认, FORWARD 一维投影+方向感知 ramp-down, PRE_SERVO + VISUAL_SERVO, 几何身份锁, 飞行边界软墙, 零检测返航)|
+| `final_judge` | `final_judge.py` | **终极项目** 独立裁判节点|
+| `a` | `a.py` | **子项目 a** 投放区30m+侦察区悬停 (13 状态机, 基于 final_mission v9, 投放区远边限制去除, SCOUT 直飞侦察区中心悬停 5s, 视觉兼容 see.py)|
+| `b` | `b.py` | **子项目 b** 投放区30m+侦察区悬停 (基于 a.py, 固定航向 HEADING_DEG 硬编码 + 分桶投放补偿 B1/B2 ±10cm)|
+| `c` | `c.py` | **子项目 c** 投放区30m+侦察区悬停+侦察动作序列 (基于 b, DROP_HEIGHT 1.5m + 距离+2m + 侦察动作 7 子阶段 + RETURN 判稳 + LAND 限速, 2026-08-15 新建)|
+| `d` | `d.py` | **子项目 d** 基于 c, 下降限速时间锚定修复 + B1 补偿恢复 +0.10 + 阶段日志增强 + 2026-08-27 合并 c 侦察 7 子阶段/RETURN 判稳/LAND 限速 + 2026-09-11 移除飞行边界 + **选桶改"优先离航向中线最近"** + 2026-09-12 进 DROP 复位收敛计时 + **追踪器同帧去重 + 确认需画面内停住** + **2026-09-13 DROP 段身份锁改"连续一致即重锚定" + 像素残差积分闭环** (2026-08-15 新建)|
+| `e` | `e.py` | **子项目 e** 基于 c (2026-09-12 新建), 只改 5 处: **①DROP 段伺服改锚点+反投影重建 (俯冲段保持 c 原样)** ②移除飞行边界软墙 ③选桶改"优先离航向中线最近" ④投放补偿全部去掉 ⑤投弹 = 25s 兜底 + 收敛即投。另加全量诊断日志 (6 类) + 任务结束自动退出 + 追踪器同帧去重/确认需画面内停住 + **2026-09-13 ①内追加: 身份锁"连续一致即重锚定" + 像素残差积分闭环** |
+| `f` | `f.py` | **子项目 f** 基于 e (2026-09-24 新建, **e 一行未动**), 只把"何时投"换成**两级释放判据**: **Tier1 优选** `conv_m<5cm` + 低谷 (`conv_m<=本段最小值+2cm`) + 准静止 (`vxy<0.12m/s`) 确认 0.5s; **Tier2 保底** = e 旧判据 (`conv_m<10cm` 确认 1.0s, 但须等过 `DROP_PREFER_WINDOW=10s` 优先窗口); **Tier3 兜底** `DROP_AFTER_DELAY=35s` (未改)。其余 (DROP 段锚点+反投影伺服 / 两轴瞄准补偿 / 俯冲段 / 侦察 7 子阶段 / RETURN 判稳 / LAND 限速) 与 e 完全一致 |
+| `g` | `g.py` | **子项目 g** 基于 f (2026-09-27 新建, e/f 不动), 唯一改动 = **两瓶横向补偿按 9-27 实飞落点分别重标**: `Y_B1=+0.113` (右瓶, 原 0.048 只有一半) / `Y_B2=-0.025` (**左瓶必须反号**, 原值把落点推到左 ~10cm), 纵向 `XF=+0.040` 不动。其余 (两级释放判据 / DROP 段伺服 / 侦察 / 降落) 与 f 完全一致 |
+| `h` | `h.py` | **子项目 h** 基于 g (2026-09-30 新建, e/f/g 一行未动), 一次性落地 9-30 实飞复盘的全部投放代码优化: **①预测落点释放** `pred_m=|(瞄准点-飞机)-v*t_eff|<4cm` 确认 0.2s = 新增 Tier0 优选档 **②记录字段** pred/t_eff/vxy/tier/reappr/actual_impact + 释放前 4s DROP-TRACE 快照 **③瞄准点平滑限速**(SERVO_EST_WEIGHT 0.7→0.5, τ=0.3s, 10cm/s) **④到位即静**(残差<3cm/0.5s 冻结积分) **⑤Tier2/兜底释放打 WARN** **⑥保底档改重进**(后退1m+抬升0.8m, 1 次后才允许 Tier2) **⑦下降前对准门控**(>8cm 保持高度, 超时 5s) **⑧确认时间 0.5→0.25/1.0→0.4s + 低谷改 2s 滑窗** **⑨释放软门控**(H≥1.05m 且 |vz|<0.2m/s)。离线回放 12 投: 落点偏差中位 6.1→2.4cm / 最坏 11.9→3.5cm; SITL 360.7s **16/20**(B3 8分+B2 8分), 两次均 Tier1, **重进路径实测走通 1 次** |
+| `i` | `i.py` | **子项目 i** 基于 f (2026-10-06 新建, e/f/g/h/f_test 均未动): 低空段去掉闭环视觉伺服, 改为**一次性相对修正 + 定点保持 + 停留 + 必投**: `S1 = 桶估计 + 两瓶补偿` (**2026-10-07 方案 A 改纯几何量**; 原式 `S1 = S0 + (桶估计-飞机位置) + 两瓶补偿` ≡ `桶估计 + 补偿 + (瞄准点-飞机)`, 那一项 = 冻结瞬间飞机的**追赶余量**, SITL 干净轮实测 12.2/25.0cm 被 1:1 加进落点, 而飞机随后相对保持点的真实偏差只有 5.4/1.8cm ⇒ 纯过补偿, 已删除; 无检测兜底仍退回"瞄准点+补偿") + 平静帧中值冻结(5 帧中值; |roll|,|pitch|<5°, |vxy|<0.15 门控) + 到位(0.25m)后停留 5s + 预测落点 `pred<9cm`(纯 EKF, 相机只读) + 20s 必投兜底; **2026-10-06 补偿值 (历史)**: `Y_B1=+0.13 / Y_B2=+0.12 / XF_B1=XF_B2=−0.05` (`XF` 原重标的 +0.12 符号反了 —— `XF>0` = 瞄准点朝起飞点移, 而四投全偏近侧 ⇒ 必须为负; 见下"2026-10-06 补充 2"); **2026-10-07: 选桶改"检测框面积降序取前 2"** (大的+中的, 抛弃最小的; 面积同档 ≤10% 时仍按 `|lateral|` 兜底), 并把 **`POSITION_REFINE_IDENTITY_MAX` 1.5→0.60 + 身份优先** (原 1.5m 门限 > 实测最小桶间距 1.66m, SITL 复现过"refine 把瞄准点搬到隔壁桶") — **2026-10-07 追加 (方案 A, SITL A/B 已验证)**: 冻结保持点改纯几何量 ⇒ 可归因残差(扣掉补偿) 24.0cm→6.6cm, 裁判 10/20→14/20, 日志新增 `[纯几何: 保持点-桶估计=(..)]` 可直接核对 hold = 桶估计+补偿。**架构后果 (重要)**: 落点从此**只由「1.2m 处桶估计 + 两瓶补偿」决定**, 追踪器/refine 的瞄准点历史不再直接进入落点 (只影响冻结前飞机站位); 但 `est` 取自 `latest_roi` (匹配到目标的框) ⇒ 身份匹配仍决定「用哪个桶的框去测」, refine/身份那套改动依然必要。**2026-10-07 晚 (追加 12): 补偿与门控定型** — `PAYLOAD_OFFSET_BODY_Y_B2` **+0.12→+0.04** (11:00 同趟两投对照: B1 `+0.18`→偏右 5cm / B2 `+0.12`→偏左 14.1cm ⇒ 两瓶所需补偿相差 ~22cm 而现值只差 6cm ⇒ **错在 B2**; B2 三趟同值落点 +22.5/≈0/+14.1cm 均值偏左 12.2cm, 零点 k=1→0.00 / k=1.92→+0.057, 取 +0.04 时两模型残差 +4.2/−3.3cm) + `I_CALM_TILT` **3.0→5.0** (11:00 两投冻结全退化成单帧: B1 `[兜底:无平静样本]` / B2 `(校准1帧)`; 单帧估计是当前精度天花板) — **`Y_B1=+0.18` / `XF_B1=XF_B2=0.00` 全部冻结不动** (B1 五点零点 k=1→+0.172 / k=1.92→+0.185; `XF` 纵向历史变号 ⇒ 不按单发调常数); 离线验收 `scripts/test_i_b2_y04_20261007.py` (34/34, 含"改动行数 ≤8 且越界行 = 0"的最小改动审计), 板载 sha **`f3e720c6…`** (src==install), 备份 `i.py.bak.20261007_112537_b2_y04` — 详见 `docs/project_log.md` 2026-10-07 追加 12。**2026-10-07 晚二改 (追加 13): `PAYLOAD_OFFSET_BODY_Y_B2` +0.04→−0.05** —— 11:55 实飞 (第 1 投命中 / 第 2 投偏正左 13.0cm、前后≈0): B2 四次实测横向均值 **+12.4cm 偏左**, 且最近两趟 (都带 5 帧中值) `Y=+0.12→+14.1` / `Y=+0.04→+13.0cm` ⇒ ΔY=−8cm 只换 −1.1cm, 单点定不了斜率 ⇒ 取 minimax (k=1→+3.4cm / k=1.92→−4.9cm, 均在桶口 12.5cm 内); **镜像模型独立给出同一结论** (ρ_eff≈12.5cm 动态项, 共有右偏 E≈−5.5cm ⇒ B1 零点 = ρ−E = **+18cm** 与五点实测一致 ✓, B2 零点 = −ρ−E = **−7cm** ⇒ **第 2 瓶必须为负**: 左瓶载荷本就往左掉, 瞄准点要往右压)。**同趟确认上次两改有效**: 两投都是 `平静帧中值(校准5帧)` (3.0→5.0 生效), 第 2 投到位 err **2.9cm**/pred 3.1cm/vxy 0.010 (历史最干净), 无 20s 兜底; **`XF`/`Y_B1`/`I_CALM_TILT` 全部不动** (本趟"前后≈0" vs 11:00"+14.1cm" 再次证明纵向是可变项, 上次不动 XF 的决定被验证)。**新量化发现**: 「5m 精修瞄准点 → 1.2m 冻结估计」的高度漂移是**稳定的 +40cm 偏左 / −2~−14cm 偏后** (四次投放 +39.2/+37.4/+41.2/+45.5cm, 散布仅 3.5cm ⇒ 模型系统项); 方案 A 落点只由 1.2m 估计决定 ⇒ 该 40cm 只影响逼近段站位, 不直接进落点 (解释了"瞄准偏 40cm 而落点只偏 13cm")。离线验收 `scripts/test_i_b2_yneg_20261007.py` (42/42, 改动行 6、越界行 0), 板载 sha **`79aeee37…`** (src==install), 备份 `i.py.bak.20261007_121344_b2_yneg` — 详见 `docs/project_log.md` 2026-10-07 追加 13。**2026-10-07 晚三改 (追加 14): `PAYLOAD_OFFSET_BODY_Y_B2` −0.05→0.00** —— 13:02 实飞**第 2 投首次命中** (偏右 9cm / 偏下 9cm), 五样本横向 `(0.12,+22.5)(0.12,0)(0.12,+14.1)(0.04,+13.0)(−0.05,−9.0)` 拟合: `落点=+0.38+111·Y` (**k≈1.11**, 零点 −0.003m, RMS 8.3cm) / 两趟干净样本 **k≈2.44** (零点 −0.013m) ⇒ 现值 −0.05 **偏右 4~5cm** ⇒ 取 **0.00** (minimax: k=1→−4.0 / k=1.11→−3.4 / k=2.44→+3.2cm, 即使 k=4 也 +11cm 仍在桶内); B2 纵向三趟 `+14.1/≈0/−9.0cm` 变号 ⇒ `XF` 仍不动。**第 1 投本趟失准已定性 (非补偿)**: 进 DROP 时飞机仍 0.45m/s 平移 ⇒ 平静门控不满足 ⇒ 3s 超时后**只用 1 帧**冻结, 且那帧来自刚建 1.1s **未确认**的追踪器; 停留期桶成像到画面右边缘 (框右边缘 638/640) 而 `see.py` 是**裁剪**(`min(imw-1,…)`)非剔除 ⇒ 贴边框中点偏移 ⇒ 估计 1s 内跳 0.5m ⇒ **`Y_B1` 不动**。板载 sha **`6b8483fb…`** (src==install, 运行时读到 `Y_B2=0.0`), 备份 `i.py.bak.20261007_131900_b2_y000`, 离线验收 `scripts/test_i_b2_y0_20261007.py` (34/34, 强判据: 剥注释后代码只差 Y_B2 一行); **待批三条提精度候选** (未动代码): ①冻结样本须来自"已确认且 age≥2s"的目标追踪器 ②`I_CALM_TIMEOUT` 3→6s ③可选 `see.py` 拒收距边界 <8px 的贴边框。**2026-10-07 晚四改 (追加 16, 第 1 投冻结质量修复 P1–P5)**: 13:02 第 1 投"偏很多"定性为**冻结链路**(五趟对比: 10:06/11:00 也曾 1 帧/0 帧冻结却命中, 差别在**低空估计在漂** —— 13:02 冻结值 vs 收敛值差 **58cm**, 而前几趟只差 2~8cm; 漂移来源 = 检测框跑到画面边缘被 `see.py` **裁剪**(只裁不剔) ⇒ 框中点偏 ⇒ 估计被拽走; 触发条件 = 进 DROP 时仍在 **0.45m/s** 平移 ⇒ 停稳门控超时硬放行 + 3s 后单帧冻结, 且那帧来自**未确认**追踪器) ⇒ 落地 5 条: **P1** `I_FREEZE_TRACKER_M=1.0` 只认已确认追踪器; **P2** `I_CALM_TIMEOUT` 3→**6.0** + `I_CALM_MIN_FALLBACK=3`; **P3** `I_FREEZE_EDGE_MARGIN=8` **贴边框不作冻结样本**(用任务自带 `IMG_W/IMG_H`, 不改 see.py); **P4** `I_SETTLE_HARD_VXY=0.25`/`I_SETTLE_HARD_MAX=8.0` 停稳超时**不再硬放行**; **P5** `I_FREEZE_MAX_SPREAD=0.10` 冻结前要求估计一致(①最近 5 帧互差 ≤10cm 取整窗中值 ②退化"最近 2 帧互差 ≤10cm"取两帧均值 —— 这条是离线回放改出来的: 只要求 5 帧稳定会让漂移段一直等到 20s 兜底且中值混漂移段)。**回放证据**: 冻结从 `+4.75s/偏 58cm` → **`+11.01s/偏 5cm`**; 20s 必投兜底与 deadline 路径未改 ⇒ "必投"保证不变, 但第 1 投单投最坏多等 ~8+6s。板载 sha **`e305e4db…`** (src==install, 运行时读到全部新门限+4 个辅助方法), 备份 `i.py.bak.20261007_134820_firstdrop_fix` 与整包 tar `~/fly_backups/fly_src_install_20261007_134458.tar.gz`; 验收 `scripts/test_i_firstdrop_20261007.py` **39/39**, 补丁 `scripts/patch_i_firstdrop_20261007.py` (两阶段: 先全文件校验锚点再统一改)。**2026-10-07 晚五改 (追加 18, 方案 A): 纵向补偿 `XF_B1=XF_B2` 0.00→+0.05** —— 14:14 实飞两投均**偏前 +11/+12cm** (合成 12.5/12.0cm ≈ 桶口), 且**画面原始像素**也显示桶压在十字线下方 (`px=(−4,−72)`/`(+18,−116)`), 用用户卷尺真值核对第 2 投飞机站位比真桶心**前 17cm** (>桶口半径 ⇒ 瞄准自身已超界); 机制 = 相机光轴固定在机体前下方 ⇒ 画面中心对应地面点比机身正下方**前 `H·tan(pitch)`**, 本趟 pitch +4.2~5.6° ⇒ 该项 **9~13cm**, 与落点同量级 (13:02 pitch 仅 1.2~2.9° 时落点 −9cm ⇒ 符号量级均吻合); 符号: `hold = est + Y·l̂ − XF·f̂` ⇒ **XF>0 = 落点后移** ⇒ 偏前要加大 XF; 取**半量 +0.05** (预测残差 k=1→+6.5 / 1.44→+4.3 / 1.93→+1.8cm), 风险: 遇 13:02 型 '本来偏下 −9cm' 的日子会变 −14~−19cm ✗ ⇒ 以下一趟实测验证, 过冲即回退. 板载 sha **`a9acaf50…`** (src==install, 运行时 `XF_B1=0.05 XF_B2=0.05`, 追加 16 门控全部未动), 备份 `i.py.bak.20261007_145839_xf005` + tar `…_145725.tar.gz`; 验收 `scripts/test_i_xf005_20261007.py` **38/38** (最小改动审计: 剥注释后只 2 行不同且恰为两条 XF 常量), 补丁 `scripts/patch_i_xf005_20261007.py`. **下一趟核对**: `补偿B1=(+0.180,+0.050)` / `补偿B2=(+0.000,+0.050)`; `[纯几何]` B1 (−0.056,+0.178)=0.187 / B2 (+0.042,+0.027)=0.050; 投弹时目视桶在十字线上/下方. **2026-10-07 晚六改 (追加 19, **首次 2/2 全中**)**: 16:02 实飞 (板载 `a9acaf50`, XF=+0.05) 两投**都进桶** —— B1 偏右 5cm / B2 偏右 5cm+偏下 5cm (合成 5.0/7.1cm); 两投冻结均 `(校准5帧,散布1cm)` + `[停稳1.4/1.2s 追踪器=确认]` (历史最一致), 纯几何自检模长 0.187 = \|(0.18,0.05)\| 与 0.050 = \|(0.00,0.05)\| ⇒ **XF=+0.05 验证通过, 保持不动**; 残余纵向 0/−5cm (若不加 XF 应为 +5~+10cm) ⇒ 略过冲 2.5cm ⇒ 不再加. **重要修正**: 「落点≈5m↔1.2m 前向差 Δ前」被本趟否证 (16:02 Δ前 −7/−8.7cm 却落点 0/−5) ⇒ Δ前 不可作前向预测器; 姿态项 `H·tan(pitch)` 仅作可解释项. **残余**: 两瓶**同向偏右 ~5cm** (B1 在 +0.18 下五趟 0/−5/−5/−6/−5; B2 在 0.00 下 0/−5) ⇒ 可选 `Y_B1→+0.21`/`Y_B2→+0.02` (收益 ~3cm), 保守做法是先重复一趟验证可重复性. **同批次 15:56 那趟地面中止** (ARM OK 但 OFFBOARD 未进入, `Takeoff ref z=353.03` 高度基准偏 ~344m, 且残留 DDS Agent PID 4674) ⇒ 起飞前 QGC 核对 QNH/`EKF2_HGT_REF`. **未做 (方案 B, 待批)**: 冻结时优选更平的姿态帧. 新日志: 冻结行 `[停稳x.xs 追踪器=确认/未确认]` + `散布xxcm`, 节流 WARN `⚠ i模式暂不采样 (...)`. 离线验收 `scripts/test_i_hold_geom_20261007.py` (36 项全过, 含「无检测兜底分支与旧行为逐位相同」). **2026-10-07 晚七改 (追加 20, 无代码改动, 只做复盘)**: 16:27 实飞 (同板载 `a9acaf50`) **0/2** —— 两瓶**同向**偏左 14/15 + 偏后 14/15 (合成 19.8/21.2cm), 而**冻结质量与到位精度都比 16:02 那趟更好** (散布 3cm/0cm, 到位 6.1/1.5cm) 且命令几何逐字相同 ⇒ **不是代码/补偿/门控差异**. 新诊断量 **`dev` = 释放瞬间"参照漂移"** = `est_live(释放帧) − est_frozen` (`est_live(t) = 飞机相对home位置(t) + R(hdg(t))·camera_pixel_to_level(px(t),pit(t),rol(t))·H(t)`, 与 i.py 同一相机模型 ⇒ 不含 FX 不确定性; 桶不动且飞控位置无误时恒为 0): 今天 8 投 **8/8 分类正确** —— `dev ≤ 11.2cm` 的 3 投全进桶, `dev ≥ 28.1cm` 的 5 投全落空 (分界≈桶口半径 12.5cm); 16:02 = **0.9 / 7.5cm** (2/2 命中), 16:27 = **35.6 / 28.1cm** (0/2); 误差预算自洽 `落点误差 ≈ −dev + (补偿残余 ±5cm)` (前向轴方向 8/8 一致; 横向轴 5/8, 含 ~+5cm 已知残余与 3 个 12~24cm 例外 ⇒ 判据强、定量换算待标定). **物理机制日志分不开**: `dev` = 桶真实位移 (下洗/风把轻塑料桶推走 —— 追加 10 已有先例, 现场也确认过) + 飞控自报位置漂移 (EKF); 已排除贴边裁剪/姿态项/旋转项/检测滞后/释放相位. **关键结论**: i 模式在 1.2m 冻结后是**开环**, 对"冻结之后参照又变了"无感知 ⇒ **不要再按落点调 Y/XF 常数** (该项跨趟变号: 16:02 +5cm 右 → 16:27 −15cm 左). 复现脚本 `scripts/analyze_dwell_consistency_20261007.py` (4 趟 8 投一键输出). **【2026-10-09 侦察区再简化 (追加 41), 已上板】**: 用户要求「去掉左右移动, 在侦察区待 10s 就返航」⇒ **侦察 = 直飞近边 57m → 降 1m → 10s 缓移到中心 → 直接返航** (sub3~sub6 整段删除); 预期侦察段 **51.7s → ~25s (−52%)**。实现 `scripts/patch_scout_return10s_20261009.py` (8 份 i/j/k/l, `--rollback` 可退); 验收 `scripts/test_scout_return10s_20261009.py` **71/71**; **板载 `i.py` sha `3407d6…` → 定案后 `5818bb450e1d70a5`** (src==install, 149521 字节) ✓ **【2026-10-09 定案 (追加 42)】**: 侦察简化**保留**; 投放只保留「横向补偿右移 3cm」(`Y_B1=+0.15 / Y_B2=−0.03`), **停留回滚 `I_DWELL_S 2.0→5.0`** (一次只动一个变量便于归因) ⇒ 板载 `i.py` **`5818bb450e1d70a5`**; 回滚脚本 `scripts/patch_i_dwell_back_to5_20261009.py --rollback`; 验收 `test_i_comp3_dwell2_20261009.py` **25/25** ✓ **登记表新增「整段删除」机制** (`_later_patch_marks.py` 的 `DELETED_BLOCKS/is_deleted_line` + `scripts/_deleted_scout10s.txt`)。 **待做 (未改代码)**: ①释放行加 `偏差=xxcm` 字段 (零风险, 让每趟自报这项); ②DROP 停留段加"参照一致性门" (`dev ≤ ~10cm` 才放行, 否则重新冻结/对准, 保留 20s 必投兜底) —— 重新冻结即用**当前**像素重算 est, 飞控位置偏置在同一坐标系内自动抵消 ⇒ 对两种机制都有效; ③现场 2 分钟定性: 看录像停留段地面纹理与桶是否一起移动 (一起=飞机在动 / 只有桶动=桶被吹跑) + 粉笔标桶的落地位置、飞完再量 — 详见 `docs/project_log.md` 2026-10-07 (追加 3 / 追加 4 自检复盘 / 追加 20) |
+| `j` | `j.py` | **子项目 j** 基于 i (2026-10-08 新建, i.py 一行未动, 差异 ≤57 行且全部在允许集合内): 只把"何时放行"换成 **释放判据 ∧ 相机确认门** `dev ≤ J_DEV_GATE_M`。`dev` = 释放帧相机反算 `est_live` − 冻结 `est` (机体 前/右, 与节点同一相机模型 ⇒ 不含 FX 不确定性); 14 投实测 **`dev ≥22cm` 的 7 投全部 ≥12cm 出桶 / `dev ≤14cm` 的 7 投里 6 投 ≤10cm**, 而 i 的 `pred` 是纯 EKF 量、**结构上看不见 dev** (10-08: `到位err=0.6cm/pred=2.2cm` 却偏 13.9cm)。四件套: ①门 (**默认 `J_DEV_GATE_M=0.00` 关** —— 坏趟 dev 单调长大, 拦住只会推更晚 ⇒ 要等实测证据才敢开) ②**失效开放** (丢检/贴边框/追踪器未确认 ⇒ 不拦) ③兜底窗口挑 `|dev|` 最小的一刻 (**必投不变**) ④DROP 段 1Hz 日志附 `dev=(前,右)cm`、释放行附 `偏差=xxcm`; `J_MEASURED_R` 开关可一键换实测补偿 `Y_B1=+0.35/Y_B2=+0.05` (默认关, 等真值)。生成器 `scripts/new_project_j_20261008.py` (锚点断言+备份+幂等), 离线验收 `scripts/test_j_dev_gate_20261008.py` **38/38**, SITL `bash scripts/test_j.sh`。详见 `docs/project_log.md` 2026-10-08 追加 23 |
+| `k` | `k.py` | **子项目 k = i 的高精度调参台** (2026-10-08 新建, i/j 一行未动): 场地 = **单个桶摆在起飞点正前方 3m**, `TAKEOFF(1.2m) → 前进 3m → 视觉对准 → 停 5s → 投 B1 → 爬升回位 → 再对准同一个桶 → 停 30s → 投 B2 → 返航降落` (一趟同时量 ①两瓶对同一桶 ⇒ 分开 r(B1)/r(B2) ②5s vs 30s ⇒ 停留期参照漂移贡献)。相对 i 只 3 处有意差异: `FORWARD_DIST 34→3`、`I_RELEASE_TIMEOUT 20→45`、停留 `K_DWELL_S1/S2=5/30`; 台架改动 = 单桶也允许选 (`len<2→<1`)、`SERVED_EXCLUDE_M/DUP_M→0`、目标复制成 2 投 (**同一个桶**)、**0 处去侦察区 (一律直接返航)**。**精度杠杆 `J_DEV_REFREEZE_M` (默认 0.00 = 关)**: 停留期 `dev` 超限 ⇒ 用当前帧像素重算 est 并重新对准 (`hold = est_live + 两瓶补偿`, 与首次冻结同一公式), 停留计时重置; 次数上限 3 且**不重置 `_i_freeze_t`** ⇒ 45s 必投保证不变 ⇒ **SITL 里 dev≈0 永不触发, 收益只能现场验**。离线验收 `scripts/test_k_dev_lever_20261008.py` **60/60** (机器核对: 26 个投放常量 + 冻结公式与 i **逐位/逐字相同**、释放条件 = i 的条件 ∧ `_dev_ok`、相对 j 只新增 48 行且越界 0 行; 杠杆"关闭=完全不动"与各项边界)。**已部署到 Jetson (2026-10-08 19:38)**: `bash scripts/deploy_k_jetson_20261008.sh` (幂等: backup→scp→航向→入口→编译校验, `--rollback` 回退) ⇒ 板载 `k.py` sha **`455e24425b9444e8…`** (src==install 非空, `ros2 pkg executables fly` 有 `fly k`, 现场一键 **`cd ~/fly && ./k.sh`** = i.sh 派生 [DDS→see→k], 日志 `~/fly_logs/k_mission_*.log`), 板载 `HEADING_DEG=212.0` (与板载 i.py 一致; **仓库 fly 基线仍 180.0**) — 板载 i.py 未动 (`1bc27e2a…`)。SITL 第 4 轮 `End reason: normal` 134.3s (两投 `停留5.0/30.0s`, `偏差=1.6/0.8cm`, 两次冻结 est 互差 **1.7cm** = 同一桶 ✓), 第 5 轮复验两处显示修复 (SUMMARY `2/2`、WARN `开始停留 30s`) 但第 2 投 45s 兜底 (到位err 34.3cm 进不了门) ⇒ 停留对比待干净轮。 **2026-10-09 就地打补丁 (用户指示: 取消多余字母)**: 用同一个补丁器把 **P1/P2 直接打进 k 本身** (`python3 scripts/new_project_l_20261009.py --base k --name k`, 改前版本备份为 `k.py.bak.<ts>_P1P2`), ⇒ **k = 小场地投放精度验证台, l = 全任务, 两个入口**。搬运前必须跑 `python3 scripts/check_drop_portability_20261009.py k l` (当前 **✓**: 6 个几何函数逐字节一致 / 冻结公式 k 是 l 的超集 / 40 个常量全一致)。验收 `scripts/test_l_target_plane_20261009.py k` 与 `... l` 各 **14/14**。**2026-10-09 SITL 流程确认 (追加 31)**: 两轮 `bash scripts/test_k.sh` 全流程走通 (2/2 投, 第 2 轮 `End reason: normal` 146.9s, 裁判 **14/20**); 台架特征全生效 (两瓶打同一个桶 / 不飞侦察区 / 单桶可选); **`机体残差 ≈ 到位err` (7.4↔8.7 / 11.3↔11.1cm) 独立验证了 P2 判据实现正确**, `dev` 仅 0.5~1.4cm ⇒ SITL 里 `J_DEV_*` 永不触发; 落点数值受「SITL 无挂载偏置 + 悬停极限环 ±0.13m」支配, **不判精度**。 配套修 `final_judge` 新增 `allow_reuse` (默认 False) 使单桶两投都能评分, `test_k.sh` 传 `:=true`。 **2026-10-09 首飞反馈整改 (追加 32)**: 首飞 (13:11) **0/0 投** —— 飞机飞到了 3m 点 (差 0.22m) 但**桶从未被确认** (`TRK-DBG nbox=0` 几乎每帧, 5m 高时桶只 18~24px) ⇒ HOVER_SEARCH 10s 超时返航; 且 30s 时 PX4 掉 OFFBOARD ⇒ `mode_timeout`。 整改 (只改 k): **`K_FLIGHT_ALT=1.2` 全程平飞** (不再爬 5m; 1.2m 正下方桶 ≈90px ⇒ 检测稳) / **`K_FLIGHT_SPEED=0.6`** 前飞+返航限速 (原 1.53m/s) / **`K_VISUAL_GATE_M=0.30`** 必须先飞满 3m 才允许选桶进伺服 / `PRE_SERVO_HEIGHT=K_FLIGHT_ALT` 取消下降段。⚠ `CRUISE_HEIGHT` 保持 5.0 (它是伺服 PID 增益基准, 改它会放大低空增益 4.2×)。 补丁器 `scripts/patch_k_flat_20261009.py`; 另加 **OFFBOARD 被外部切走识别** (WARN + `End reason: offboard_lost_external`, 保留自动重接管); 已部署板载 `k.py` **`67503d9532f6b6a6`**; 14 个验收脚本全绿。 **标定→改代码一页流程** `docs/reports/calibration_to_code_20261009.md`。详见 `docs/project_log.md` 2026-10-09 追加 28。 **2026-10-09 标定落地 + 部署 (追加 29)**: 与 l 一起把静态标定常量写进四份文件 —— `TARGET_PLANE_H=-0.278` (= 落地镜头离地 0.022 − 桶口离地 0.300) / `HFOV=89.8°`(FX=FY≈321.1px) / `Y_B1=+0.146 Y_B2=+0.036` (右向常数 9.10cm ± 释放口 5.5cm) / `XF_B1=XF_B2=-0.021` (前向常数 2.08cm)。 补丁器 `scripts/patch_calib_20261009.py`, 验收 `scripts/test_calib_params_20261009.py` **22/22**, `scripts/test_l_target_plane_20261009.py k` **15/15**, `check_drop_portability_20261009.py k l` **✓**。 **已部署** (2026-10-09 11:32, `scripts/deploy_calib_jetson_20261009.sh`): 板载 `k.py` sha **`c4edf0b8d1272ed7`** (src==install 非空, 运行时 9 个常量回读一致, `HEADING_DEG=212.0` 保住), 现场 `cd ~/fly && ./k.sh`。  **2026-10-09 环境常量分侧 (追加 30)**: SITL 两份回到 `TARGET_PLANE_H=0.0 / HFOV=85° / VFOV=54°` (检测器 `_gt_ground_circles` 把桶当'参考平面上的圆' ⇒ 与 `_roi_to_ned` 互逆; 内参是检测器硬编码的), fly 两份保持实机标定值 ⇒ **板载不用重新部署** (`c4edf0b8…` 未变)。补丁器 `scripts/patch_sitl_env_20261009.py`, 新不变量 **`check_drop_portability` A2 节: SITL 往返误差 ≤1px** (当前 0.4375px; 修复前 22.0px/82mm 会被拦住)。 **2026-10-09 第二趟实飞复盘 + 只读观测字段 (追加 34)**: 13:59 (板载 `67503d95…`, 平飞剖面) —— **命令侧成立**: 命令 `z*=home_z−1.2=−11.06`, 实测 z 到 **−11.12**, H **1.06→1.26** 稳 3~4s ✓ ⇒ 平飞整改有效; 但 **t=15.35s `armed & offboard` 变假且再没恢复** (= 机手 kill switch, 与现场"贴地/蹭地后 kill switch"逐帧吻合) ⇒ t≥15.35 是**干预后数据**, 不能当"控制回路失效"的证据; 现场目视"贴地"与自报 1.26m 矛盾 ⇒ 三个候选 (①机手切手操后手动飞低 ②飞控 failsafe AUTO_LAND ③EKF 近地垂向估计偏高) 待 ULog 或新字段判定。**视觉两趟 0 框** (本趟 `nbox>0` **0 行** / `TRK-NEW` **0 次**; 首飞 `nbox>0` 也是 0 行) ⇒ 先做地面 `ros2 topic hz|echo /bucket/detections` 与 `conf 0.5→0.25` 排查。**新增只读观测** (四份文件, `scripts/patch_ekf_tlm_20261009.py`): 1Hz 行尾追加 ` FC(a.. n.. fs.. d..)` + ` EKF(xy z vxy vz dr. rst../../.. dbt=..)` (行尾追加 ⇒ 既有字段/解析不受影响) + EKF 垂向不可信时 5s 节流 WARN; 验收 `scripts/test_ekf_tlm_20261009.py` **43/43** (含"只加观测"审计: 29 新增行全在允许集合 / 只删 1 行 / 11 个控制关键字零触碰 + 从源码抽块 exec)。**已部署**: 板载 `k.py` **`781ec5584c95daa5`** / `l.py` **`d4ef5444c0f73cfa`**。 **2026-10-09 追加 35 (用户指正"没飞到桶上面")**: ①**高度基准核对** —— 飞行/爬升/预伺服/投弹四个高度**全是相对起飞点** (`cruise_z = _takeoff_z − K_FLIGHT_ALT` / `pre_z = home_z − PRE_SERVO_HEIGHT` / `drop_z = home_z − DROP_HEIGHT`, 而 `home_z = _takeoff_z`), 与 i 的 `H = home_z − self.z` **同源同值** ✓ 且 1.2m 下镜头到桶口 = **0.900m** 与 FX 标定深度 0.905m 吻合 ✓ ②**正下视相机视野** (`camera_pixel_to_level` 注释"相机光轴=机体下"): 1.2m 时地面覆盖 **前向 ±0.672m** / 横向 ±1.196m ⇒ **桶必须在飞机正下方 ±0.67m 内才进画面** ⇒ 13:59 结束 `dist_to_target=1.8m` = 桶在视野外 = 0 检测的直接原因 ✓ ③**修掉上一轮引入的死锁**: 旧 `K_VISUAL_GATE_M=0.30` 要求已飞≥2.70m, 而到位判据只要求 `dist2d<POS_ARRIVE_DIST=0.5` ⇒ 停在 0.30~0.50m 带里**门永不满足 ⇒ 到了也不选桶(10s 超时返航)** (网格穷举 19 个合法样本被挡) ⇒ 改 `K_VISUAL_GATE_M=0.60` (被几何夹死: >0.5 防死锁, <0.672 保可见) + 门控加结构性下界 `_vg_need = max(K_VISUAL_GATE_M, POS_ARRIVE_DIST)` ⇒ 数学上保证"到位 ⇒ 门必过"; 验收 `scripts/test_k_vis_gate_20261009.py` **25/25** (含 7833 样本穷举 + 反事实 + 真代码路径 exec)。 **已部署**: 板载 `k.py` **`ebf701ce6a7d65ce`** (运行时回读 `K_VISUAL_GATE_M=0.6` ⇒ 门控要求已飞 ≥2.40m), `l.py` `d4ef5444c0f73cfa` 未变。 **2026-10-09 追加 36 (14:41 实飞"在地上拖着飞"定性)**: 首趟带新字段的飞行给出铁证 —— `FC(a2 n14 fs0 d0)`(0.8~11.8s, OFFBOARD) → `FC(a2 **n1** …)`(12.8s 起机手切 **ALTCTL**) → `FC(a1 n1 fs0 **d8**)`(17.8s **kill switch**, 电机停); 而 **17.8→29.8s 电机已停、飞机在地面时, 飞控自报 H 仍从 1.07 "平滑降"到 0.22 (vz=+0.07, 12s)** ⇒ **近地高度估计偏高 ~0.85m** ⇒ 命令 1.2m 物理上只剩 ~0.2m ⇒ 贴地拖行; `dist_to_target` 19s 只前进 0.2m 而 `vNED` 报 0.2m/s ⇒ 位置几乎不动; `EKF(1111 dr0 rst恒定 **dbt=--**)` ⇒ 无测距可纠正。 **⇒ 不是任务控制逻辑** (指令与自报状态自洽; 5m 剖面能飞; 10-07 同机在 1.2m 投放 2/2 命中 ⇒ 偏置是**有条件的**、不能用常数补偿) ⇒ **"全程锁定 1.2m"以本机现有高度手段做不到**。 **节点侧已补** (`scripts/patch_k_stall_guard_20261009.py`): ①1Hz 行 `FC(...)` 追加 `L{0/1}`=飞控 `landed` (节点早就订阅 `self.landed` 却从未记录/利用) ②FORWARD **前飞无进展保护** (进 FORWARD >6s 而前进 <0.80m ⇒ ERROR+发 `MAV_CMD_NAV_LAND`+`forward_stall` 退出, 避免电机在地面持续打桨)。验收 `scripts/test_k_stall_guard_20261009.py` **32/32**。**已部署** 板载 `k.py` **`8f09fc0d72a04df4`**。 **2026-10-09 追加 37 (用户指定剖面)**: "高度抬到 5m → 前进 3m → 降高到 1.2m 投弹" ⇒ 只改高度链路: `K_FLIGHT_ALT` **1.2→5.0**(巡航; TAKEOFF 直接爬 5m, FORWARD/HOVER_SEARCH/TRACK/CLIMB 都在 5m) / `PRE_SERVO_HEIGHT` **= DROP_HEIGHT(1.2)**(下降目标 = 投弹高度, 复用 POSITION_REFINE 的限速下降) / HOVER_SEARCH **到点后先限速(`K_DESCEND_RATE=1.0m/s`)降到 1.2m 再找桶** (5m 时桶只 18~24px、conf=0.5 出不了框; 1.2m 正下方桶 ≈67px=19% 画高) / `HOVER_SEARCH_TIMEOUT` 10→**16s**(给 3.8s 下降留预算) / 启动日志行同步。**落点几何/补偿/门控一字未动**。验收 `scripts/test_k_alt_5m_20261009.py` **33/33** (含"每 tick 必发 setpoint"与"限速方向"两条判据 —— 这两个 bug 在自查阶段各抓到一次: 前者会让下降期间不发 setpoint 直接掉 OFFBOARD, 后者会一步跳 3.8m)。**审计登记集中化**: 新增 `scripts/_later_patch_marks.py` (唯一登记表, 以后只需改这一处, 5 个审计脚本同时生效)。**已部署**: 板载 `k.py` **`2a62df08648ede1e`** (运行时回读 5.0/1.2/1.0/16.0, 标定常量逐位未动), 部署横幅改为动态回读。 **2026-10-09 追加 38 (SITL 上机前验证, 抓出两个降高 bug)**: ①第 1 轮全流程失败 —— 降高**爬行** 0.034m/s (命令 1.0), 16s 超时 0 投: 初版 `min(_pre_z, self.z + rate*0.05)` 相对**当前实测位置**每拍只给 5cm ⇒ 位置环只跟 5cm 误差 ⇒ **改时间锚定** `min(_pre_z, _step_entry_z + K_DESCEND_RATE*step_elapsed())` (`patch_k_descent_fix_20261009.py`, `_enter_step` 记录进入高度; `HOVER_SEARCH_TIMEOUT` 16→18) ②验收抓到更危险的: 锚点兜底 `_z_anchor = self.z` 每拍取"上一拍命令" ⇒ **平方加速, 13 拍冲到底** ⇒ 改为**锚定一次并存住** (`patch_k_descent_anchor_fix_20261009.py`) ③验收升级: 加**一阶滞后车辆模型**(τ=1.5s, 由 SITL 0.034m/s 反推) ⇒ 旧写法 60s 到不了位 / 新写法 6.4s 到位 ⇒ `test_k_alt_5m` **41/41** ④**第 2 轮 SITL 全流程走通: 2/2 投, 裁判 8+10=18/20** (降高 4.98→4.41→3.29→2.08→1.46, 峰值 0.59m/s/8.4s; 两投均在 H=1.19m; 落点 0.098/0.021m; 全程 `FC(a2 n14 …)` 无掉线) ⑤**已部署** 板载 `k.py` **`bac0b2117277ba8a`** (src==install, 板载 py_compile 通过, 运行时回读 5.0/3.0/0.6/1.2/1.0/18.0)。⚠ 内部 TRACK 段仍回 5m 跟踪 (原设计) ⇒ 实剖面是 `5m → 1.2m → 回 5m → 再降 1.2m 投弹`; 若要严格"只降一次"需把 TRACK 高度改 `pre_z` (待现场定)。 **2026-10-09 追加 39 (15:22 实飞 0/0 复盘)**: 该趟 `STEP HOVER_SEARCH->RETURN (prev **16.0s**)` + 降高 `4.81→3.48m/16s ≈0.09m/s` ⇒ **跑的是降高爬行修复前的版本** (修复 15:45 才上板) ⇒ 爬行吃掉整个 HOVER_SEARCH 预算, 搜索/确认没机会跑 ⇒ `No valid targets` → RETURN → 0/0; 同趟 5m 巡航 ✓ 到位 ✓ 桶检测 ✓ (27px) ⇒ 视觉与巡航都没问题。 **同趟暴露的第二个问题 (已修)**: 飞机停在距**名义 3m 点** 0.40m 处但**离桶 ~0.9m**, 而 1.2m 时相机前向只看 ±0.672m ⇒ 白降 ⇒ **降高改为对准检测到的桶** (`patch_k_descend_anchor_to_bucket_20261009.py`: 用已确认追踪器的桶位, 只采信距名义点 <`K_DESCEND_PULL_M=1.5m` 且取最近者, 防假框; 日志 `[降高锚点]`), 验收 `test_k_alt_5m` **50/50**。 SITL 第 3 轮: `End reason: normal` / **2/2 投** / 裁判 8+8=16/20 (降高 8.0s 到位) ✓ **已部署** 板载 `k.py` **`178f6fe361c02110`** (运行时回读 5.0/3.0/0.6/1.2/1.0/1.5/18.0)。 |
+| `l` | `l.py` | **子项目 l = i 的副本 + 两个默认关的几何开关** (2026-10-09 新建, i/j/k 一行未动; 生成器 `scripts/new_project_l_20261009.py`, 锚点断言+备份+幂等)。**P1 `TARGET_PLANE_H` (默认 0.0)**: 把求交平面从"起飞原点平面"改成**目标平面**(该平面在原点平面下方多少米), 求交深度 = `(home_z - self.z) + TARGET_PLANE_H`; **SITL 侧 = 0.0** (检测器 `_gt_ground_circles` 把桶当'参考平面上的圆'投影 ⇒ 与 `_roi_to_ned` 互为逆运算, 见追加 30), **实机 = −0.278** (`h = 落地时镜头离地 0.022 − 桶口离地 0.300`), **不可用 SITL 值直推** (P0 的 `silhouette` 模式真值下等效平面 ≈0.53, 只用于离线验 P1); 作用于共用相机模型 4 处 (`_roi_to_ned` / `_ned_to_expected_pixel` / 俯冲段与 DROP 段 `pixel_offset`)。**P2 `L_BODY_GATE_M` (默认 0.0 关)**: **机体坐标系**释放残差门 = \|观测桶机体(前,右)偏移 − 期望(+\`XF\`,+\`Y\`)\|, 超限 ⇒ 用**当前帧**像素重算保持点重新对准 (最多 `L_BODY_REFREEZE_MAX=3`, **不重置 `_i_freeze_t`** ⇒ 20s 必投不变); 释放行加 `机体残差=xx.xcm`。**验收** `scripts/test_l_target_plane_20261009.py` (k/l 各 **15/15**): A 剥注释后 14 处差异全在允许集合 (其中 2 处是**标定只改值**块: 逐行必须是 6 个标定常量的纯赋值且两侧名字集相同) + **P1 深度恒等律** `ned(t) = ned(0) + (t/H)·(ned(0) − pos)` 360 组最大偏差 **7.1e-15 m** (标定值 −0.278 与 −0.15/+0.455 下均成立 ⇒ 证明 P1 只以深度偏移进入); B 用 P0 同一把尺子量出 H=1.2m 处 **5.74→0.33cm(ρ=20cm, 17×) / 15.47→2.37cm(ρ=50cm)**; C **注入 EKF 位置偏置 15/25/40cm ⇒ 机体系残差恒 5.81cm(Δ=0.00mm), 而世界系 `dev` 精确等于偏置** ⇒ 证明 P2 对"自身位置估计漂移"免疫 (j 的 `dev` 混了三件事)。**⚠ 定位**: 6~17× 是 **SITL 几何**数字不是实机承诺 (实机 h≈−0.15 ⇒ 该项仅 1~7cm 且符号待标定); P1 真价值 = 把隐含平面假设变成**可标定显式参数** + 让仿真与节点认同一个平面。详见 `docs/project_log.md` 2026-10-09 追加 27。 **2026-10-09 标定落地 + 部署 (追加 29)**: 常量与 k **逐位相同** ⇒ 小场地验完可直接搬全任务。 **已部署**: 板载 `l.py` sha **`9ee488a712ae78cd`** (首次部署; src==install 非空, 运行时 9 个常量回读一致, `HEADING_DEG=212.0`), `setup.py` 加 `l` 入口, 由板载 `i.sh` 派生 `~/fly/l.sh` (DDS→see→l), 现场 `cd ~/fly && ./l.sh`。 ⚠ 本次**只改常量**: `TARGET_PLANE_H=-0.278` **已生效**, 而 `L_BODY_GATE_M` / `J_DEV_GATE_M` / `J_DEV_REFREEZE_M` / `J_MEASURED_R` **仍全部关闭** ⇒ 先按 k 型短流程验一次落点再决定是否开 P2 闭环。  **2026-10-09 环境常量分侧 (追加 30)**: 同 k —— SITL `0.0/85°/54°`, fly 实机 `−0.278/89.8°/58.5°`; `check_drop_portability` A2 节新增 SITL 往返误差判据 (≤1px)。 |
+| `f_r3` | `f_r3.py` | **外接盘 "f r3" SITL 导入版** (2026-10-07 导入, 非本线开发; 控制逻辑一行未改, 只做 6 处适配: 类名/节点名/`_v4` 后缀/HEADING=92/MISSION_REVISION)。设计 = **低空 XY 位置设定点 ≤8cm/s 缓移 + 按实测速度提前 0.6s 制动 + 制动时钉固定刹停点**, 释放 = 两帧新帧 ≤5cm 且 |vxy|≤0.10, 35s 无条件必发; **依赖检测器发 `frame_seq`**(否则低空伺服完全不动作, 设定点锚死+35s 兜底)。两轮 SITL (334.0s 14/20 + 177.0s 16/20, 均 normal, 2/2): **瞄准链路准** (四投 `aim` 偏真值 1~3cm), **误差全在释放相位** (飞机距 `aim` 4.7~21.5cm) ⇒ 单轮分数不可归因; **制动/刹停点只在两个第 2 投触发** (35%/16%, 3 次 hold/resume), 而那两个第 2 投本来就在缓慢接近 ⇒ **尚未证明它改变过结果**; 两个第 1 投 `braking=0%` (第 1 轮 vxy≥0.06 的 36/41 样本全被几何条件挡住), 成败由低空漂移方向决定 (第 1 轮误差长到 32cm → 35s 兜底释放于 19.6cm; 第 2 轮 19.1→9.4cm → `aligned` 3.9cm)。启动 `bash scripts/test_f_r3.sh`; 分析 `scripts/analyze_f_r3_sitl_20261007.py`。详见 `docs/project_log.md` 2026-10-07 追加 6 |
+
+`forward.py` 是简单的前飞-悬停-降落演示节点。4 步状态机：TAKEOFF → FWD（固定速度 2m/s 前飞 5s）→ HOVER（悬停 3s）→ LAND。作为 PX4 offboard 模式切换和 DDS 通信的最小验证节点，已被 `drop_opt_mission` 等更复杂的任务节点取代。
+
+`full_mission_v2.py` v2 A3 15 状态机 (930 行): TAKEOFF → FORWARD_CENTER → CENTER_SEARCH → TRACK → DESCEND → HOVER → DROP(B0) → CLIMB_SWITCH → CENTER_SEARCH → TRACK → DESCEND → HOVER → DROP(B1) → RESULT_DROP → FORWARD_SCOUT → SCAN → RESULT_SCOUT → RETURN → HOVER_LAND(降落点悬停稳定) → LAND(PX4 自主着陆 MAV_CMD_NAV_LAND)。投弹参数: DESCEND_SPEED=0.35m/s, STABILIZE_TIME=3s。
+
+### 参考代码库：cwkj_ws
+
+`~/cwkj_ws/` — ROS1 + MAVROS 实机验证代码（NVIDIA Orin）。核心类 `offboard_control.h` 封装 MAVROS setpoint（NED/机体坐标系 位置/速度/姿态/舵机）。已移植模式：状态机+安全超时、位置+速度混合控制、机体坐标系速度控制。
+
+### Gazebo 世界
+
+- `worlds/bucket.world` — 基础世界，红桶位于 Gazebo (5, 0, 0.5)，半径 0.25m，高度 0.5m
+- `worlds/single_bucket.world` — 单桶测试世界
+- `worlds/bucket_search.world` — **双桶视觉伺服专用世界**。红桶1 `red_bucket_1` 位于 Gazebo (6.0, 4.0, 0.25)（飞机右侧 3m + 前方 5m），蓝桶2 `blue_bucket_2` 位于 Gazebo (6.0, -2.0, 0.25)（飞机左侧 3m + 前方 5m）。两桶在 NED y≈5m 横线上南北相隔 6m。半径 0.125m，高度 0.25m
+- `worlds/scout.world` — **侦察任务专用世界**。5 个白色圆筒散布在 Gazebo (53.5~58, 0~2, 0.075)，对应 NED x≈(-1, 1), y≈(52, 57)。距起降点 ~55m。半径 0.10m，高度 0.15m。带 `libgazebo_ros_state` 插件
+- `worlds/drop_opt.world` — **投放精度优化专用世界**。单桶 `target_bucket` 位于 Gazebo (11.01, 0.98, 0.25)，对应 NED (0, 10, ~0.58)。用于 `drop_opt_mission` 参数迭代调优
+- `worlds/drop_opt_realistic.world` — **真实环境仿真世界** (2026-07-24新增)。基于 drop_opt.world，添加 PX4 `libgazebo_wind_plugin.so` 风力（稳态 0.8m/s + 阵风 2.0m/s），风推入 PX4 EKF 影响飞控。配合 `test_drop_realistic.sh` 使用
+- `worlds/mission_full.world` — **全任务竞赛世界**。投放区 (30m): 红桶1 Gazebo (31.01, 3.68, 0.25)、蓝桶2 Gazebo (31.01, -2.12, 0.25)。侦察区 (55m): 5 白筒 Gazebo (53.5~58, 0~2, 0.075)。含 `libgazebo_ros_state` 插件
+- `worlds/competition_field.world` — 竞赛场地完整版
+- `worlds/ground_test.world` — **地面测试世界**。单桶位于 Gazebo (1.01, 0.98, 0.25)（飞机生成点正下方）。用于地面不装桨 ARM→检测→投放全链路验证。因 `PX4_SITL_WORLD` 环境变量未被部分 gazebo-classic target 消费，`ground_test_start.sh` 实际使用 `drop_opt.world` 规避
+- `worlds/final.world` — **终极任务世界**。3 个相同红桶在 8m×5m 矩形区域（黄色边框+橙色角标）内固定随机分布。矩形后端边距起飞点 10m (NED y=10)，前端边 NED y=15，中心 NED (0, 12.5) → Gazebo (13.51, 0.98)，对称轴与机头线重合。桶1 Gazebo (12.51, -0.52), 桶2 Gazebo (14.01, 2.98), 桶3 Gazebo (15.01, 0.98)。含 `libgazebo_ros_state` 插件
+- `worlds/a.world` — **子项目 a 世界**。投放区 (黄色边框+橙色角标) 近边距起飞点 30m (NED y=30~35), 3 桶相对布局同 final.world。侦察区 (蓝色边框+蓝色角标) NED y=55~60, 距投放区远边 20m, 空白无目标物。桶1 Gazebo (32.51, -0.52), 桶2 Gazebo (34.01, 2.98), 桶3 Gazebo (35.01, 0.98)。含 `libgazebo_ros_state` 插件
+- `worlds/c.world` — **子项目 c 世界**。复制自 a.world (投放区/侦察区/桶布局完全相同)。2026-08-15 新建
+- `worlds/d.world` — **子项目 d 世界**。同上 (与 a/c.world 内容完全相同, 12098 字节)
+- `worlds/e.world` — **子项目 e 世界**。同上 (与 a/c/d.world 内容完全相同)
+- `worlds/f.world` — **子项目 f 世界**。复制自 e.world (与 a/c/d/e.world 内容完全相同)。2026-09-24 新建
+- `worlds/g.world` — **子项目 g 世界**。复制自 f.world。2026-09-27 新建
+- `worlds/h.world` — **子项目 h 世界**。复制自 g.world。2026-09-30 新建
+- PX4 iris 模型在 Gazebo 固定生成点 `(1.01, 0.98, 0.83)`（sitl_run.sh line 130），该偏移在坐标转换时必须扣除
+
+## 阶段性总结
+
+最新阶段性总结 (截至 2026-08-11 选桶策略优化) 见 [`docs/project_log.md`](docs/project_log.md#2026-08-11--选桶策略优化--检测框面积排序--投弹高度-10m--投弹前-5s-收敛--侦察悬停-10s)。
+
+**2026-08-12 子项目 b**: 基于 a 新建, 固定航向 HEADING_DEG 硬编码替代 heading0_pre 预锁 + 分桶投放补偿 B1/B2 ±10cm。SITL 仿真验证通过 (B1=0.18m B2=0.09m), SITL+fly 双版本同步。
+
+**2026-08-14 补偿方向修正**: 实测 B1 (右桶先投) 落点偏右、B2 (左桶后投) 落点偏左, 原补偿方向相反。交换两常量符号: B1 +0.10→-0.10 (瞄准点左偏), B2 -0.10→+0.10 (瞄准点右偏)。SITL 验证: 落点方向与新符号一致 (左偏 0.079m / 右偏 0.046m), 精度 B3=0.094m B1=0.064m。
+
+**2026-08-14 返航提速**: 新增 `RETURN_SPEED=3.0` 独立常量, RETURN 阶段改用 `_fly_toward(home, RETURN_SPEED)`, FORWARD/SCOUT 仍用 CRUISE_SPEED=2.0。SITL 验证: 实测 ~1.7-2.1 m/s (2.0 指令场景仅 ~1.0-1.3), 提速 ~+65%; SITL 速度跟踪打折, 实机可能真达 3.0 需留意过冲。
+
+**2026-08-14 搜索无目标转侦察**: HOVER_SEARCH 零检测超时 (5s) 和总超时 (10s) 不再直接 RETURN, 改为切 STEP_SCOUT 飞侦察区悬停后返航, 与投完弹的路径一致。本轮仿真 3 桶全部检测成功, 该路径未触发, 待无桶场景验证。
+
+**2026-08-15 子项目 c**: 从 b 分叉新项目 (b 回退到实飞备份版不动), 承载实机试飞分析后的全部新改动: DROP_HEIGHT 1.0→1.5m (防低空丢检)、FORWARD_DIST 32→34 / SCOUT_DIST 57.5→59.5 (实机起飞点比假定后退 2m)、侦察区动作序列 (悬停5s→降1m→左1m→右2m→返航, SCOUT 重写为 5 子阶段)、B1 补偿移除/B2=-0.05、DROP_AFTER_DELAY 同步 10s。下降限速 bug 两次修复尝试失败后按用户指示回退旧 max() 代码 (b/c 均回退)。SITL 验证: **B3=0.033m(10分满分) B2=0.078m(8分) 总分 18/20**, 侦察序列全对, 总时长 4'29"。详见 [project_log 2026-08-15](docs/project_log.md#2026-08-15--子项目-c-创建与验证b-分叉--实机日志分析--侦察动作--下降限速回退)。
+
+**2026-08-15 晚 子项目 c 实飞反馈修复**: 实飞发现 (1) 降落位置偏移 (降太猛) (2) 冲过侦察区预定点。改动: SCOUT 重写为 7 子阶段 (直飞近边 55m → 降1m → 10s 缓移至预定点 → 左1.5m → 停5s → 右3m → 停5s)、RETURN 到 home 后位置保持判稳 (漂移<0.3m/3s, 10s 兜底)、LAND 时间锚定限速 0.4m/s。SITL 验证: 新序列全对, 未冲过侦察区, 判稳 4.5s, 着陆距 home 0.20m, 总时长 4'30"。SITL+fly 双版本同步, fly 版 SCOUT_EDGE_DIST=57.0。
+
+v9 核心成果: 多桶追踪器每桶独立 1.5s 时间确认防御瞬时误检, FORWARD_DIST 12.5→12.0 利用过冲到达矩形中心, 实机完整迁移 (see.py + final_mission.py + final.sh), 项目报告交付。B1=0.028m B3=0.14m。
+
+**2026-08-09 坐标系重构**: 所有位置计算从 PX4 绝对 NED 改为相对起飞点 (home) 偏移。`_roi_to_ned()` 返回相对偏移, `_pub_pos()` 发送前加 home 转绝对。解决 EKF 原点不确定导致的绝对坐标不可靠问题。同时修复边界软墙横向推回方向 bug 和 `_fly_toward` 距离公式。
+
+**2026-08-08 CRITICAL: GROUND_NED_Z 硬编码修复** — `drop_opt_mission` 实机飞行出现 LAND 直飞上天+巡航高度投弹+ PID 不收敛三重故障。根因为 SITL 移植时保留 `GROUND_NED_Z` 常量，实机 PX4 EKF 原点 z≠0 致高度计算全线崩溃。修复: 3 文件 ~40 处 `GROUND_NED_Z` → `self.home_z`，SITL 仿真验证通过。
+
+**2026-10-06 补充 (i 首投段归零对照)**: 四类门限/架构改动均无效(到位门限 0.35 / 平静门控 3°,0.15 / 先停稳 / 兜底挑时机) ⇒ 与判据无关; **把 i 的补偿临时归零后第 1 投立刻走正常路径**(到位 16.6cm、vxy 0.149、停留 7.4s ⇒ 8 分), 而第 2 投反而从 2.6~4.0cm 退化到 24.8cm ⇒ **首投段是"飞机 10~26cm 游走 + 25cm 补偿位移"叠加所致, 不是 i 的逻辑缺陷; 实机上补偿不可去掉**。i 定型实飞, 用现场落点验证并只调补偿值。复原脚本 `scripts/restore_i_comp_20261006.sh`
+
+**2026-10-06 10.6 实飞复盘 + 项目 i**: f 在低空出现**自激振荡**(前 5~7s 稳、之后越大): 根因 = 低空每帧重建瞄准点, 而`桶估计 = 飞机位置 + f(像素, H, pitch, roll)` **含飞机自身姿态** ⇒ 姿态→瞄准点→飞机→姿态 的低频正反馈; 实测保持段设定点速度 0.07~0.27 m/s 不停、峰峰 11→42cm(≈4×)、`等效地面` 20~46cm ⇒ 门限永不满足 ⇒ 26s 兜底释放。 **【2026-10-08 修正 · 见 `docs/project_log.md` 追加 25 + `scripts/analyze_f_oscillation_20261008.py`】** 三路日志(1Hz 状态行 / DROP-SERVO / TRK-DBG 检测框)逐点量化后: **结构性结论成立**(设定点 `= 0.7·(飞机位置+反投影) + 0.3·锚点` 每帧重建, 而 `_roi_to_ned` 含飞机自身位置/姿态/高度 ⇒ 正反馈结构), 但**主因判定要修正** —— 该趟 (10-06 14:49, 两投 DROP 段 36.1s/36.1s 全走 35s 兜底) 的主激励是**检测侧**: 一个桶在低空占画面 96→211px、框心滑到画面右边缘 **639/640** 被 `see.py` **只裁不剔** ⇒ 框反算 NED 的样本间跳变 **12/34 次 >0.3m (中位 28cm)**, 还出现过同一桶 **3 个追踪器**; 而**姿态项 (2.1cm/°) 该趟只有 ≤7cm**, 相对 **32~66cm** 的实测误差只是**放大器**不是主因 (姿态真正咬人的场合是 10-07 13:02 那次"冻结被拽走 58cm")。**另一条关键发现**: 外环有效增益只有 `KP_H 0.0015 × height_scale 0.25 = 0.000378 (m/s)/px` ⇒ **100px 只给 3.8cm/s**, 环路增益 `KP_H·FX/CRUISE_HEIGHT = 0.105 1/s` (τ≈10s); 而日志里 PID 输出只有 2.3~8.1cm/s、实际 vxy 0.097~0.265 m/s、**位置设定点自己 0.1~0.3 m/s 在走** ⇒ 飞机在"追一个自己在跳的设定点", 1.5m 偏差 34s 走不完 ⇒ 兜底是必然 (不是高频自激)。**对照**: 同相机同场地同桶, **i 的"冻结+定点保持"实机 12 趟全部 7~12s 收敛** (唯一例外 26.2s = 冻结退化成单帧那投) ⇒ **差别在环路结构, 不在视觉**。**⇒ 低空实时视觉闭环"能走通, 但必须同时满足三条"**: ①贴边/追踪器未确认/丢检时**冻结瞄准点** + 估计低通(τ≈0.5~1s) ②设定点只随估计**慢动**(低通/限速 ≤2~3cm/s 或 α 部分重锚) ③释放判据要落在**实际能到的范围**(5~10cm 级 + 必投兜底)。修法清单 L1~L5 与验证路径见追加 25。**项目 i 物理切断该反馈**(1.2m 处只算一次 delta 再冻结瞄准点), SITL 验证: 第 2 投 到位 6.1cm/pred 5.8cm/落点 2.2cm(10 分), `End reason: normal`; 10.6 离线回放: 释放 pred 25.2cm → 7.9cm。遗留: 首投段扰动(与"第 1 桶常需重进"一致) + 补偿标定(`f_test` 实飞测原始散布)。
+
+**2026-10-06 补充 2 (两轴补偿 XF 符号修正, 次日实飞前落地)**: 10-06 四投**实际跑的补偿** = `B1=(Y+0.250, XF+0.040)` / `B2=(Y+0.120, XF+0.040)` (日志 `offset_横_B1=0.250 … offset_前_B1=0.040`), 而现场真值**四投落点全部偏"近侧(朝起飞点)"8.5~22.5cm**。代码语义逐行核对 (`hold = 桶估计 + Y·(sin h,−cos h) − XF·(cos h,sin h)`, SITL 1535-1538 / fly 1667-1670) ⇒ **XF>0 = 瞄准点/飞机/落点一起朝起飞点移** ⇒ "偏近侧"必须**减小** XF, 而原重标按"旧值+实测"写成 **+0.12 = 符号反了** (同一公式 Y 用对了: 0.25−0.12=+0.13 ✓, 与 9-27 反推 +0.113 吻合)。**飞机自身游走可扣除(已验证)**: `到位err ≡ |飞机 NED − home − 冻结点|` (两趟 home `(-0.84,6.07,323.43)`/`(-0.24,6.11,323.78)`; 复算 1.3/5.1/8.3/14.6cm vs 日志 1.5/5.4/8.3/15.0cm) ⇒ 四投 b = 右4.9/前1.5、左4.6/前7.0、右1.1/前0.6、右14.2/后3.2cm (5~15cm 随机项, 与落点偏差同量级) ⇒ **纵向 b 均值 −1.5cm, 不解释"偏近侧"**。按 `新值 = 旧值 − 实测 + b` ⇒ **XF: 0.04−0.08−0.015 ≈ −0.05**; Y 不动 (B1 +0.13 有两趟支持; B2 +0.12 由 10.3/10.6 两趟都指向正值)。脚本 `scripts/fix_i_xf_sign_20261006.py` (两份 i.py, 锚点断言 + 备份 `*.bak.20261006_204447_xf_sign`, 本地 colcon 通过) + Jetson 推送脚本 `scripts/push_i_xf_sign_to_jetson_20261006.sh` (**当晚 ssh 超时未执行, 实飞前必须先跑**)。**测量协议**: 现场按"沿航向 161° / 垂直航向"两个**带符号分量**量落点 (不用"左下"这类描述), 则 `固定机械偏置 r = (落点−桶心) − b − 本次补偿 − vxy×0.5s`, **一飞两投闭式解出两瓶 r, 新补偿 = −r**。
+
+**2026-09-30 9-30 实飞复盘 (g 坠机) + 预测落点释放 + 新建项目 h**: 数据 `log_431_2026-9-30-10-22-22.ulg` (123.8s, 无节点日志)。
+- **飞机在 +113.4s 动力失效坠机 (4.05m 自由落体 ~8m/s, 侧翻), 根因 = 主供电线烧断** (现场检查确认): 电流 41.7→**0.0A** 同时电压 22.92→**23.50V**(开路), 而飞控 PWM 仍正常满舵输出 1900/1100µs、5V 轨 5.08→5.19V、`brick_valid=1`、电池 `connected=1/faults=0` ⇒ **断点在电流采样点之后、电调之前**; 断电前 0.2s 先出现"部分失电"(电流仍 41.7A 时 roll 已 −8.7°、电机指令离散度 0.09→0.20) ⇒ 接触不良→完全断开; 竖直加速度 6.6→8.2m/s² ⇒ **四路电机全停**(坏一路不会自由落体)。处置正确: +117.9s kill switch → 落地检测 → 上锁。
+- **前兆可测**: 用与电池模型无关的 V-I 回归斜率做 6 趟横向对比 ⇒ 历史规律是"起飞段 17~24mΩ → 末段 12~14mΩ"(电池升温内阻下降), **9-30 是唯一"末段不降"的一趟(18.47mΩ, 比历史末段高 ~5mΩ)** ⇒ 该趟飞行中供电通路真的多出约 5mΩ 串联电阻(≈9W 热斑, 38s 烧穿, 时间尺度吻合); 起飞峰值电流 **72.1A vs 历史 40.4~57.0A** 是最热的一次。
+- **起飞横向摇摆是这趟独有**: roll 摆动 RMS **1.14° vs 历史 0.13~0.32°**(4~9×), roll 角速率峰峰 98.5 vs 33.6~63.3°/s; 但其它指标全在历史范围内(高频 90Hz 振动 9-30 反而更低 1.00 vs 1.50~1.67m/s²、悬停漂移 16/26cm、缓摆 0.25°、地面停留 5.03s、RC 零杆量、全程 OFFBOARD) ⇒ **飞机本体没变, 是那天起飞多了一个横向激励**(更猛的起飞 + 当天风况不同: 5m 巡航俯仰配平 −0.13° vs 历史 +0.87~+2.68°), 被一直存在的低阻尼位置环放大成 10s 可见摇摆。姿态摆动与位置漂移相位严格对应(悬停段 corr(roll,Δy)=+0.85 / corr(pitch,Δx)=−0.94) ⇒ 同一个欠阻尼模态。
+- **第二投为什么特别不准 (代码问题, 已修)**: 第 2 投在残差 **1.8cm** 时因 **vxy=0.124 m/s 超过准静止门限 0.12（高 3%）被挡** ⇒ Tier1 作废 ⇒ 干等 10s 优先窗口 ⇒ Tier2(10cm+确认1.0s)在 **12.9cm** 才发出脉冲 ⇒ 预测落点偏差 12.8cm ≈ 桶半径。根本原因: 摆动下"残差小"与"速度小"互斥(穿越点必然带 2πfA≈0.11m/s), 旧判据误差下限 ≈ A·ω·t_eff ≈ 7.7cm。
+- **新建项目 h** (生成脚本 `scripts/new_project_h_20260930.py`, 锚点断言+备份, e/f/g 未动): 9 项改动见 CLAUDE.md 表格行; 离线验收 `scripts/test_h_drop_logic_20260930.py`(6 趟 12 投回放): 历史最坏 11.9cm → h 判据最坏 **3.5cm**(中位 6.1→2.4cm), 8/12 直接触发, 其余走重进。SITL: 360.7s, 两次 Tier1(残差 4.7/4.2cm), **重进实测走通**(第1桶首段 10s 未收敛→后退抬升 4.3s→重新下降→释放), 裁判 **16/20**, 着陆距 home 0.14m; ⚠ 副作用: 总时长 360.7s(vs g 162.6s)、LAND 阶段本次 land_timeout(未改 LAND 代码, SITL 偶发)、DROP 段有效决策频率约 2Hz(限制 Tier0 收益上限)。
+
+最新开发迭代 (2026-09-27)：
+- **9-27 双航班实飞 (e 一次 + f 一次, 同场地同一对桶): 找到"第 2 投总偏左"的真根因 —— 两瓶镜像挂载, 而 e/f 对两瓶用了同一个横向补偿 (符号错)**。数据 `9.27/e_mission_20260927_105447.log` + `log_427_…ulg` / `9.27/f_mission_20260927_110915.log` + `log_430_…ulg`, 双链路逐点对齐 (节点 NED 与 ULog 同系; 释放脉冲 e 1.000s/1.101s、f 1.002s/1.102s 干净; **四次投放窗口内 0 个 RC 派生样本 ⇒ N1 未触发**; 脱钩在命令后 +0.2~0.3s, 用推力/电流台阶定位 ⇒ **弹道漂移必须按脱钩时刻速度算**: 例 e#2 指令时 0.109 m/s、脱钩时 0.071). **用户现场真值 (首次落点, 不计弹跳)**: e 第 1 投偏右 5cm / 第 2 投偏左 12cm; f 第 1 投偏右 8cm / 第 2 投偏左 2~3cm. **关键几何**: 两瓶是**镜像挂载** —— 第 1 瓶(先投)在机体右侧, 释放点在相机轴 **右 +5.5cm**; 第 2 瓶在左侧, **左 −5.5cm**; 而代码 `PAYLOAD_OFFSET_BODY_Y_B1 = _B2 = +0.048` (两个都是"瞄准点左移") ⇒ **第 2 瓶方向是反的**. **误差预算闭合 (可测量三项)**: ①瞄准残差 (相机实测) 1.4~4.2cm ②弹道漂移 2~5cm ③载荷摆动 —— 用 50Hz `vehicle_torque_setpoint` 反推摆角 (姿态被飞控稳住, 只有力矩暴露外力): 摆角 0.78~1.33° ⇒ 摆动速度 1.4~5.7cm/s ⇒ **落点散布仅 0.7~2.6cm (可忽略; e#2 也不是最大)**; 三项合计 ≤6cm, 却出现一次 12cm 脱靶 ⇒ **缺口只能来自"瓶相对瞄准点的偏移没被补偿对"**. **回放验证**: 用 4 次实测落点反推所需补偿 = 现值 + 实测落点 ⇒ **第 1 瓶 +9.8~+12.8cm (均值 +11.3)**, **第 2 瓶 −7.2~+2.3cm (均值 −2.5, 必须反号!)**; 纵向用户确认"基本不偏" ⇒ `XF=+0.040` 正确不动. 台架值 +5.5cm 与飞行反推 ~+14cm 的差 (~+6~8cm) 是**动态项** (插销/摩擦的侧向冲量 + 相机光轴安装偏角的模型误差) ⇒ **必须以实飞落点标定, 不能只信台架**.
+- **新建项目 g = f 的完整副本 + 两瓶横向补偿按 9-27 实飞落点重标 (用户指示: e/f 都不动)** — 生成脚本 `scripts/new_project_g_20260927.py` (从 f.py 复制, 只改 节点名/类名/入口名 + 两个常量; 与 f 的差异仅 **56 行**, 断言唯一命中 + 自动备份); 新增 `src/drone_drl/drone_drl/g.py`、`fly/src/fly/fly/g.py`、`worlds/g.world`、`scripts/test_g.sh`、`fly/g.sh`、两份 `setup.py` 的 `g` 入口. **改动**: `PAYLOAD_OFFSET_BODY_Y_B1` 0.048→**+0.113**, `PAYLOAD_OFFSET_BODY_Y_B2` +0.048→**−0.025 (反号)**, `XF` 保持 +0.040; 其余 (两级释放判据 Tier1/Tier2/Tier3、DROP 段锚点+反投影伺服、俯冲段、侦察 7 子阶段、RETURN 判稳、LAND 限速) 与 f 完全一致. **离线验收** `scripts/test_g_aim_comp_20260927.py` (三节全过): A 两份 g.py 常量逐位一致; B **真实代码路径** (exec 出厂 `PIDController` + `level_to_camera_pixel`, 含 pitch 3°/roll 2°) — 桶在补偿点 +11.3/−2.5cm 处 err **0.00px**; 同一桶位用旧常量 +4.8cm 时报 **+6.50cm / −7.30cm (= 需要的修正量)**; 桶放在旧符号侧时报 +5.00cm ⇒ **证明反号必要**; C **9-27 四次实测落点回放**: 落点 **+5 / −12 / +8 / −2.5cm → −1.5 / −4.7 / +1.5 / +4.8cm**, 最坏偏移 **12cm → 4.8cm** (桶口半径 12.5cm). **SITL 复验**: `End reason: normal`, 总时长 **162.6s**; 两投 T1(段内最小 2.0cm) / T1(段内最小 3.2cm); 释放行 #1 收敛即投(Tier1 5cm低谷准静止 段内最小=2.0cm)… / #2 收敛即投(Tier1 5cm低谷准静止 段内最小=3.2cm)…; 侦察 37.1s; 着陆距 home 0.20m （⚠ SITL 无挂载偏置 ⇒ 补偿让飞机故意偏离桶心 11.3/2.5cm, 分数被该伪影主导, 只证明链路与触发正常）
+
+最新开发迭代 (2026-09-24)：
+- **项目 e 第二次实飞: 两发都中 (用户现场确认), 释放相位误差 2.60/1.78cm** (日志 `9.24/e_mission_20260924_173608.log` + `9.24/log_425_2026-9-24-17-39-10.ulg`, 双链路逐点对齐; 节点 NED 与 ULog `vehicle_local_position` 同系, `vehicle_local_position_setpoint` 与节点 `target` 精确一致 ⇒ 反投影→锚点混合→bias→两轴补偿→`_pub_pos` 全链路可复原). **实况**: 两次都是 **`触发方式=收敛即投`** (第 7.2s / 第 3.5s), 释放残差 **7px=2.60cm / 5px=1.78cm** (DROP 段残差序列 57→41→46→51→36→29→**7px**, 期间最差一帧等效地面 **32cm** ⇒ 门限是"飞机穿过瞄准点那一刻"才放行的), 高度 1.32/1.22m, vxy 0.076/0.079m/s. **落点推算**: 弹道漂移 (vxy×0.48s) 前−1.4/右−3.4 与 前−0.2/右+3.7cm; 加上 9-23 标定的两轴补偿 ⇒ 预测落点偏差 **5.3cm / 5.4cm**, 与"两发都中"一致 ⇒ **9-23 用两次脱靶数据反解的两轴瞄准补偿首次在实机被独立验证 (S 不需重标)**. **投放脉冲干净**: `actuator_outputs[4]` 2000µs 保持 **1.099s** / 1000µs 保持 **1.001s**, 无 1500µs 掉线; 载荷脱钩有独立证据 (第 2 投推力台阶 **−5.6%**、电流 −7A、竖直 +9.3cm/0.5s; 两枚载荷合计占整机 7.7%). **全流程正常**: `End reason: normal`, 160.8s, 侦察 7 子阶段 13.3/1.3/10.0/2.0/5.1/2.0/5.1s, 返航 20.4s(≈2.9m/s)+判稳 5.5s(漂移0.28m), 着陆距 home **0.10m**, 无 WARN/ERROR. **仍存在的物理事实**: DROP 保持段飞机水平漂移峰峰 **15.9/23.6cm** 与 9.1/13.8cm、速度均值 0.105/0.083m/s ⇒ "飞机停不下来"未变, 只是判据把它兜住了. **新发现问题**: ① `vehicle_to_anchor`(0.201/0.170m) **不是脱靶量**(它算"飞机↔DROP 入口冻结锚点", 含飞机自身漂移) ⇒ 复盘别用它; ② **N1 (RC 派生样本抢占) 真的出现过一次** (t=875.94, 脉冲开始后 0.10s, `aux5=0/roll=−0.00957` 签名与 9-19 完全相同), 本次没夹断脉冲属运气; ③ **e 的判据最坏情况会脱靶**: 10cm 门限 + 3~7.6cm 弹道漂移 > 桶半径 12.5cm.
+- **新建项目 f = e 的完整副本 + "方案 B" 两级释放判据 (用户指示: 新建 f, e 不动)** — 生成脚本 `scripts/new_project_f_20260924.py` (从 e.py 复制后只打 12 处锚点补丁, 断言唯一命中 + 备份; 差异审计 SITL 112 行 / fly 119 行); 新增 `src/drone_drl/drone_drl/f.py`、`fly/src/fly/fly/f.py`、`worlds/f.world`、`scripts/test_f.sh`、`fly/f.sh`、两份 `setup.py` 的 `f` 入口. **改动只有"何时投"**: `DROP_ARRIVE_M` 0.10→**0.05** (Tier1), `DROP_CONVERGE_EARLY` 1.0→**0.5s**, 新增**低谷判定** `conv_m <= 本段最小值+2cm` (最小值下限夹 2cm 防单帧噪声) 与**准静止门控** `vxy<0.12m/s`, 并把 e 的旧判据降级为 **Tier2 保底** (10cm/1.0s, 但须等过 `DROP_PREFER_WINDOW=10s`), `DROP_AFTER_DELAY=35s` 兜底不变 ⇒ **形态上"永不比 e 更差"**. **验收**: ① 真代码路径离线测试 `scripts/test_f_gate_logic_20260924.py` (抽出两份 f.py 的判据块 exec) 5 场景全过 (低谷穿越→Tier1@3.75s / 地板 6~9cm→Tier2@11.25s / 地板 15~25cm→不触发退兜底 / 单帧 0.5cm 噪声不误投 / vxy=0.20 被挡到 0.08 才放行); ② 历史实飞日志回放 `scripts/replay_f_drop_gate_20260924.py` (8 份日志 13 投): **Tier1 10 投 / Tier2 1 投 / 段内不触发 2 投** (后两个是 pitch 符号 bug 期地板 19~23cm 的轮次), **释放残差中位 9.5cm → 4.0cm**; 9-23 那两次脱靶在实际日志里是 9.2/10.5cm 兜底, 用 f 会在 **3.27/3.15cm** 释放; 9-24 两次仍会在同一时刻附近触发 (2.62/4.02cm). ③ **SITL 复验 (2026-09-24, 157.0s, `End reason: normal`)**: 两次投放都走 **Tier1 低谷触发** (`触发方式=收敛即投(Tier1 5cm低谷准静止 …)`), 释放残差 **9px=3.2cm / 5px=1.4cm** (对标 e 同几何 SITL 的 8.7/9.3cm), DROP 段 7.0s / 1.6s, `conv_min` 3.1/2.0cm; 裁判 **B3 0.1001m(8分) + B2 0.0813m(8分) = 16/20** (分数仍被"SITL 无机械偏置、补偿故意偏 6.2cm"这一已知伪影主导, 只证明链路正常); 侦察 7 子阶段 37.4s, 返航判稳 5.9s(漂移 0.30m), 着陆距 home 0.22m. **第二轮 (可复现性, 2026-09-24)**: 171.3s / `End reason: normal`; 第 1 投 Tier1 (`段内最小=2.8cm`, 释放 3.0cm) + 第 2 投 **Tier2 保底** (`段内最小=2.7cm` 但放行时残差已回到 **6.2cm** → 被低谷带 `<=最小+2cm` 挡住, 10s 后走 Tier2) ⇒ 裁判 **18/20** (B3 0.0943m/8分 + B2 **0.0162m/10分**)。**两轮合计 4 投: 3 投 Tier1 (释放残差 1.4~3.2cm) / 1 投 Tier2 (6.2cm)** ⇒ 典型相位明显优于 e, 但**最坏界仍等于 e 的 10cm** (Tier2 是刻意保留的保底; 想要更硬的界可下调 `DROP_ARRIVE_M_LATE`)。
+
+最新开发迭代 (2026-09-23)：
+- **项目 e 首次实飞: 两桶都没中 —— 根因是"飞机停不下来", 不是瞄错桶 (分析脚本 `scripts/analyze_e_flight_20260923.py`)**: 数据 `e_mission_20260923_175741.log` + `log_424_2026-9-23-18-00-28.ulg`. **实况**: 两次都是 **`触发方式=25.0s/25s 兜底`**(不是收敛即投), 释放 err 25px/28px(等效 9.2/10.3cm), `vehicle_to_anchor=0.094/0.123m`. **关键判定(逐点对齐)**: 把日志 1Hz 的"等效地面误差"与 ULog 的"飞机 vs 自己设定点"跟踪误差对齐 → **corr=0.90/0.95, 中位比值 1.01/1.10** ⇒ **摄像头/统一几何反投影完全准确**("实机相机标定偏差"这一长期怀疑项**可以排除**), 误差 100% 来自"飞机没停在桶上方". **根因**: ① DROP 段飞机自身位置峰峰 **27cm/59cm**, 瞄准点(设定点)也在动(峰峰 24/42cm, 来自每帧 `0.7·新估计+0.3·锚点` 混合), 跟踪误差均值 **8.4/16.1cm**(90 分位 13.8/31.8) —— 比桶半径大; ② **e 的门限 `DROP_ARRIVE_PX=10px ≡ 3~4cm` 而实机误差 9~18cm ⇒ 永远达不到 ⇒ 必然 25s 兜底 ⇒ 随机相位释放**. **回放验证**: 改用 d 的米制 `DROP_ARRIVE_M=0.10` → 第1投有 **5.0s 连续 <10cm**、第2投也有 **5.0s** (>1.5s) ⇒ **两次都会触发**, 预计 8.5cm/3cm 释放 ⇒ 命中概率大幅提升. **释放链路正常(不动)**: 脉冲干净(2000µs/1000µs 各保持 0.90s, 仅 1 次 0.1s RC 回弹, 与释放窗口不重叠), 载荷 +240ms/+100ms 真正脱钩(电流 -6.3A/-8.0A), **e 的 DROP 退出修复实机验证通过**(1.0s 后立刻转 CLIMB, d 会赖 11s), 释放高度 1.29/1.33m 漂移仅 3.4/1.3cm. **另**: e 无投放补偿(B1/B2=0), d 为 +0.10/-0.05 ⇒ e 少一层 5~10cm 系统修正. **落点真值(用户观察): 两次都落在桶的"右上方"、离桶心 15~16cm** ⇒ **矢量分解闭合**: ①释放瞬间飞机偏离桶(相机实测) 前+7.3/右+5.5 (9.2cm) 与 前+3.0/右+10.3 (10.7cm); ②弹道漂移 前-2.5/右+2.3 与 前-0.9/右-0.9; ①+②=9.2/9.6cm; 实测 15.5cm ⇒ **残差(系统性机体偏置) = 前+4.2cm/右+4.8cm (6.4cm, 49°)**, 两投联立自洽 ⇒ 误差预算 = **约 60% 释放相位 + 约 40% 固定偏置**; **注意 d 里旧标定 B1=+0.10/B2=-0.05 与本次方向不符(本次两投都在右侧), 应以本次实测重标**; 且当前补偿机制 `pixel_offset=offset_body_y*FX/dz_h` **只有横向一轴**, 需扩成(前,右)两轴才能吃掉 4.2cm 前向分量. **建议(均不碰释放通道)**: ①【强烈建议·量化】补偿扩两轴+填实测值(前-4.2/右-4.8cm); ②【建议】DROP 段瞄准点加低通/进段冻结; ③【建议】B1/B2 搬回 e; ④【可选】释放改"窗口内最佳相位"(测量已证明准确). 身份/选桶链路全部正常: `SERVED +1 ×2`、`TARGET-REBIND/REFRESH`、`DET-FILTER`、全程 `lock=accept` ✓.
+
+- **项目 e: 按 9-23 实飞数据落地 ①两轴瞄准补偿 + ②释放判据改米制 (SITL+fly 两份同步; SITL 复验 16/20, 两次投放都走"收敛即投")**: 改动脚本 `scripts/fix_e_aim_comp_20260923.py` (10 个精确锚点 + 2 处 PID 调用点正则, 自动备份 `*.bak.20260923_194802_aim_comp`), 离线验收 `scripts/test_e_aim_comp_20260923.py` (6 节全过: 桶放在补偿后瞄准点上时 PID 报 0.0000m / 桶在飞机正下方时报 |S|=6.25cm 而不是 0 / 单轴隔离 / 用 9-23 两次真实释放帧复算"预测落点偏差"= 16.0 与 17.6cm 对现场真值 15~16cm / 释放瞬间 conv_m=0.154 与 0.164m 均 > 门限 / 两份源码逐位一致), 门限选值回放 `scripts/replay_e_drop_gate_20260923.py` (44 条 1Hz DROP-SERVO 样本), SITL 复验分析 `scripts/analyze_e_sitl_20260923_aim_comp.py`。**① 补偿扩成两轴**: `PAYLOAD_OFFSET_BODY_Y_B1/B2=+0.048` (瞄准点左移 4.8cm) + **新增 `PAYLOAD_OFFSET_BODY_XF_B1/B2=+0.040`** (瞄准点后移 4.0cm), 作用于 VISUAL_SERVO/DROP 两处 PID 像素偏置 (`ey` 新增 `pixel_offset_y`) + DROP 段目标点沿后向单位向量平移。**② 判据改米制**: `DROP_ARRIVE_PX=10px`(≡3~4cm) → **`DROP_ARRIVE_M=0.10`** (`conv_m=hypot(ex·H/FX, ey·H/FY)` = 到补偿后瞄准点的地面距离 = **预测落点偏差**的代理量), 确认时间 1.5→**1.0s**; 回放显示 10cm/1.0s 在"无补偿"和"补偿后(悲观代理)"两种口径下两投都触发 (8.8/7.7s 与 12.5/9.0s), 而 5~6cm 达不到 ⇒ 取 10cm (与 d 在 9-19 实飞验证过的值一致, 那次在 3.5/3.3cm 触发)。**SITL 复验 (357.2s, 16/20: B3 7.69cm/8分 + B2 14.98cm/8分)**: 两次都是 `触发方式=收敛即投` (释放残差 6.7/8.5cm, `收敛计时=1.0s`) —— **改动前两次都是 25s 兜底** ✓; 相机测的"飞机-桶"偏移与裁判 GT 只差 **0.9/0.8cm 与 2.3/0.6cm** ⇒ 补偿链路准确 ✓。**⚠️ SITL 分数含 6.25cm 固定"罚分", 不能用来判断本次收益**: SITL 落点 = 释放瞬间飞机地面投影 (裁判取 `/drop/impact_point`), 而仿真里没有真实的机械/挂载偏置 ⇒ 补偿让飞机**故意**停在桶的左后方 (实测 GT 偏移 前+1.5/右−7.5 与 前−14.7/右−2.8), 实机上这 6.25cm 才是抵消系统偏置的。**未改** (用户决定): 投放通道 / 释放时刻通道 / 释放脉冲形态。 **同日第二轮 (用户指示「收敛时间延长到 35 秒, 收敛偏差放宽到等效 10cm」)**: 收敛偏差**已是米制 10cm** (核对项, 不改); 只把**收敛窗口** `DROP_AFTER_DELAY` **25→35s** (脚本 `scripts/fix_e_drop35_20260923.py`, 备份 `*.bak.20260923_213643_drop35`; SITL `f2bb21d1` / fly `0daa0712`), 35s 仅是**兜底上限** (给「自己收敛到 10cm 内」更多时间), 已断言 `STEP_TIMEOUT=120s > 35s` 且 `MISSION_TIMEOUT=600s` 够用. **SITL 复验 383.9s / 18/20**: 两次都 `触发方式=收敛即投` 且 **DROP 段只用了 3.3s / 3.9s**(说明 35s 只是余量), 释放残差 8.7/9.3cm, 落点 **B3 2.93cm(10分)** + B2 10.86cm(8分), 侦察 81.4s 全对、着陆距 home 0.12m.
+
+最新开发迭代 (2026-09-21)：
+- **9-19 实飞 PX4 ULog 深度分析 (用户提供 `log_422_2026-9-19-18-04-34.ulg`, PX4 1.17.0, 3:05): 确认俯仰幻影项 + 新发现"投放脉冲被 RC 输入抢占"**: 脚本 `scripts/analyze_ulog_20260919.py` (6 节, 可复跑; `Unix = t + 1789811217.781`). **独立复算成立**: 释放瞬间 #1 pitch **+3.09°**/H=1.182m → 幻影 **12.7cm > 桶半径 12.5cm → MISS**; #2 pitch **+1.16°**/H=1.273m → **5.2cm → HIT**; **执行误差仅 5mm(#1)/66mm(#2)** ⇒ 脱靶 100% 是"瞄不准"; 反推桶位 NED(−25.691,+41.387)/(−25.834,+39.722) → 间距 **1.67m** (与现场 ~1.66m 吻合). **释放延迟量化**: AUX5 指令→PWM ≤0.1s; 指令→**物理脱钩 +100ms(#1)/+220~280ms(#2)** (用推力/电流负阶跃判定), 飞机只位移 **0.4cm** ⇒ **不是误差源**; 载荷约占整机 6~10%. **N1【高优先级】新问题**: `manual_control_setpoint` 有**两个发布者** —— 节点样本 `roll=pitch=yaw=0, sticks_moving=1, aux5=±0.833`, **PX4 自己的 RC 输入模块**样本 `roll=−0.00957, sticks_moving=0, aux5=0(→1500µs 锁)`; 第 1 投的释放输出自 933.271 起**持续断言 11s**, 其间 5Hz 日志抓到 3 个 RC 样本 (935.07/939.27/943.47), 而 10Hz **真实 PWM 确实在那 3 个时刻掉到 1500µs**; RC 侧已排除误判 (投弹期间**所有 RC 通道一动不动**, 且 `RC_MAP_AUX5=0`) ⇒ **节点与 PX4 的 RC 派生样本抢同一 uORB 主题, Jetson 一旦停顿 ~0.1s 投放舵机就被拉回锁定**. **风险已按实测下调**: 3 次抢占发生在指令后 **+1.8/+6.0/+10.2s**, 而载荷在 **+0.1s** 就已脱钩 ⇒ **从未与释放窗口重叠**, 本次零影响 (只有 Jetson 恰在释放后 0.1~0.3s 内停顿才会夹住). **建议**: 投放改用 PX4 一等公民通道 (`MAV_CMD_DO_SET_ACTUATOR` / `PWM_AUX_FUNC`+`MAV_CMD_DO_SET_SERVO`) 或关掉 RC manual 输入 (`COM_RC_IN_MODE`), 并加"脉冲完整性校验"(回读 PWM). **N2 (已修正)**: "释放后赖着 11s"**不是**反复重新触发投放 (初稿写错) —— ULog 显示 aux5 那 11s 里**一直是唯一的 +0.833 断言**, 3 次掉到 1500µs 全带 **RC 样本签名** ⇒ 就是 N1 的抢占. **精确根因** (fly/d.py 1408): `if not early_ok and elapsed < DROP_AFTER_DELAY: return` —— **"置 LOCK + 进 CLIMB"的退出路径排在这个门控之后**, 释放后飞机继续漂移 → `等效地面` 在 13.6/23.1/10.3/14.7/11.9cm 间跳 (门限 10cm 需连续 1.5s, 只在 2153.3/2158.8/2161.0 短暂达标且都不足) → 每帧都在 1408 行 return, **走不到退出路径**, 原地悬停 11.05s. 后果: 每投白等 ~10s + 释放输出被持续通电 11s. 修法 (9-20 那套已有): 释放后按"脉冲保持时间"独立退出, **不动释放时刻/通道/判据**. **N3**: 实际 pitch ≈ 姿态**设定点** pitch (投弹悬停 +4.01/+3.86°, 返航仅 +0.41°) ⇒ 是控制器主动抬头顶住水平外力(风/CG), 故幻影误差**随环境在 5~21cm 变化** —— 这解释了跨航班"有时命中有时脱靶", 也说明**只能改符号/统一几何, 不能靠固定偏移补偿**. **N4**: #2 释放时 H=1.273m(设定 1.143) 且仍在 0.128m/s 下降 → 建议收紧"收敛即投"高度门控. **平台健康**: GPS RTK eph 0.01m, EKF 无故障, IMU 无削波, 电机饱和 ≤2%, 悬停推力余量 28%, 电池 22.8~25.6V/峰值 104A.
+
+最新开发迭代 (2026-09-20 夜)：
+- **项目 e: "第 2 投又打回第 1 个桶"的根因与修复 (A + C, 已落 e 的 SITL+fly 并跑仿真验证)**: 用户要求"再跑一次 e", 那一轮 **10/20** — 第 1 投 B3 **0.0166m(10分)**, 第 2 投落点离 B3 只 **0.5cm**(又投了一次 B3) → 裁判按 B2 算 2.2405m → 0 分. **根因链(日志逐条)**: ① 选桶本身对(`Selected 2 buckets: NED(-0.5,34.6), NED(1.2,33.7)`) ② **但选桶瞬间的估计在运动中偏 0.78/1.06m** ③ 第 1 投靠 refine 修正回真值 → 满分 ④ **第 2 个目标被冻结在那个偏 1.06m 的旧估计上**(`Next bucket 2/2: NED(1.2,33.7)`) ⑤ 该点正好卡在两桶中间(离 B2 框 1.2m / 离 B3 框 **1.0m**) → `Position refined: (1.23,33.74) -> (0.16,33.93)` **最近邻选中已投过的 B3** ⑥ 之后全瞄 B3. **为何 e 已有修复没挡住**: DET-FILTER/SELECT-HOLD 修的是"残缺框→幽灵追踪器", 这次是真框真追踪器, 失效在"瞄准点冻结在偏估计上" — **另一种失效模式**. **实机风险**: 现场桶间距只 **1.66m** (比仿真 2.24m 更近), 而门限 1.5m → 实机更易发生. **修复**: **A 已投桶硬禁止**(投弹时登记 `_served_targets` + `SERVED +1` 日志; 匹配/refine/选桶一律排除其 `SERVED_EXCLUDE_M=0.6m` 内的框, 没别的候选就等待) + **C 瞄准点用活追踪器刷新**(选桶记追踪器 id 作身份; CLIMB/TRACK/REFINE/PRE_SERVO 每帧刷新 `TARGET-REFRESH`; **id 失效不猜身份**, 等 refine 修准后 `_rebind_target_id()` 重新认领: 0.6m 紧门限+0.3m 无歧义+排除已投桶, `TARGET-REBIND` 日志). **踩的坑**: C 第一版把"猜身份"兜底只写在 `id<0` 分支, 而追踪器在低空投弹 ~16s 丢检会被 `TRACKER_TIMEOUT=2s` 裁剪、CLIMB 重建**换 id** → 三行 TARGET-REFRESH 一条没打, C 空转. **验证(三轮对照)**: 修复前 **10/20**(第2投打错桶) → 只 A 生效 **18/20**(B3 0.0043m/10 + B2 0.0726m/8) → A+C 生效 **14/20**(B3 0.1941m/6 + B2 0.1093m/8), **两轮修复后"打回第 1 个桶"均未再出现**, 且 C 日志可见工作(`TARGET-REBIND id #3 -> #6 ... d=0.03m` / `TARGET-REFRESH id=#6 ... delta=0.12m`); **18 vs 14 不可归因**: 单轮分数由 SITL 执行抖动主导(`vehicle_to_anchor` 0.043/0.151 vs 0.185/0.124), 两轮的两个桶瞄准点都对(aim 对真值 0.02~0.04m). 脚本 `scripts/fix_e_served_bucket_20260920.py`(13 锚点) + `scripts/fix_e_target_rebind_20260920.py`(4 锚点), 离线规则测试 `scripts/test_served_guard.py` 用当晚真实日志数值回放(A0~A3/C1~C7 全过), 备份 `*.bak.20260920_182243_served_guard` / `*.bak.20260920_183419_target_rebind`. 现状态: SITL e `4c479b5d` / fly e `00963aa4`.
+
+最新开发迭代 (2026-09-20 晚)：
+- **项目 d: 修 PID 俯仰补偿符号 —— 只有 1 行错, 不是 2 行 (已落 d 的 SITL+fly, 并跑仿真验证)**: 用户批准"改这 2 行"后, 新建 `scripts/test_d_pitch_sign.py` **穷举 4 种符号组合**(独立真值模型喂"飞机正上方"的像素, 正确公式应报 0.0000m) → **只有 `[ex -=, ey +=]` 报 0.0000m**; 现行 `ex -= FX*tan(roll)` **本来就是对的**(roll=2° 也报 0.0000m), 改成 `+=` 会**新增 0.0838m 横向误差** → **实际只改 `ey -= FY*math.tan(pitch)` → `+=` 这一行**. 闭环复刻(exec 真 `PIDController`+真常量+真门控, 35s): pitch 3.6° 时积分器把瞄准点稳定推离桶 **0.1346m** → 修正后 **0.0000m**(理论与实测差 <3mm, 死区折算 5px·1.2/FY=1.70cm). **实机独立证据**(新脚本 `scripts/analyze_919_pitch_bias.py` 解析 9-19 日志的 `bias=` 轨迹): 第1投 pitch 2.75~4.81° → `fwd_bias` −0.13~−0.14m(瞄准点被推到飞机后方, > 桶半径 0.125m → 脱靶); 第2投 pitch 1.09~1.49° → `bias`≈−0.00m(命中) — 方向/量级/随 pitch 单调, 全部符合预测. **改动**: `scripts/fix_d_pitch_sign_20260920.py`(自动备份+`os.utime` 防 colcon 跳过), SITL `6c6b23c9` / fly `7d13c1a8`, 备份 `*.bak.20260920_172731_pitch_sign`, **roll 那行保持不动**(脚本内断言). **SITL 验证 14/20**(B3 0.2031m/6分 + B2 0.1499m/8分, 两次都选对桶、都走"收敛即投" 9.6/8.5cm): `aim` 对真桶只差 **0.05m/0.01m** → **瞄准几乎完美**, 落点误差几乎全是**执行抖动**(`dev=0.187m/0.147m`). ⚠️ **本轮 SITL 证明不了收益**: SITL 悬停 pitch 仅 0.1~1.3° → 幻影项只有 0.4~1.1cm; 14/20 在 d/e 历史 14~18/20 波动带内. **遗留说明**: `_roi_to_ned`/`_ned_to_expected_pixel` 无 roll 项, 但**不构成瞄准误差** —— 积分器平衡点 = "PID 报的(已 roll 补偿的)像素误差 = 0" = 飞机正在桶正上方, 反投影的 roll 残差(2°→4.2cm)被积分器吸收. **实机复飞看**: `bias=` 是否不再系统性漂到 −0.13m 量级.
+
+最新开发迭代 (2026-09-20)：
+- **归属调整 (2026-09-20 下半场, 按用户指示)**: "几何统一"那套从 d **搬到项目 e**（SITL+fly，移植脚本 `scripts/port_geom_to_e_20260920.py`），**d 已恢复到 9-19 实飞状态**（含 `DROP_ARRIVE_M=0.10`/`DROP_AFTER_DELAY=35s`）。出厂代码实测: e 组 1.5°/3.6° 均 **0.0000m** ✓, d 组回到 0.0628/0.1510m ✗ —— ~~d 想拿到这个修复只需 2 行~~ ⚠️ **该结论有误, 已在同日晚间更正为 1 行**(`ey -= FY*tan(pitch)`→`+=`; 横向那行本来就是对的, 翻它反而新增误差) — 见上方"2026-09-20 晚"。
+- **选桶"幽灵目标"根因 + 修复 (已落 e)**: 诊断日志(`TRK-DBG`/`TRK-NEW`/`TRK-PULL`)显示 **13 次新建追踪器有 8 次来自"残缺框"**(部分出画/贴边, 最小边仅 3~7px, 如 `box(cx=638,cy=3,w=3,h=6)`); 残框中心不是桶的投影中心 → 反投影偏 **0.2~3m** → 偏出 1.5m 匹配门限就自建追踪器 → 候选池多出"真桶附近的幽灵"; 而选桶只按 `|lateral|` 取前 2, **没有"两个候选必须来自不同框"的校验** → 幽灵可能占满两名(与 9-20 两轮 d 的现象一致). **修复**: ① 剔除残缺框(`min(w,h) < max(8px, 中位数×0.5)` → `DET-FILTER` 日志) ② 选桶加"共同可见"校验(追踪器 `roi_center` 两框中心像素相距 ≥25px, 凑不满就 `SELECT-HOLD` 继续搜索). 规则离线测试 `scripts/test_selection_rules.py` 用真实日志尺寸 7/7 通过; e 仿真: `DET-FILTER` 48 帧触发、`SELECT-HOLD` 0 次、选桶正确(B3+B2) → **18/20**(0.0627/8分 + 0.0273/10分); 对照同几何未修复轮 16/20(第1投 0.2575m 由 SITL 执行抖+弹道漂移造成) → **分数差不能归因于本次修复**.
+- **相机几何统一 (仅项目 d 的 SITL+fly 两份) —— 投弹 15cm 系统误差根因**: 新增 `camera_pixel_to_level/level_to_camera_pixel`, PID + `_roi_to_ned` + `_ned_to_expected_pixel` 三处共用. **根因**: 旧 PID 的俯仰补偿 `ey -= FY·tan(pitch)` **符号反了** → 系统误差 = **2·H·tan(pitch)** (实测 3.6° → **15.1cm** = 桶半径 121%; 1.5° → 6.3cm). 与实飞 9-19 完全吻合 (第1投 pitch +3.6° → 15.1cm 脱靶 / 第2投 +1.3° → 5.4cm 命中). **验证**: 新脚本 `scripts/test_camera_geom.py` (独立真值模型 + 出厂代码实测) — d 组 1.5°/3.6° 均报 **0.0000m** ✓, **e 组仍报 0.0628/0.1510m (待同步)**. 同时落地: 释放后固定 `_drop_hold_target` (修"释放后还悬停 11s、期间被切到下一瓶补偿") + DROP 段**匹配检测年龄门控 0.5s** + 判据用未抹零残差 + 版本/源码 sha256/落点 `actual_impact=unmeasured` 日志 + buttons 兼容. 备份 `*.bak.20260920_161449_camera_geom`, 移植脚本 `scripts/port_camera_geom_to_sitl_20260920.py`. **遗留(两轮 SITL 均复现)**: 选桶把同一个桶(B3)记成两个目标(相距 1.66~1.70m) → 第二投打错桶 0 分; 与几何改动无关(≤2° 时新旧反投影等价 <0.01m), 且**实机两桶实测间距只有 1.66m → "最小间距门限"方案不可用**, 需语义级身份校验. 另实测确认**释放瞬间水平速度导致载荷漂移** (vxy=0.141m/s → 多漂 7.6cm ≈ vxy×0.5s).
+- **项目 d 收敛判据改米制 + 兜底 35s (2026-09-19)**: `DROP_ARRIVE_PX=10px`(1.2m 只等效 3.4cm) → **`DROP_ARRIVE_M=0.10`** (米制, `hypot(ex·H/FX, ey·H/FY)`); `DROP_AFTER_DELAY` 25→**35s**; 日志加 `等效地面=`/`触发方式=`. 9-19 实飞两投均"收敛即投"(3.5/3.3cm), 第二投命中.
+
+最新开发迭代 (2026-09-13)：
+- **DROP_HEIGHT 1.5 → 1.2m (同日按用户要求)**: 四份文件 (SITL+fly 的 d/e) 一起改, 备份 `*.bak.20260913_192059_dropheight12`; 「到高度切 DROP」门控随 drop_z 自动变成 **H<1.4m** (原 1.7m), 投弹判据(10px/1.5s/25s)未动。SITL 各 1 轮: **d 18/20**(0.0322m/10分 + 0.0525m/8分, 释放 err 16px/7px) = 与 1.5m 同分且 B3 改善; **e 14/20**(0.2462m + 0.0736m, 两投都走 25s 兜底) 落在仿真波动范围内。**注意**: 固定 10px 门限在 1.2m ≡ 3.4cm (1.5m 时 4.2cm) → 更严 20%, 视野覆盖降到 ±1.11m, 下洗更强; 每档仅 1 轮 2 投**样本不足以定论**。可选后续(待批): 门限改米制 `err_px·H/FX < 4cm`。
+- **实机投弹偏差 0.235m 根因与修复 (d/e SITL+fly 四份)**: 见下方"已知问题"同名条目 —— 身份锁 `geo_lock_decide` 三档策略(超门限连续 4 帧一致即重锚) + DROP 段新增像素残差积分闭环 `_servo_bias_x/y`。离线闭环仿真: 旧逻辑 0.11~0.24m 永不收敛 / 新逻辑 2.7~3.0cm、3.6~9.3s 收敛; SITL e **18/20** (B3 0.0127m / B2 0.0777m, 均优于上一轮)。
+
+最新开发迭代 (2026-08-31)：
+- [子项目 d 视觉伺服改造: 增量累加 → 锚点+反投影重建 target](docs/project_log.md#2026-08-31--子项目-d-视觉伺服改造增量累加--锚点反投影重建-targetsitl实机双版本) — 8-29 SITL 复验第一投偏 0.607m (2分): 增量伺服 `_servo_target += v·dt` 在 SITL 低速跟踪失效 (0.02 m/s 指令反偏) 下积分漂移正反馈, target 18.9s 漂 0.45m, SERVO_MAX_DRIFT=1.5m 保护未触发。修复: VISUAL_SERVO/DROP 每帧用 `_roi_to_ned()` 反投影重建 target (锚点身份锁 0.5m + 0.7/0.3 混合), 补偿移到 target 上。SITL 验证: 总分 12/20 (上轮 10/20), **横向伺服 ex -13→0px 两秒收敛零漂移** (上轮 -25→-52 发散), B2 执行精度 dev=0.051m; 残余 aim 偏差 0.1~0.2m 为单目固有 (B2 aim 偏 0.17m)。SITL+fly 双版本同步, fly 待 Jetson 编译+实飞。
+
+最新开发迭代 (2026-08-27)：
+- [子项目 d 合并 c 晚间改动: 侦察 7 子阶段 + RETURN 判稳 + LAND 限速](docs/project_log.md#2026-08-27--子项目-d-合并-c-晚间改动侦察-7-子阶段--return-判稳--land-限速) — c/d 各自只含一半最新改动 (c 有侦察重做+判稳+限速, d 有下降修复+B1补偿+日志), 按用户指示以 d 为基底合并 c 晚间全部改动。SITL 复验: B3=0.127m(8分) B2=0.036m(10分) 总分 18/20, 侦察 7 子阶段全对 (SCOUT 56.9s), RETURN 判稳 4.0s (drift 0.29m), LAND 限速 0.28m/s 无俯冲, 总时长 5'20"。SITL+fly 双版本同步, fly 待实飞。
+
+最新开发迭代 (2026-08-11)：
+- [选桶策略优化: 检测框面积排序 + 投弹高度 1.0m + 投弹前 5s 收敛 + 侦察悬停 10s](docs/project_log.md#2026-08-11--选桶策略优化--检测框面积排序--投弹高度-10m--投弹前-5s-收敛--侦察悬停-10s) — 4 项改动: (1) HOVER_SEARCH 选桶从按距离改为按检测框面积降序, Tracker 新增 area 字段 (2) DROP_HEIGHT 1.5→1.0m (3) DROP_AFTER_DELAY 0→5s 悬停收敛 (4) SCOUT_HOVER_TIME 5→10s. 4 文件同步 (final_mission + a, SITL + fly). SITL 仿真验证通过, B1=0.36m.
+
+最新开发迭代 (2026-08-09)：
+- [final_mission 坐标系重构: 绝对NED→相对home偏移 + 边界修复 + 代码审查](docs/project_log.md#2026-08-09--final_mission-坐标系重构绝对-ned--相对-home-坐标--边界修复--代码审查) — 绝对NED不可靠, 重构为相对home坐标, 边界横向推回方向修复, `_fly_toward`修复, fly版GROUND_NED_Z残留修复, SITL两轮仿真验证通过
+- [GROUND_NED_Z 硬编码修复: LAND 直飞上天 + 巡航高度投弹 + PID 不收敛](docs/project_log.md#2026-08-08--ground_ned_z-硬编码导致实机飞行严重事故-land-直飞上天--巡航高度投弹) — 实机三重故障根因分析, 3 文件 ~40 处 self.home_z 替代硬编码常量, SITL 仿真验证通过
+- [final_mission v9: 多桶追踪器 + 实机迁移 + 项目报告](docs/project_log.md#2026-08-08--final_mission-v9-多桶追踪器--实机迁移--项目报告) — 追踪器替换帧计数门控, FORWARD_DIST 修复, see.py 多桶检测, fly 完整迁移, 项目报告 587 行
+- [子项目 a: 投放区30m + 侦察区悬停 + 实机完整迁移](docs/project_log.md#2026-08-09--子项目-a-投放区30m--侦察区悬停--实机完整迁移) — 基于 final_mission v9, FORWARD_DIST=32m, SCOUT_DIST=57.5m, 投完两桶后直飞侦察区悬停 5s 返航, SITL 仿真 B3=0.03m, fly/a.py + fly/see.py 完整迁移, 评估报告交付
+
+最新开发迭代 (2026-08-07)：
+- [final_mission v8: DROP_HEIGHT 1.5m + FORWARD 过冲修复 + 边界软墙 + 零检测返航](docs/project_log.md#2026-08-07--final_mission-v8-投弹高度提升--forward-过冲修复--飞行边界软墙--零检测返航) — DROP_HEIGHT 1.0→1.5m, FORWARD 一维投影防止过冲飞走, 飞行边界 ±4m/16m 软墙, HOVER_SEARCH 零检测 5s 超时返航, B1=0.29m
+- [final_mission v7.2: CRUISE_HEIGHT 5m + 选近 2 桶](docs/project_log.md#2026-08-07--final_mission-v72-cruise_height-5m--选近-2-桶) — 5m 高空全识别 3 桶, 精度 B1=0.23m B2=0.10m B3=0.15m, 全部 <0.25m
+- [final_mission v7/v7.1: FORWARD _pub_vel + PRE_SERVO + CLIMB 优化](docs/project_log.md#2026-08-07--final_mission-v7v71-forward-_pub_vel-同步--pre_servo-替代-approach--climb-优化) — FORWARD 同步 drop_opt v4, PRE_SERVO 下降改善 pinhole 精度, CLIMB 直达下桶省时
+- [drop_opt_mission v4 / fly/drop v4: FORWARD 回退速度控制](docs/project_log.md#2026-08-07--drop_opt_mission-v4--flydrop-v4-forward-位置控制回退速度控制-v3-_pub_pos-方向错误) — v3 `_pub_pos` 方向错误, 回退 v2 `_pub_vel` 沿 heading0 直飞, SITL 验证 0.26m
+- [final_mission v6: H 估计修复 + 身份锁阈值收紧 + 漂移保护](docs/project_log.md#2026-08-07--v6-h-估计修复--选桶策略修复) — 6 文件 GROUND_NED_Z 统一, 全选围栏桶, GEO_IDENTITY_MAX 2.5→1.5m, SERVO_MAX_DRIFT 锚点保护
+- [final_mission v5: 单目标纯视觉伺服](docs/project_log.md#2026-08-07--final_mission-v5-单目标纯视觉伺服--yolo-检测器修复) — APPROACH 隔离 + VISUAL_SERVO 收敛 + 几何身份锁, B1 0.25m
+- [final_mission DESCEND 混合视觉伺服](docs/project_log.md#2026-08-06--final_mission-descend-混合视觉伺服位置控制粗导--单框触发精调) — 四轮仿真迭代对比 (v0→v3 精度 0.68→0.26m)、PX4 SITL 低速速度跟踪失败定位、ROI 去重误判修复、位置增量控制方案
+- [实机摄像头适配 640×360/85°HFOV/54°VFOV](docs/project_log.md#2026-08-06--实机摄像头适配64036085hfv54vfv-全项目同步) — 7 文件相机参数统一迁移、fly/SITL 双向同步、仿真验证通过
+- [FORWARD+HOVER_SEARCH 位置控制迁移 + PID 高度缩放](docs/project_log.md#2026-08-06--forwardhover_search-位置控制迁移--实机-overshoot-修复--pid-高度缩放) — 实机 overshoot 根因定位、FORWARD `_pub_pos`+undershoot、HOVER_SEARCH `_pub_pos`+驻留、PID height_scale、4 文件同步
+
+## 交互风格
+
+- 用中文
+- 每句话后面加上一个"喵~"，比如"关注塔菲谢谢喵~"
+
+### 视觉伺服控制架构
+
+视觉伺服任务 — 检测源发布 ROI → 任务节点 PID 像素偏差伺服 → 飞到桶正上方悬停：
+
+```
+检测源 (可替换，发布 RegionOfInterest 到 /bucket/detection)
+  │ 仿真: bucket_vision_detector (Ground Truth 投影模拟)
+  │ 实机: YOLOv8 检测节点 (摄像头图像 → bbox → ROI)
+  ↓
+/bucket/detection (RegionOfInterest)
+  ↓
+visual_servo_mission (PID 像素偏差 → 机体速度 → NED 速度，偏航锁定)
+  ↓
+/fmu/in/trajectory_setpoint (NED 速度/位置指令)
+```
+
+`visual_servo_mission.py` 11 状态机，双桶依次伺服，yaw 全程锁定。TAKEOFF→FORWARD→SEARCH(慢速前飞)→TRACK(PID像素偏差→机体速度)→DESCEND(PID水平锁定+匀速下降)→HOVER(低空悬停收敛)→DROP(调用payload_dropper)→MOVE_B2→(重复SEARCH→TRACK→DESCEND→HOVER→DROP)→RESULT→RETURN→LAND。PID: KP=0.004, KI=0.00005, KD=0.002, MAX_HORIZ_VEL=1.5。图像 640x480。
+
+检测器通过 Int32 话题切换跟踪目标（v1 用 `/bucket_target_id`，v2 用 `/bucket/target_id`，0=最大桶, 1=第二大桶）。每次只发布一个桶的 ROI 到 `/bucket/detection`。**注意：`visual_servo_mission.py` 发布的是 `/bucket/target_id`，只能配合 v2 detector 使用，与 v1 detector 的 `/bucket_target_id` 不兼容。**
+
+`payload_dropper.py` 每次 `/drop_payload` 调用释放一枚载荷（左右交替），桶1=payload_l，桶2=payload_r。
+
+**坐标系关键 Bug**：NED z 轴正值=向下。DESCEND 阶段最初写成了 `vz=-0.5`（负值=爬升），导致飞机越飞越高。修复为 `vz=0.5`。
+
+PID 参数：KP=0.004, KI=0.00005, KD=0.002，最大速度 1.5m/s。图像尺寸 640x480。
+
+`bucket_vision_detector.py` 仿真视觉检测节点。双桶位姿通过 ROS 参数 `bucket1_gz_x/y/z`、`bucket2_gz_x/y/z` + `spawn_gz_x/y/z` 配置，内部转为飞机局部 NED 坐标系（扣除 spawn 偏移），通过摄像头内参投影到虚拟图像坐标发布 `RegionOfInterest`。通过 `/bucket_target_id` 话题（Int32）切换当前跟踪目标，一次只发布一个桶的 ROI。
+
+一键启动：`bash ~/SITL/scripts/start_vision_mission.sh`（需 gnome-terminal）。
+干净启动（推荐）：`bash ~/SITL/scripts/clean_start.sh` — 自动清理残留进程 + 按正确顺序启动全部组件。
+
+### 侦察任务控制架构
+
+侦察任务 — 飞往 55m 外侦察区，逐一对 5 个白筒进行视觉伺服悬停侦察：
+
+```
+scout_detector (仿真: Ground Truth 投影, 可替换为实机 YOLOv8)
+  │  5 白筒坐标参数, /scout/target_id (Int32) 切换目标
+  ↓
+/scout/detection (RegionOfInterest)
+  ↓
+scout_mission (PID 像素偏差 → 机体速度 → NED 速度, heading 持续更新)
+  ↓
+/fmu/in/trajectory_setpoint (NED 速度/位置指令)
+```
+
+`scout_mission.py` 8 状态机，5 筒依次伺服。TAKEOFF→FORWARD(纯东方向50m，末段减速)→SEARCH(0.5m/s慢速前飞)→TRACK(PID伺服,err<40px稳定2s)→HOVER(悬停2s完成)→下一筒或RESULT→RETURN→LAND。PID 降低：KP=0.0015, KI=0.00003, KD=0.0005, MAX_HORIZ_VEL=0.6（远距离防振荡）。FORWARD 不沿 heading（heading 不稳定），`_cb_local` 持续更新 heading。
+
+### 移植到实机 YOLOv8
+
+任务节点只依赖 `/bucket/detection` (RegionOfInterest)，不关心检测来源。移植只需写 YOLOv8 检测节点（摄像头图像→YOLOv8推理→bbox→ROI）替代仿真 detector。ROI 字段：`x_offset,y_offset`=bbox左上角，`width,height`=bbox宽高。
+
+### 坐标系注意事项
+
+Gazebo 使用 x=东 y=北 z=上，PX4 NED 为 x=北 y=东 z=下。转换必须同时扣除飞机在 Gazebo 中的生成偏移 `(1.01, 0.98, 0.83)`，详见上方"坐标系"章节的公式。
+
+### QoS 注意事项
+
+PX4 通过 uxrce_dds_client 发布 `/fmu/out/*` 话题时使用 **BEST_EFFORT** 可靠性。ROS2 订阅方必须匹配，否则 DDS 层会打印 `incompatible QoS` 警告且收不到消息：
+
+```python
+from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
+qos = QoSProfile(reliability=ReliabilityPolicy.BEST_EFFORT,
+                 durability=DurabilityPolicy.VOLATILE, depth=10)
+```
+
+已验证受影响的 topic：`/fmu/out/vehicle_status_v4`、`/fmu/out/vehicle_land_detected`。`/fmu/out/vehicle_local_position_v1` 也是 BEST_EFFORT。用 RELIABLE 或默认 QoS 订阅这些 topic 都会导致消息被丢弃。
+
+`common.py` 提供了 `QOS_BE` 常量供所有节点复用，另有 `status_topic()`、`local_pos_topic()`、`land_detected_topic()`、`control_mode_topic()`、`is_armed()` 等辅助函数。
+
+### PX4 持久化状态
+
+PX4 SITL 在 `build/px4_sitl_default/rootfs/` 下缓存持久化状态（dataman、eeprom/、parameters.bson）。重启仿真时如果不清除，PX4 会恢复上次飞行位置和模式，导致飞机出现在数百米外或进入 AUTO_LAND/RTL 等不可控状态。
+
+**每次干净启动前必须删除：**
+```bash
+PX4_B=~/PX4-Autopilot/build/px4_sitl_default
+rm -f $PX4_B/dataman $PX4_B/rootfs/dataman $PX4_B/rootfs/parameters.bson
+rm -rf $PX4_B/rootfs/eeprom
+```
+
+### 已知问题
+
+- **✅ 板载启动脚本的"清理不彻底"已修 (2026-10-09 追加 33)**: 症状 = **每次 Ctrl+C 都留下一个视觉窗口**, 且 `/dev/video0` 一直被占 (下次 `see` 起不来, 此前需手动 `pkill`)。**根因** = `k.sh/l.sh/i.sh` 的 `cleanup()` 杀的是 `$SEE_PID/$DDS_PID/$K_PID`, 而这几个是**包装进程**的 PID (`ros2 run` 是 python 包装器 / `sg` 是 `sh -c` 包装器), **真节点是它们的子进程** ⇒ 子进程变孤儿 (实测 `see` 孤儿 PPID=1 挂了 38 min)。**已修** (`scripts/fix_launcher_cleanup_jetson_20261009.sh`, 幂等, 三个 launcher 都打了): ①启动时新增 `0/3 清理上次残留`, 按可执行路径清孤儿 ⇒ **不用再手动 pkill**; ②`cleanup()` 在 kill PID 后按路径补刀 (TERM→`-9`)。**通用教训**: `ros2 run X &` / `sg -c "X" &` 之后 `kill $!` **杀不到真节点** —— 要按可执行路径 `pkill -f` 才干净; 且 `pkill -f "<pattern>"` **会匹配执行它的那个 shell 自己** (本机 `bash -c` 自杀 / 远程 ssh 会话被杀 exit 255) ⇒ 清理逻辑要落成脚本文件再执行。
+- **⚠ SITL (`test_k.sh`) 会因 DDS ping 超时 + PX4 failsafe 整体失败, 这不是节点 bug (2026-10-09 追加 32)**: 症状 = 节点 `ARM OK` 后, PX4 console 打 `ERROR [uxrce_dds_client] No ping response, disconnecting` → `WARN [failsafe] Failsafe activated` → `RTL: start return at ~490 m` → 节点 30s 后 `Mode timeout` (总时长 ~29s, `Buckets dropped: 0/0`)。**同时伴随**: 1Hz 状态行在**两组不同 NED** 之间交错且任务时钟 `t` 会倒退 ⇒ 有第二路节点/位置流干扰 (残留进程)。**判据**: 若看到 `No ping response` + `RTL: start return`, 就是环境/链路问题, **不要怀疑控制逻辑**。**处置**: 先 `bash scripts/test_k.sh` 自带清理 (它已 pkill px4/gzserver/drone_drl), 但**它 step 9 只杀 agent, 会留下 PX4+gzserver+辅助节点** ⇒ 连跑多轮前建议整机重启或用 `scripts/test_k.sh` 前的彻底清理; 另注意本机 load/内存 (Chrome+DSH 常态占 2GB+)。~~`Preflight Fail: no heading reference`~~ 该 WARN 每次都出现但不阻断 (SITL 侧已实测能正常 arm+OFFBOARD)。
+- **✅ 首飞 (2026-10-09 13:11) 的 `mode_timeout` 已定性: 是机手切手操, 不是故障 (2026-10-09 追加 32, 用户现场确认)**: 现象 = 飞机在 RETURN 段"自己下降"(H 4.37→3.61, `vz=+0.80`) 然后节点报 `Mode timeout` (29.9s)。**原因**: 机手切手操 ⇒ PX4 离开 OFFBOARD ⇒ 节点失去 `armed & offboard` ⇒ 修复前只会干等 30s 报 `Mode timeout`。**不是** DDS 掉线 / **不是** failsafe / **不是** 节点 bug; 该趟 0/0 投弹的**唯一**技术原因是「桶没被确认」(见下条)。**同批改掉**: `k.py` 现在区分"从没进过 OFFBOARD"(`mode_timeout`) 与"**进过又被切走**"(打 WARN + `End reason: **offboard_lost_external**`), 并**保留自动重接管** ⇒ 下次日志一眼可辨。**仍建议起飞前 QGC 核高度基准**: 该趟 `Home: NED(1.22,5.03,**3.46**)` — 上电 EKF z 原点偏高 3.46m (相对计算不受影响, 但原点不干净)。
+- **⚠ 第二趟实飞 (2026-10-09 13:59) 的"贴地 + kill switch"**未归因**, 但**不是**控制逻辑发散; 已加 `FC()/EKF()` 观测字段 (2026-10-09 追加 34)**: 一趟确定的事实 —— ①**起飞基准正确** (起飞前静止帧 `z = -9.86/-9.87/-9.85` 与 `home_z = -9.86` 一致 ⇒ 基准就是"静止在地面"那一刻, 无偏置; 该段 H 打印 `--` 只是因为 `home_z` 要到 STABILIZE 结束才赋值) ②命令 `z*=home_z−1.2` 而实测 z 到 **−11.12**、H **1.06→1.26** 稳 3~4s ⇒ **高度环没问题, 平飞整改有效** ③**t=15.35s `armed & offboard` 变假且再没恢复** (= 机手 kill switch; 与现场"贴地/蹭地后 kill switch"逐帧吻合) ⇒ **t≥15.35 的数据是"干预后数据", 不能当"指令不被执行"的证据** ④现场目视"贴地/10 多厘米"与飞控自报 1.26m **互相矛盾** ⇒ 三候选: **①机手切手操后手动飞低** (首飞先例: 13:11 那趟 t=25.8~29.8 的 `pit=+20.2/−13.3`、`vz=+0.91` 就是手动飞行) **②飞控 failsafe** (AUTO_LAND 的签名 = 0.25~0.27m/s 匀速缓降 + 姿态几乎不动 + 水平保持, 与本趟 t=16.8~23.8 完全吻合) **③EKF 近地垂向估计偏高** (能**同时**解释"看到贴地"与"自报 1.2m 稳如泰山"; 首飞 5m 那趟自报 `H=4.88~5.10` 且现场也说"飞的还很高" ⇒ 偏置只在近地起作用, 也解释了为什么 5m 剖面从未暴露它)。
+  **下一次飞行日志直接看这几个字段** (1Hz 行尾): `n14`=OFFBOARD / `n6`=AUTO_LAND / `n2`=POSCTL(机手接管) / `n5`=RTL · `fs1`=failsafe · `d5`=kill switch (而 `d1`=摇杆手势 `d2`=RC 开关 `d3`=内部指令) · `z` 位或 `v_z` 位为 0 或 `dr1`=EKF 垂向不可信 · `dbt=`=**有下视测距时的离地真值** (本机无测距 ⇒ `--`)。
+  **三个现场 1 分钟动作**: (a) 地面 `ros2 topic hz /bucket/detections` + `ros2 topic echo --once` —— **分清"话题静默"与"模型不出框"** (两趟 `nbox>0` 均为 **0 行**, 视觉是 0 投的**直接原因**; 持续 `{"buckets":[]}` ⇒ 把 `see.py` 的 `conf 0.5` 降到 0.25 再试) (b) 命令 1.2m 悬停时用目视/卷尺对照 QGC 高度 (一次就能判定候选 ③) (c) 取飞控 ULog 看 `commander_state` / `failsafe_flags` / `estimator_status` / `vehicle_local_position` + RC 输入。
+  **低空余量**: 若确认"估计偏高"要抬 `K_FLIGHT_ALT`, **必须连 `DROP_HEIGHT` + 两瓶补偿一起重标** (1.2m 是标定的一部分, 不要只改一个)。
+  **已知小缺陷 (未改)**: `k.py` 的模式链用 `elapsed = now − self._mode_req_start` (任务开始起算), 而 WARN 文案承诺"最多再等 30s" ⇒ 若丢失发生在 t>30, 下一帧就落到 `elif elapsed > 30.0:` **立刻退出** (恢复窗口实际 = `30 − t_loss`, 本趟只有 14.65s)。
+- **⚠ 低空(1.2m)"飞不起来/贴地拖行"的真因 = 飞控高度估计近地偏高 ~0.85m, 不是节点逻辑 (2026-10-09 追加 36, 实测)**; **处置已落地 (追加 37)**: 剖面改为 **5m 巡航 → 前进 3m → 到点降到 1.2m 投弹** (`K_FLIGHT_ALT=5.0` / `PRE_SERVO_HEIGHT=DROP_HEIGHT=1.2` / HOVER_SEARCH 内限速下降), 把近地停留压到最短 —— 与 10-07 在 1.2m 投放 2/2 命中的剖面同型; 后续若仍要"全程低飞", 必须先加下视测距 (方案 B)。**原条目保留如下**: 14:41 那趟铁证 —— **电机已停(kill switch `d8`)、飞机在地面时, 飞控自报 H 仍在 12 秒里从 1.07 "降"到 0.22 (vz=+0.07)** ⇒ 这个 0.85m 是**估计自己跑的**; `EKF(1111 dr0 rst恒定 dbt=--)` ⇒ 无测距、无 z 复位 ⇒ 没有任何通道纠正气压计 (转子下洗/地面效应)。**后果**: 命令 1.2m 物理上只有 ~0.2m ⇒ 悬停推力+贴地滑行 = "拖着飞"; 而 5m 剖面把这个偏置掩盖了 (首飞自报 4.88~5.10m 且现场"飞得还很高")。 **别用常数补偿**: 10-07 同机在 H≈1.2m 投放 **2/2 命中、落点 cm 级** ⇒ 那天 H 是准的 (H 偏 0.85m 会让 `_roi_to_ned` 深度错 70%, 落点必飞出桶外) ⇒ **偏置是有条件的、跨日不同**。 **处置建议 (需用户拍板)**: A 最省 = 巡航抬到 2.0~2.5m + 只在投弹腿降到 1.2m + `see.py` `conf 0.5→0.25`; B 正解 = 加下视测距让 PX4 用测距做高度源 (届时 `dbt=` 字段直接给真值); C = 取 ULog 查 `sensor_baro`/`estimator_status`/`EKF2_HGT_REF`; D 现场 10 秒 = 悬停时目视对照 QGC 高度。**待确认**: 与 10-07 相比飞机/场地有何变化 (换电池/桨/加装件/气压计孔被挡/风)。
+- **⚠ 相机是正下视 ⇒ 1.2m 时地面只覆盖 前向 ±0.67m (2026-10-09 追加 35, 用户指正"没飞到桶上面当然没检测")**: `k.py` 的 `camera_pixel_to_level` 文档串写死 **"相机光轴=机体下"** (无安装倾角) ⇒ 覆盖 = 像素范围反算 `±(IMG_H/2)/FY·H` × `±(IMG_W/2)/FX·H`, 与 `TARGET_PLANE_H` 无关。**1.2m ⇒ 前向 ±0.672m / 横向 ±1.196m**; 5m ⇒ ±2.80m/±4.98m。⇒ **"飞不到桶附近就什么都看不到"是几何必然, 不是 see.py 故障**: 13:59 那趟 FORWARD 只走了 1.2m/3m (实飞中止点), `dist_to_target=1.8m` ⇒ 桶在视野外; 首飞 5m 覆盖 ±2.8m 能看到, 但桶仅 18~24px ⇒ `conf=0.5` 不出框 (另一条独立问题)。**现场判断口诀**: 先看日志 `dist_to_target` —— 只要 >0.7m, 桶就不可能在画面里, 此时"零检测"与视觉链路无关。
+- **✅ 视觉门 vs 到位容差死锁已修 (2026-10-09 追加 35)**: FORWARD 到位判据 `dist2d < POS_ARRIVE_DIST(0.5)` 允许飞机停在离靶点 0.30~0.50m 处, 而上轮 `K_VISUAL_GATE_M=0.30` 要求已飞 ≥ `FORWARD_DIST−0.30 = 2.70m` (离靶点 ≤0.30m) ⇒ **该 20cm 带内视觉门永不满足 ⇒ 到了也不选桶 ⇒ HOVER_SEARCH 10s 超时返航** (网格穷举: 19 个合法到位样本被挡)。**已修** (`scripts/patch_k_vis_gate_20261009.py`, 只 k): `K_VISUAL_GATE_M=0.60` (取值被几何夹死: 下界 `POS_ARRIVE_DIST=0.5` 防死锁 / 上界 `(IMG_H/2)/FY·1.2 = 0.672` 保可见, 0.60 上下各留 0.10/0.072m) + 门控加**结构性下界** `_vg_need = max(K_VISUAL_GATE_M, POS_ARRIVE_DIST)` ⇒ **数学上保证"到位 ⇒ 门必过"** (到位 ⇒ `3−a < 0.5 ≤ G`)。**教训 (通用)**: 两个独立的"阈值"若一个用于*退出*、一个用于*放行*, 必须检查二者的可行区间是否相交 —— 这次是 `0.30 < 0.50` 直接矛盾; 凡新增"必须等到 X 才允许 Y"的门, 都要问一句"X 的判据能不能在 X 之前就满足"。
+- **⚠ SITL 与实机有 3 个"环境常量"**必须**不同, 不要为了"四份一致"把它们统一 (2026-10-09 追加 30)**: `TARGET_PLANE_H` / `HFOV` / `VFOV` (+ 由 HFOV/VFOV 推导的 `FX`/`FY`) 是**由环境与仿真器决定**的, 不是由实机决定 —— **SITL = `0.0 / 85° / 54°`** (理由: `yolov8_bucket_detector._gt_ground_circles()` 把桶当"**参考平面上的圆**"投影, `dz = -drone_z` 不含桶高 ⇒ 与 `_roi_to_ned` 的平面求交**互为逆运算**; 而该检测器在 `yolov8_bucket_detector.py:261-264` **硬编码** `hfov=85°/vfov=54°` 并用 `self.fx/self.fy` 生成像素), **实机 = `−0.278 / 89.8° / 58.5°`** (静态标定)。**写错的后果**: 默认 `project_mode=ground` 下深度从 `H` 变 `H−0.278` (H=1.2 时低估 23%), 再叠加 `349.22/321.12=1.0875` 的尺度误差 ⇒ SITL 几何误差 **82 mm**, 会被误读成"标定坏了"。**机器把关**: `python3 scripts/check_drop_portability_20261009.py k l` 的 **A2 节** 用检测器真实投影 + 节点真实反投影做往返, 判据 = 平面精确 0.0 + 内参与检测器逐位相等 + 往返误差 ≤1px(量化地板)。改 SITL 侧环境常量用 `python3 scripts/patch_sitl_env_20261009.py` (只碰 SITL, 有安全闸)。**注意**: SITL 的 `Y/XF` 与实机**相同且应当相同** (机身一样), 但 SITL 裁判拿 `/drop/impact_point`(= 投放瞬间飞机坐标)当落点、不建模挂载偏置 ⇒ 飞机会"故意"偏 14.8cm(B1)/4.2cm(B2) ⇒ **SITL 分数仍被该伪影主导, 只看链路与触发, 不判精度**。
+- **历史验收脚本会"恒红", 不要误判为回归 (2026-10-09 澄清)**: 本项目每个字母的验收脚本冻结的是**该次迭代当时**的常量值。`scripts/test_i_b2_y04_20261007.py` / `test_i_b2_yneg_20261007.py` / `test_i_b2_y0_20261007.py` / `test_i_firstdrop_20261007.py` 重跑必然失败 (它们记录的是 i 的中间态, i 之后又被追加 12~19 改过) —— 4 份脚本头部已加 ⚠ 标注。**当前有效的投放判据** (改常量后请只认这几个): `test_calib_params_20261009.py` **18/18** (22 项里 4 项是 SITL 侧常量, 按侧跳过) / `test_l_target_plane_20261009.py k|l` 各 **16/16** / `test_k_dev_lever_20261008.py` **62/62** / `test_j_dev_gate_20261008.py` **40/40** / `test_ekf_tlm_20261009.py` **49/49** / `test_k_vis_gate_20261009.py` **27/27** / `test_k_stall_guard_20261009.py` **34/34** / `test_k_alt_5m_20261009.py` **50/50** (含滞后车辆模型 + 降高锚点判据) / `test_i_xf005_20261007.py` **38/38** / `test_i_hold_geom_20261007.py` **30/30** / `test_silhouette_projection_20261009.py` **28/28** / `check_drop_portability_20261009.py k l` **✓**。**判据写法建议**: 想证明"某次改动没顺手动别的常量", 请把对照基准取成**该节点的改前备份** (如 `--base` / glob `*.bak.*`), **不要**拿另一个节点 (i/j) 当基准 —— 后者会随该节点的后续迭代不断失效 (本次就有 3 个脚本栽在这上面)。
+- **⚠ `FX` 只在「see.py 裁剪后的 640×360 发布帧」里成立 ⇒ `crop_fov` 不可乱动 (2026-10-09 标定自检发现)**: `see.py` 默认 `crop_fov=True`, 比值 `r = tan(120/2)/tan(136/2) = 0.6998`, 对 1920×1080 取**中心 70%** 再 resize 到 640×360 ⇒ 发布帧的等效视场 **89.97°** (该比值作用在 ~110° 相机上; 参数名里的 `136` 是旧标签, 代码只用得到比值)。ρ 扫描实测的 `FX = 321.3 px` 反算 **89.80°**, 与 89.97° 差 0.2% ⇒ **确认标定帧 == 飞行帧**。**约束**: ① 若把 `crop_fov` 关掉, 发布帧变回相机全幅 FOV, `FX ≈ 320/tan(55°) = 224 px` (与 321.1 差 **1.43 倍**) ⇒ 落点横向偏差整体放大 43%; ② 若改 `crop_fov_old/new`, 比值变化 ⇒ 同样失效; ③ **改相机/镜头/分辨率必须重标 `FX`**。核查命令: `scripts/deploy_calib_jetson_20261009.sh --precheck` 第 1 步会打印 `crop_fov` 与实测比值的对比并在不符时报警 (代码里那个 `crop_fov_new=136` 是**错的标签**, 不必去"修"它 —— 修它会改变比值、从而破坏 FX)。**相关老问题**: 长期保留的 `HFOV=85°`(等价 `FX=349 px`) 与真值差 **8%**, 在 ρ=40cm 处就是 **3.2cm** 的固定比例误差 —— 本次标定已消掉。
+- **测量协议: 落点/偏移一律报「沿航向(前向) / 垂直航向(右向)」两个带符号分量, 不要用"左下"这类描述 (2026-09-23 起)**: 现场复盘的很多轮把一整天的时间花在把"偏右上"翻译成矢量上; 且 `_roi_to_ned` 的 `(前, 右)` 与 NED 的 `(北, 东)` 之间还夹着 `HEADING_DEG` (现场 **212.0**, 仓库基线 180.0) ⇒ 描述式真值无法直接进公式。另一个盲区: **落点"偏下"不是横向也不是纵向** —— 桶口是个圆面, 只有当落点在**桶口平面内**时偏差才有意义; 第一次落点若跳到桶外地面, 要**先按竖直投影换算到底平面**再分解。
+- **仓库里的 `fly/i.sh`、`fly/k.sh`、`fly/l.sh` 是 12 行旧占位脚本 (仍写着 `ros2 run fly f`), 不是现场启动器**: 板载真正的一键脚本是 `~/fly/i.sh` (158 行, DDS+see+watchdog+conda) 由它派生出 `~/fly/k.sh`、`~/fly/l.sh`。**若把仓库里的同名脚本 scp 上板会启动错节点** ⇒ 上板只用 `scripts/deploy_calib_jetson_20261009.sh` 里"由板载 i.sh 派生"的那套。
+- **⚠ 目标平面选错: 反投影求交平面在桶口上方 0.455m ⇒ 横向偏移被系统性低估 27.5% (2026-10-09 P0 发现并量化)**: `_roi_to_ned` 用 `H = home_z - self.z` 与像素射线求交, 该平面是**起飞原点平面**; 而相机像素对应的是**桶口** —— `worlds/i.world` 桶 `<pose>...0.25...</pose>` + `<cylinder length=0.25>` ⇒ 桶顶圆环 NED z = **0.455** (桶心 0.58 / 桶底 0.705)。SITL `home_z≈0` ⇒ 求交平面在桶口**上方 0.455m** ⇒ 估计被**低估** `H/(H+0.455)` 倍: **H=1.2m 27.5% / 1.5m 22.7% / 2.5m 15.1% / 5m 8.3%**。**误差 ∝ 离轴距离** ⇒ **闭环收敛到零时自动消失, 只有「1.2m 冻结一次 + 开环飞过去」(i 模式) 才把它 1:1 变成落点误差**: 冻结瞬间离轴 0.10~0.26m (即"首投段游走") ⇒ 落点误差 **2.8~9.0cm**, 与实测首投残余同量级, 同时解释"第 2 投通常优于第 1 投"。**为什么长期隐身**: 2026-08-31 把**仿真检测器**改成投地面平面去迁就任务节点 ⇒ 两者互为逆运算, **SITL 往返误差恒为 0** (实测 ≤0.31cm = 1px 量化)。**P0 已做 (2026-10-09)**: 检测器新增 `project_mode` (`ground` 默认 = 旧行为逐位不变 / `silhouette` = 真实圆柱轮廓, 与独立光线投射真值差 ≤1px), 让 SITL 首次能看见这一类误差 —— 验收 `scripts/test_silhouette_projection_20261009.py` **25/25** (A 回归逐位相同 / B 光线投射真值 ≤1px / C 误差量化 / D 整条发布链)。**未做**: 任务节点仍按起飞原点平面求交 (P1: 加 `TARGET_PLANE_MODE=rim`, 预期把 ∝ρ 项降到 ~10%); 释放判据仍在世界系 (P2: 改机体坐标系闭环, 同时治 `dev`)。详见 `docs/project_log.md` 2026-10-09 追加 26。
+
+- **低空 (H≈1.2m) "实时视觉闭环"不可收敛 (2026-10-08 定性, 追加 25)**: f 系"每帧重建瞄准点"的低空伺服在实机出现过 **36.1s/45.0s 兜底**(门限 5/10cm 不可达), 同时 d/e 的 26s 也是各自 25s 兜底; 机理 = ①设定点含飞机自身状态(正反馈结构) ②检测框在低空贴边被 `see.py` **只裁不剔** ⇒ 估计跳变 (12/34 次 >0.3m) ③外环有效增益 0.000378 (m/s)/px ⇒ 100px 只 3.8cm/s ⇒ 追不上自己在走的设定点。**现状规避**: i 的"1.2m 一次冻结 + 定点保持 + 停留 + 必投"把它物理切断 (12 趟实机 7~12s 收敛), 代价是 dev(参照漂移) 变开环误差。**要重新启用闭环**必须先满足三条(见追加 25 D 节), 并优先做 L1(脏估计不入环)/L3(α 软重锚) 且先在 SITL 注入漂移扫参。
+
+- **板载 `install` 副本被清空 (2026-10-07 实遇, 已修)**: 单片机 `install/fly/lib/python3.10/site-packages/fly/i.py` 变成 **0 字节** (sha `e3b0c442…`), 而 `src` 完好 ⇒ `ros2 run fly i` 直接报错退出 (飞机起不来)。**增量重编译修不好** (ament_python 按时间戳跳过拷贝: install 侧 mtime 取整秒 ⇒ 看着"比源新") ⇒ 必须 **`rm -rf build/fly install/fly && colcon build --packages-select fly`**。**起飞前 30 秒自查**: `sha256sum ~/fly/src/fly/fly/i.py ~/fly/install/fly/lib/python3.10/site-packages/fly/i.py` 两份必须相同且非 `e3b0c442…`; 另一条同样有效: 用 `ros2 run` 之外的方式 `source install/setup.bash && python3 -c "import fly.i as m; print(m.PAYLOAD_OFFSET_BODY_Y_B1, m.PAYLOAD_OFFSET_BODY_Y_B2)"`。详见 `docs/project_log.md` 2026-10-07 追加 15。
+- **`i` 的第 2 桶 refine 擦边通过 0.6m 兜底门限 (2026-10-07, 两轮 SITL 均如此)**: CLIMB 之后追踪器 id 已变, `_rebind_target_id()` 重新认领发生在 refine **结束之后** ⇒ refine 期间 `_id_ned` 无身份, 全部样本走 `POSITION_REFINE_IDENTITY_MAX=0.60` 的**兜底路径**, 而实测候选距离 **0.48 / 0.50m** (两轮) —— 只比门限小 0.1~0.12m; 高空估计再差一点就退化成「0 样本、refine 空转、沿用陈旧瞄准点」。第 1 桶不受影响 (`身份框=40/40`)。影响面: 2026-10-07 方案 A 之后保持点已不含瞄准点 ⇒ 该风险**不再直接污染落点**, 只影响冻结点前的站位与「用哪个框测桶」; 若要根治需让 refine 期间也能拿到身份 (例如 CLIMB 段保留 tracker id, 或在 refine 前先重认领)。详见 `docs/project_log.md` 2026-10-07 (追加 4)。
+
+- **cv_bridge + numpy 2.x 不兼容**：ROS2 Humble 的 cv_bridge 编译时用 numpy 1.x，与本机 numpy 2.2.6 冲突，imgmsg_to_cv2 会 segfault。用 `np.frombuffer(msg.data, dtype=np.uint8).reshape(h, w, -1)` 手动转换图像，不要 import cv_bridge。
+- **Gazebo Classic 下视 RGB 摄像头不渲染 3D 物体**：已验证 simple_rgb_cam、fpv_cam 等模型均只渲染地面平面，看不见桶或球体。深度摄像头同理。如需真实视觉需迁移到新 Gazebo 或实测。
+- **MicroXRCEAgent 在 PX4 断开后自动退出**：启动顺序必须是 agent 先于 PX4。
+- **`gz model` CLI 超时/挂起**：`gz model -i/-p/-d/-s` 全部 timeout，还会尝试在线拉取 model database（需 `GAZEBO_MODEL_DATABASE_URI=""` 禁止）。仅 `gz topic` 可用。载荷投放节点改用 `/spawn_entity` ROS2 服务。
+- **PX4 NED 原点 ≠ Gazebo 世界原点**：PX4 以飞机 Gazebo 生成点 `(1.01, 0.98, 0.83)` 为 NED (0,0,0)，而非 Gazebo 世界原点。所有 Gazebo 世界坐标转 NED 时必须扣除 `(spawn_gz_x, spawn_gz_y, spawn_gz_z)` 偏移。
+- **PX4 SITL 不加载 `libgazebo_ros_state.so`**：需在 `bucket_search.world` 中声明 `<plugin name="gazebo_ros_state" filename="libgazebo_ros_state.so"/>`。注意该插件发布到 `/model_states`（非 `/gazebo/model_states`），`drop_judge` 已适配。
+- **Gazebo Classic 嵌套模型限制**：`/delete_entity` 不支持删除嵌套模型（如 `iris_mono_cam_down::payload_l`），`/spawn_entity` 可用。
+- **PX4 SITL 需绕过 arming check**：SITL 无真实电池/安全开关，必须设置 `CBRK_SUPPLY_CHK=894281`、`CBRK_IO_SAFETY=22027`、`CBRK_USB_CHK=197848`，通过 `PX4_PARAM_<name>=<value>` 环境变量注入。
+- **PX4 拒绝在 OFFBOARD 模式下 ARM**：必须先 ARM（在 AUTO_LOITER nav=4）再切 OFFBOARD (nav=14)，顺序不可反。
+- **HOVER_SEARCH 追踪器重复计数 → 两次投弹落在同一个桶 (2026-09-12 d 仿真发现, 同日已修复 d/e 四文件)**：d 仿真一轮中 HOVER_SEARCH 选出 `NED(1.4,33.9)` 与 `NED(2.7,32.7)`，两者间距 **1.78m**，而场上任意两桶最小真实间距为 **B2–B3 = 2.24m** → 不可能是两个真实桶，即**同一物理桶被追踪器重复计数** → 两次投弹都落在 B2，裁判第 2 投被迫匹配 B3 → 2.19m/0 分，有效 **10/20**。**根因（有数据）**: 该轮 HOVER_SEARCH 期间出现 **3 个桶却检测出 5 个框 (`DETx5`)**，多出的框经 `_roi_to_ned` 得到不同 NED → 超出 NED 最近邻门限 1.5m → 生成影子追踪器; 旧确认逻辑只按时间 (连续 1.5s 被观测即确认), 飞机移动中干扰框能连续存在 → 影子 tracker 也被确认。**修复 (仅 d/e 的 SITL+fly 四份, 备份 `*.bak.20260912_164117_tracker_dedup`)**: ① 新增 `_dedup_dets()` + `DET_DUP_MERGE_DIST=0.8m` — 同帧内 NED 相距 <0.8m 的框视为同一个桶, 只保留较大框 (同帧同机位下同一个桶的两框偏差仅几 cm; 而最小真实桶间距 2.24m 即使各带 ±0.4m 噪声仍有 1.44m > 0.8m, 不会误合并真实桶); ② 新增 `TRACKER_CONFIRM_ROI_DEV=25px` — 追踪器记 `roi0`(确认起点 ROI 中心), 新观测相对 `roi0` 漂移 >25px 则**重置确认计时** (= 目标必须在画面里停住 1.5s 才算确认; 用像素漂移而非飞机速度阈值, 因为速度阈值窗口过窄: MPC 悬停漂移 0.13m/s vs 进点残余 0.36m/s)。**验证**: 离线单元测试 5/5 通过 (含"两个真实桶 + ±0.4m 噪声不被误合并"); 两轮完整 SITL — **d 得 16/20, 两次投弹落在两个不同桶 (B3 0.193m / B2 0.014m)**, e 选出两目标间距 2.25m。**未证**: 两轮都没再出现 `DETx5`, 故"该修复能否挡住 DETx5"缺一次实机/仿真复现; 且 `同帧重复框合并` 两轮各触发 0 次。**2026-09-12 晚 修订 (标定定性后)**: ② 的 `TRACKER_CONFIRM_ROI_DEV` 像素门控**已回退** —— 标定证明"影子追踪器"的根因是**仿真检测器 CPU YOLO 单帧 3.46s (0.3Hz) 导致框陈旧 1~3.5s**, 而非追踪器逻辑本身 (详见下一条); 实机 `see.py` 是 TensorRT + 10Hz (陈旧 0.1s → 跳变 3.6cm ≪ 1.5m 门限), **该机制在实机上不成立**, 门控却带来"搜索段若飞机不停稳 → 确认被推迟 → 可能凑不满 2 桶就跳过投弹"的真实风险。① 的 `_dedup_dets` 同帧去重**保留** (0.8m ≪ 最小真实桶间距 2.24m, 低风险且能挡 YOLO 同桶多框)。**回退后 d/e 的 `_update_trackers` 与 `c.py` 逐字节一致** (备份 `*.bak.20260912_180902_revert_roi_gate`)。
+- **⚠️ 仿真检测器 YOLO 跑在 CPU 上: 单帧 3.46s → 有效 0.3Hz (2026-09-12 标定实测, 影响所有 SITL 结论)**：`yolov8_bucket_detector` 的 sim 模式是"GT 圆心 → 合成图 → **真跑 YOLOv8**"(`yolo_v8/best2.pt`, **PyTorch CPU**), 每个 timer tick 都要等推理返回。实测单帧 **均值 3.457s / 最小 3.213s / 最大 3.690s → 有效 0.3Hz** (名义 `infer_hz=10`)。**后果**: 任务节点拿到的是 **1~3.5 秒前**的像素框, 却用**当前**飞机位姿反投影 → **误差 = 这期间飞机的位移**。标定工具 B 量化 (26 点网格 / 1476 帧): 悬停帧 **154/154** 满足 `|err| = pxdev · H / FX`, 即误差 **100% 来自"框不在桶的真实像素位置"**; 逐点原始数据里框的像素位置**冻结不动**而理想值在漂(飞机以 1.56m/s 移动时框 15 帧不变)。**这一个原因解释了此前所有"SITL 诡异现象"**: 瞄准误差 0.1~0.7m (0.36m/s × ~1.8s ≈ **0.65m** ✓ 正是 e run#5 第2投的偏差)、`DETx5` (3 桶出 5 框)、"同一个桶被记成两个 tracker" (每次更新飞机位移 ~0.7m ≈ 1.5m 匹配门限)。**实机不受影响**: `see.py` 是 TensorRT `d.engine` + 10Hz 节流 (实飞日志 `infer=10.0Hz`, `DETx` 每秒在变) → 陈旧仅 0.1s → 0.36m/s × 0.1s = **3.6cm, 小两个数量级**。**推论**: ① SITL 得分 (10~16/20) 被慢检测器严重低估, **不能用来判断 d/e 的精度** ② 此前针对"影子追踪器"的修复追的是**仿真幻影** ③ 要让 SITL 复盘有意义, 需给 sim 模式加"GT 直发"快通道(跳过 CPU YOLO) —— **待批准** (会改 `yolov8_bucket_detector.py`, 影响 a~e 所有项目仿真)。**工具**: `scripts/calib_offline.py` (离线数学往返, 直接 exec 真实 `_roi_to_ned`) + `scripts/calib_refproj.py` / `.sh` (仿真飞行网格采样, 输出 `/tmp/calib_refproj.{log,csv}`)。
+  **✅ 2026-09-12 晚 已修复 (用户批准)**: `yolov8_bucket_detector` 新增参数 **`sim_gt_direct`(默认 true)** — sim 模式直接把合成图算出的**圆心**当检测框发出, **跳过 CPU YOLOv8 推理** (框零延迟, timer 10Hz 真实生效); 置 `:=false` 可退回旧路径。实现: `_publish_gt_dets()` + `_show_synth()`; 框中心=投影圆心, 半边长=**投影真值半径**(不再被 `max(30,…)` 夹到 60px), 坐标 int + 裁剪, 与 YOLO 路径一致。备份 `yolov8_bucket_detector.py.bak.20260912_182249_sim_gt_direct`。
+  **修复后标定验证 (工具 B 重跑, 4864 帧)**: 横向误差 RMS **0.3359m → 0.0068m** (降 49 倍); 扣掉俯仰项后残差 RMS **0.1701m → 0.0017m** (降 100 倍, 即 **1.7mm**); 回归 `err_fwd ≈ k·tan(pitch)·H` 的 **k: 3.63 → 0.995** (俯仰项解释 99.5%); 框中心到理想像素 `pxdev` 中位 **24.0px → 0.40px**; 同点对比 (H=3.0): R=+0.5 0.164→**0.030**、R=−0.5 0.288→**0.034**、R=+1.0 0.304→**0.013**。**即修复后 SITL 里剩下的全部误差就是已知的、仿真特有的 `tan(pitch)·H` 俯仰项**, 其它一切 ≈ 0。
+- **✅ 实机投弹偏差 0.235m 的根因与修复 (2026-09-13, 实飞 `d_mission_20260913_145458/150944`)**: 两次实飞释放瞬间 `err=52/55px` → 落点偏 **0.235m**，DROP 段 25s 内 err 始终 51~95px、**从未收敛**，全靠 25s 兜底投弹。逐帧重建：**执行误差**（飞机 vs 自身上一秒目标）仅 0.02~0.11m，而**瞄准误差**（目标 vs 相机真值）始终 ≥0.23m → 是"瞄不准"而非"飞不准"。两处代码缺陷：① **身份锁** (`SERVO_GEO_LOCK_MAX=0.5`) 超门限就**硬退回锚点** → 上上条 ④ 的高度漂移被当误检 → target 永远停在 5m 时代的旧锚点；② **DROP 段像素 PID 输出 `v_fwd/v_lat` 只打日志** (`(log-only)`) → 该段是**纯反投影开环**，反投影的系统性偏置（内参/镜头/框中心定义）100% 变成投弹偏差。**修复（d/e 的 SITL+fly 四份，只动 DROP 段；e 的俯冲段仍保持 c 原样）**：① 身份锁抽成纯函数 `geo_lock_decide()` 三档 —— `dist<0.5m` 采信（与原逻辑**逐位相同**）/ `0.5~1.2m` 且**连续 4 帧一致**（相邻两帧估计相距<0.30m）→ **重锚定**（锚点同步更新）/ `>1.2m` 疑桶 → 恒用锚点永不重锚；② 新增**像素残差积分** `_servo_bias_x/y` —— 把 PID 输出的积分加在重建目标上，使 `err_px` 真正收敛到死区 → **对反投影偏置免疫，不依赖地面标定**。安全门：该帧身份锁须为 `accept/reanchor` + `err_px·H/FX < 1.0m` + **飞机水平速度 < `SERVO_BIAS_VMAX`=0.15m/s（准静止）**；积分总量上限 `SERVO_BIAS_MAX`=1.0m（饱和告警一次）；速率 2x 反除低空 `height_scale`（`sc=1.0/max(0.5,height_scale)`）并受 `MAX_HORIZ_VEL` 限幅。日志新增 **`DROP-LOCK`** 行（模式变化即打）+ 1Hz `DROP-SERVO` 行加 `lock= / dist= / bias= / pitch=`。**验证**：离线 `scripts/test_geo_lock.py`（exec 四份源码里真实的 `geo_lock_decide`/`PIDController`/常量）——四份**逐位一致**、身份锁 7 例全过（单帧 0.8m 跳变不重锚 / 2.5m 疑桶恒拒 / 来回跳不重锚 / 门限内帧与旧代码逐位等价）、**闭环仿真**（真实 PID+真实锁+反投影偏置）：旧逻辑 0.11~0.24cm 永不收敛 vs 新逻辑 **2.6~3.0cm、3.6~16s 收敛**，疑桶 2.5m 场景新旧完全一致（不被拖走）、DROP 段**属性存在性静态检查**；SITL **d 18/20**（B3 **0.1052m**/8分、B2 **0.0339m**/10分，`last_err` 0px/6px 真收敛；改动前与补丁A 均 14/20）、e 16~18/20。**本日踩的两个坑（教训）**：① 第一版积分项**没做准静止门控**，把"飞机追赶迟滞"当成反投影偏置 → d 首投 target **±0.4m 摆振**、落点 0.236m **比改动前更差** → 加 `SERVO_BIAS_VMAX` 门控 + 低空反除 3.3x→2x 后消失（**外环带宽必须显著低于内环**；离线干净一阶模型看不出这个问题）；② 门控引用的 `self.vx/self.vy` 只有 `e` 有 → d **只在真飞进 DROP 那一帧崩 `AttributeError`**（`py_compile` 抓不到），已给 d 补速度状态并加静态检查。**未做**：**重锚定路径**仅离线覆盖（SITL 反投影无偏置，恒 `accept`）；SITL 单次落点在 0.01~0.24m 随机波动（MPC 悬停极限环 ±0.13m 主导）→ **单轮 SITL 分数不能用来判断本次收益**；实机复飞看 `DROP-LOCK`/`bias=` 是否平滑收敛，地面相机标定仍建议做。**✅ 2026-09-13 端到端注入偏置验收（20/20 满分）**：给 SITL `e.py` DROP 段人为注入 **0.30m 反投影偏置**（`scripts/_tmp_bias_inject.sh apply`），完整任务 + 独立裁判 → **B3 0.0427m(10分) / B2 0.0251m(10分)**；日志可见闭环在工作：`DROP-LOCK accept dist=0.30m err=46px` → `bias` **单调**补到 (-0.18,+0.07)≈0.7×0.30m（无摆振无饱和）→ `err 76→60→46→36→30→20→12→10px`。即：0.30m 人为偏置下落点从"必偏 0.21m"变成 4.3cm/2.5cm。**同时踩到并已修**：`cp -p` 还原保留旧 mtime → **colcon 跳过安装、安装树里留着注入版**（`_tmp_bias_inject.sh` revert 已加 `touch`，四份 src↔install md5 已复验一致）。
+- **反投影数学与仿真模型的标定结论 (2026-09-12, 工具 A/B)**：① **反投影本身精确**: 俯仰=0 时"真值→检测器像素→真实 `_roi_to_ned`"往返误差 **精确 0.0000m** (H 5/3/2/1.5m × 侧偏 0~65% 半视场), 横向到 65% 半视场只有 **0.004m** → **仿真里没有畸变/比例误差**。② **唯一确定的模型偏差是俯仰项**: 误差纯纵向且 `err_fwd = tan(pitch)·H`(实测与理论逐行吻合: 5m/3°→0.2624 vs 0.2620), 关掉俯仰补偿后误差为 0 —— 因为**仿真检测器投影完全不含姿态, 而任务节点反投影做了俯仰补偿**, 两者互不为逆。**实机上节点是对的**(相机刚性随机身俯仰, 节点的一阶补偿与真实投影相符), 所以这条也是**仿真特有**。③ 整数框量化贡献 0.004~0.018m。④ 实机另有一条**独立**误差源不能靠仿真量出: 实飞日志显示同一个静止桶的反投影估计随高度单调变化 0.65m (5.16m→−4.21 / 2.8m→−4.82 / 1.5m→−4.86) —— 延迟只造成位移误差, 不会随高度单调变化, 更像**相机内参/镜头畸变标定**问题, **待实机标定**。
+- **任务结束后进程挂住 (c 起就有的遗留缺陷, e 已修复)**：`_shutdown()` 只 `timer.cancel()` + `destroy_node()`, 而 `main()` 用 `rclpy.spin(node)` —— spin 的循环是 `while executor.context.ok()`, context 不关闭就永不返回 → 打印完 `MISSION SUMMARY` 后进程挂住, `test_e.sh` 卡在第 8 步走不到打印裁判分数, 实机需手动 Ctrl+C。**❌ 错误修法**: 在 `_shutdown()`(ROS 回调内) 加 `rclpy.shutdown()` —— 仍挂住。**根因**: `rclpy/executors.py` 的 `Executor.shutdown()` 会 `self._work_tracker.wait(None)` **等当前正在执行的回调结束**, 而回调就是调用者自己 → **自死锁**。**✅ 正确修法 (仅 e, SITL + fly)**: `_shutdown()` 只置 `self.done = True`; `main()` 改用 `while rclpy.ok() and not node.done: rclpy.spin_once(node, timeout_sec=0.1)`, 循环退出后再 `destroy_node()` + `rclpy.shutdown()`, 并捕获 `KeyboardInterrupt`。**通用教训: 绝不能在 ROS 回调内调用 `rclpy.shutdown()`**。c/d 仍是旧行为 (任务结束挂住), 未改。
+- **LAND 高度回退 disarm**：PX4 自主着陆 (MAV_CMD_NAV_LAND) 后，保留高度回退 disarm 作为 SITL `vehicle_land_detected` 不可靠的兜底。**2026-09-12 子项目 e run#2 实测**: PX4 自主着陆穿过地面后悬在 `|H| ≈ 0.2~0.45m`，既未触发 `vehicle_land_detected`，高度回退判据 `|home_z - z| < 0.15` 也未能连续满足 `LAND_DWELL_TIME` → 15s 后 `End reason: land_timeout` 兜底 disarm。**着陆位置仍正常 (距 home 0.17m)**，属 SITL 自主着陆收尾行为，不是任务代码缺陷；实机复飞时留意该判据是否过严 (`fly` 版同样逻辑)。新日志的 `End reason` + 逐秒 LAND 状态行是发现该现象的关键。
+- **PX4 默认 `gazebo-classic` 使用 `empty.world` 无地面/GPS，pre_flight_checks_pass=False**：解锁被拒 "system health failures"。必须指定 `PX4_SITL_WORLD=~/SITL/worlds/xxx.world` 让传感器获得有效读数。clean_start.sh 系列脚本均通过 `PX4_SITL_WORLD` 指定了正常世界。
+- **远距离侦察筒 FOV 边界不稳定**：55m 外白筒 NED x 散布 ±1m 接近 FOV 半宽，部分筒在图像边缘检测不稳定，tracking 短暂捕获后易丢失 → 搜索超时。如需 5/5 全部命中，可缩小筒 x 散布至 ±0.5m 或降低侦察飞行高度。
+- **YOLOv8 sim 检测器 dz 限制**：检测器有 `dz < 0.3: return` 检查（桶太近/在上方则跳过）。飞机在地面静止时 NED z≈0.75m，桶需在飞机下方 ≥0.3m 才通过检查，需将检测器参数 `bucket_gz_z` 设为负值（虚拟桶位于地下）。实机无此问题。
+- **TensorRT .engine 可能缺少 class names**：导出时不嵌入 metadata 会导致 `model.names` 为空字典，此时检测器 fallback 到"任何检测结果都当桶"，非常危险。已添加 error 日志告警，但仍需确认引擎文件包含 metadata。
+- **检测框完全在图像外时产生无效 ROI**：`yolov8_bucket_detector` 中裁剪逻辑 `max(0,x1)` + `min(W-1,x2)` 在检测框完全出界时会产生 width/height ≤0 的无效 RegionOfInterest。已修复为裁剪后校验 `w<=0 or h<=0 → return None`。
+- **ground_test.world 未被 PX4_SITL_WORLD 消费**：`make px4_sitl gazebo-classic_xxx` 忽略了该环境变量，回退 empty.world（无地面 preflight 失败）。`ground_test_start.sh` 改用 drop_opt.world 规避，根因待查。
+- **YOLOv8 检测延迟 + 风力导致 TRACK 阶段 PID 振荡**：YOLOv8 sim 模式推理 ~100ms 延迟 + 风力扰动下，KP=0.006 的 PID 容易 overshoot，TRACK 阶段可能永不收敛。缓解：`track_max_time` 强制推进 + `hover_max_time` 强制投弹。彻底解决需针对 YOLOv8+风条件重新调 PID。
+- **`GAZEBO_PLUGIN_PATH` 覆盖导致 PX4 话题缺失**：手动设置该环境变量时会覆盖 `sitl_run.sh` 自动添加的系统 gazebo 插件路径，导致 ros_init/ros_state 等插件未加载。启动脚本中不设置或确保包含 `/usr/lib/x86_64-linux-gnu/gazebo-11/plugins`。
+- **多 detector 实例残留**：重复启动 `yolov8_bucket_detector` 会累积多个检测器进程，`/bucket/detection` 收到多个来源的 ROI 数据。每次测试前需 `pkill -f drone_drl` 清理。
+- **`_monitor_log` 在 home_x=None 时崩溃**：独立监视定时器可能在 home 设置前触发，`_bucket_target()` 访问 `self.home_x` 导致 `TypeError`。已加 `if self.home_x is None: return` 守卫修复。
+- **ROS2 参数整型/浮点类型不匹配**：`--ros-args -p jitter_px:=40` 将值 40 解释为 INTEGER 而非 DOUBLE，导致 `declare_parameter('jitter_px', 0.0)` 抛出 `InvalidParameterTypeException`。解决方法：确保参数值带小数点 `jitter_px:=40.0`。
+- **噪声注入器日志不可见**：`detection_noise_injector` 的 ROS2 日志输出到 stderr，`test_drop_noise.sh` 中 `tee` 只捕获 stdout。观察 FP started/ended 事件需 `2>&1` 重定向。
+- **TRACK_MAX_TIME 死代码导致无限悬停 (2026-07-26 实机发现, 已修复)**：`fly/drop.py` 实机试飞发现丢检测后飞机无限悬停直到手动 Ctrl+C。根因是 TRACK 丢检测路径中 `_handle_detect_loss()` + `return` 跳过了 `track_elapsed > self._track_max_time` 检查，60s 超时成为死代码。修复：丢检路径先检查 track_max_time 再调用 _handle_detect_loss。SITL `drop_opt_mission.py` 和实机 `fly/drop.py` 均已修复。
+- **FORWARD 确认期间持续前飞导致 overshoot (2026-07-26 分析发现, v2 架构已缓解)**：旧版 FORWARD 阶段目标确认的 1.5s 期间飞机以 0.2~0.5m/s 继续前飞，确认完成时已冲过桶 0.3~0.75m。v2 重构：FORWARD 改为纯盲飞 (沿 heading0 直飞，全程忽略检测)，目标确认逻辑移入 HOVER_SEARCH 悬停步骤 (`_fly_toward` 速度 ramp-down)，overshoot 由距离门控 + 几何一致性 + 时空确认四层门控间接缓解。
+- **PID y 轴符号反了 → 实机正反馈发散飞离目标 (2026-07-27 实机首次试飞发现, 已修复)**：SITL GT 投影 `py=CY+FY*fwd/H`（BOTTOM=前）与真实下视摄像头物理（TOP=前）约定相反。SITL 能工作是因为检测器和 PID 用了同一错误约定，接真实摄像头后 YOLO 按正确物理输出 ey，PID 反向解读 → 正反馈发散。修复：统一 10 个文件为 `TOP=前` 约定，PID `ey=CY-cy`，GT 投影 `py=CY-FY*fwd/H`。详见 [`docs/project_log.md`](docs/project_log.md#2026-07-27--pid-y-轴符号修复--图像约定统一-top前)。SITL 仿真验证通过 (TRACK 284→28px 收敛)。
+- **px_err 锁死 — YOLO 推理节流重发缓存 ROI (2026-08-01 已修复)**：YOLO 推理 10Hz 节流，跳帧时重复发布缓存 ROI，每次刷新 `_last_detect_time`，`_detect_fresh()` 永远返回 True。任务节点无法感知 ROI 数据陈旧，导致 px_err 值连续多帧完全相同 → PID 持续输出相同速度 → 飞机在错误方向加速。修复：`_cb_detect()` 中 ROI 内容去重，连续 ≥5 帧完全相同的 ROI → 不刷新时间戳 → `_detect_fresh()` 正常过期。
+- **_detect_fresh() 仅检查时间戳不检查内容变化 (2026-08-01 已修复)**：同上，ROI 内容去重已解决。
+- **广角摄像头 HOVER 低空振荡 (2026-08-01 已修复)**：KP=0.0223 在 H=3m 巡航高度表现良好，但在 H=1m 投放高度因像素/物理比增大 (1px=0.67cm vs H=3m 的 2.0cm) 导致 PID 更敏感。修复：PID 死区 DEAD_ZONE_PX=3 (≈2cm@H=1m)，误差 <3px 直接置零且不累积积分。SITL 验证：HOVER 首次实现自然收敛 (7px, < HOVER_ARRIVE_PX=7)，不再依赖 hover_max_time 强制推进。
+- **广角摄像头 YOLO 检测距离缩短 (已知, 待实机验证)**：130° HFOV 下桶在 H=3m 时半径仅 6px (60° 下 23px)，YOLOv8 可能无法可靠检测。SITL GT 投影绕过此问题 (min_circle=12px)，实机需验证。缓解：降低巡航高度、用广角数据重训 YOLO。
+- **实机 TRACK PID 振荡 (2026-08-02 已修复)**：SITL KP=0.006 在实机 5.3kg 无人机上严重振荡 (ey peak-to-peak ~500px)。修复：KP→0.0015, KI→0 (纯 PD), MAX_VEL→0.3。SITL 验证 13.8s 收敛零振荡。
+- **set_drone_params.sh inertia 标签污染 (2026-08-05 已修复)**：修复 mass 标签 bug 时的 Python 脚本用 `re.sub()` 替换所有 `<ixx>`/`<iyy>`/`<izz>` 标签，导致 imu_link 和 4 个旋翼的转动惯量被替换为 base_link 的值（旋翼 ixx 从 9.75e-07 变成 0.029，大 30000 倍）。所有仿真出现剧烈振荡。**修复**：(1) 从 `~/SITL/backups/iris_params/` 恢复首次备份的 `iris.sdf.jinja` 和 `iris.sdf`，重建 PX4；(2) 修复 `set_drone_params.sh` 脚本 — apply 和 restore 路径中 ixx/iyy/izz 改用 `replace_nth(pat, repl, content, 0)` 仅替换第 0 个出现 (base_link)，IMU 和旋翼保持不变。
+- **SITL 重机仿真不可行 (2026-08-02, 不予修复)**：Gazebo 物理参数改为 5.3kg 后，PX4 默认飞控增益无法稳定无人机 (heading 翻转、飞离 home 39m)。结论：视觉伺服外环 PID 对动力学差异不敏感，SITL 用默认 Iris 物理即可。
+- **实机 20Hz PID 高频振动 (2026-08-03 已修复)**：YOLO bbox 帧间 jitter 1-3px + 5.3kg 无人机响应慢，20Hz 控制频率激起谐振。修复：抽帧控制，TRACK=5Hz, DESCEND=4Hz, HOVER=4Hz。dt 同步缩放为 `decimation * 0.05`。SITL GT 投影无 jitter，保持 20Hz 不抽帧。
+- **气球目标被下洗气流吹动 (2026-08-03 已知, 不予修复)**：H=1m 投放高度时旋翼下洗气流使气球剧烈摆动，PID 追气球→气流改变→正反馈循环，HOVER 误差 0-212px 振荡。根因为测试替身 (气球) 物理特性，最终目标为静止桶不需修改。
+- **姿态补偿正反馈导致 SITL PID 振荡 (2026-08-04 已修复, v2 重构中选择性恢复)**：PID.compute() 中的 `ex -= FX*tan(roll)`, `ey -= FY*tan(pitch)` 姿态补偿与 GT 投影检测器形成正反馈环路。2026-08-04 修复移除了所有 `pid.compute()` 调用中的 `pitch/roll` 参数传递。v2 重构后因实机 YOLOv8 需要补偿镜头倾斜导致的像素偏移，3/4 投弹文件 (`drop_opt_mission`, `drop_opt_mission_wide`, `fly/drop`) 恢复了姿态补偿，仅 `fly/drop_wide` 保持关闭。SITL GT 投影场景姿态变化通常较小 (hover 状态)，影响可忽略。`_cb_attitude` 回调在所有文件中保留。若 SITL 出现 PID 振荡可临时移除 pitch/roll 参数调试。
+- **PX4 SITL RETURN 阶段 pitch 大幅振荡 (2026-08-04 已知, 不予修复)**：移除姿态补偿后 TRACK 阶段 PID 振荡已改善，但 RETURN 阶段仍有 ±40° pitch 振荡（PX4 内部速度控制器引起）。这是 PX4 SITL 默认飞控增益的固有限制（与已知问题"SITL 重机仿真不可行"同源），不影响视觉伺服闭环收敛和投弹精度。
+- **PX4 持久化状态未重置 → 跨仿真飞机位置错乱 (2026-08-04 测试经验)**：多轮仿真时仅 `pkill px4` 不够，必须同时删除 `build/px4_sitl_default/dataman`、`rootfs/dataman`、`rootfs/parameters.bson`、`rootfs/eeprom/`。否则 PX4 在上次任务着陆点重生（NED 偏移 ≥12m），EKF 状态与物理位置不匹配 → pitch 振幅 50° peak-to-peak。`test_drop.sh` 的清理步骤已包含此操作。
+- **drop_opt_mission 伺服振荡大规模 debug (2026-08-05 新增, 2026-08-05 已解决)**：v4/v5/v6 三轮仿真均出现所有阶段（TRACK/DESCEND/HOVER/RETURN/LAND）剧烈振荡，连 path_follow 纯位置控制也在下降阶段振荡。最初怀疑是代码问题（PID 增益、速度控制 vs 位置控制、航向漂移等），经过大量代码迭代（v3→v6）后发现问题不在代码，而是**仿真环境被破坏**。**根因**：2026-08-02 运行 `set_drone_params.sh` 修复 mass 标签 bug 时，Python 脚本中的 `re.sub(pat, repl, content)` 将所有 `<ixx>`/`<iyy>`/`<izz>` 标签（含 imu_link 和 4 个旋翼）都替换成了 base_link 的转动惯量值（ixx=0.029, iyy=0.029, izz=0.055），而原始正确值为 imu_link: ixx=1e-05, 旋翼: ixx=9.75e-07。0.005kg 的旋翼被赋予了 1.5kg 机身的转动惯量（大 30000 倍），导致电机响应极慢 → PX4 控制器输出与实际响应之间巨大延迟 → 任何高度变化都剧烈振荡发散。**修复**：从 `~/SITL/backups/iris_params/` 恢复 2026-08-02 首次备份的 `iris.sdf.jinja` 和 `iris.sdf`，重建 PX4。**教训**：`set_drone_params.sh` 的 mass 修复引入了新 bug——inertia 的 `re.sub` 替换了所有出现而非仅第一个。需要用 `replace_nth()` 函数（与 mass 处理一致）或仅修改 jinja 模板后重新生成 sdf。
+- **PX4 SITL 低速速度控制跟踪极差 (2026-08-06 发现, 已通过位置增量控制绕过)**：PID 视觉伺服输出 vy=-0.21m/s 速度指令时，PX4 SITL 实际仅移动 +0.02m/s（方向甚至反偏）。这是 SITL 速度控制器在低速段 (<0.3m/s) 的固有限制。**绕过方案**：将 PID 输出转为 NED 位置增量 (`v * dt → dx_ned`)，累加到伺服目标位置，通过 PX4 位置控制器 (`_pub_pos`) 执行移动。位置控制器跟踪可靠，`drop_opt_mission` 的 `_pub_vel` 方案能工作是因为 KP=0.006 输出约 1m/s，不在低速段。
+- **ROI 去重逻辑与视觉伺服帧间微动冲突 (2026-08-06 发现, 已修复)**：视觉伺服时帧间像素变化可能 <1px（PID 输出小 + PX4 位置跟踪平滑），原 5 帧 (0.25s) 去重窗口误判为 YOLO 节流缓存重发 → `_detect_fresh()` False → 切盲降。**修复**：去重阈值增加到 25 帧 (1.25s)，足够覆盖 YOLO 10Hz 节流又不会误伤视觉伺服的微动。
+- **实机 FORWARD 速度控制 overshoot 3m (2026-08-06 发现, 已修复)**：实机 5.3kg 试飞发现每次 FORWARD 都从 10m 冲到 ~13m。根因是速度控制 `_pub_vel` 的 ramp-down (`ratio=dist/RAMP * CRUISE_SPEED`) 在重机上 PX4 速度控制器跟踪滞后——退出 FORWARD 时实际速度仍 >1.5m/s。**修复**：FORWARD 改为 `_pub_pos` 位置控制，目标瞄近 `FORWARD_UNDERSHOOT=0.5m`，利用 MPC 自然 overshoot 刚好到桶上方。HOVER_SEARCH 同步改为 `_pub_pos` + 驻留 1.5s。
+- **HOVER 低空 PID 摇晃 (2026-08-06 发现, 已修复)**：H=1m 投放高度时像素/物理比为 H=3m 时的 3 倍，KP 不变导致有效增益翻 3 倍 → PID 过调正反馈摇晃。**修复**：`PIDController.compute()` 新增 `height_scale = H/CRUISE_HEIGHT` 参数，KP/KD 等比缩小，低空有效增益与巡航高度一致。
+- **PX4 MPC 位置控制 overshoot (2026-08-06 发现, 已缓解)**：`_pub_pos` 在远距离目标时 MPC 全速接近，SITL Iris 产生 ~1.3m overshoot。**缓解**：FORWARD 目标瞄近。drop_opt (10m) 用 0.5m undershoot，final (12.5m) 用 1.2m。重机响应慢 overshoot 天然更小，实机待验证。
+- **FORWARD `_pub_pos` 位置控制导致飞行方向错误 (2026-08-07 实机发现, 已修复)**：v3 将 FORWARD 从 `_pub_vel`(速度控制) 改为 `_pub_pos`(位置控制) 后，实机试飞发现飞行方向偏离 locked heading0。根因是 `_pub_pos` 交由 PX4 MPC 自行导航到目标坐标，MPC 路径规划可能走曲线或产生 crab angle。**修复 (v4)**: FORWARD 回退 `_pub_vel` — `vx,vy = speed*cos_h0, speed*sin_h0`，速度向量和 yaw 都用 heading0，三者严格一致，数学上不可能侧偏。方向正确 > 距离精确，惯性 overshoot 通过 CRUISE_SPEED/FORWARD_RAMP_DIST/FORWARD_DIST 调校。影响: drop_opt_mission, drop_opt_mission_wide, fly/drop, fly/drop_wide。
+- **ROI→NED 估计 H 偏差 (2026-08-07 发现, 已修复)**：任务节点 `_roi_to_ned` 用 `H = home_z - self.z`（飞机→起飞点），YOLO 检测器用 `dz = bucket_z - drone_z`（飞机→桶真实距离）。PX4 以生成点 (Gazebo z=0.83) 为 NED z=0，`home_z`≠真实地面高度，导致反投影系统性偏小 ~18%。**修复 (v6)**: 新增 `GROUND_NED_Z` 常量 (SITL=0.83, 实机=0.0)，所有高度计算改用 `GROUND_NED_Z - self.z`。影响 6 文件: final_mission, drop_opt_mission, drop_opt_mission_wide, fly/drop, fly/drop_wide。
+- **final_mission DESCEND Phase B 门控 bug (2026-08-07 发现, 已修复)**：检查 `len(_bucket_ests)==1`（视野内只剩 1 个桶）导致在 FOV 中有多桶时永远无法触发伺服。`_bucket_ests` 包含全部检测，而 `_cb_detect` 已将目标桶匹配到 `latest_roi`。**修复**: 改为检查 `latest_roi` 经 `_roi_to_ned` 后与 `_current_target_ned` 的几何距离 < `DESCEND_SERVO_GEO_MAX`。
+- **final_mission 多桶身份混淆 (2026-08-07 发现, v6 已缓解)**：几何身份锁 (NED 最近邻) 替代 nearest-center 后身份混淆大幅减少。v6 进一步收紧 GEO_IDENTITY_MAX 2.5→1.5m (< 最小桶间距 2.2m)、POSITION_REFINE_IDENTITY_MAX 2.0→1.5m。单目定位的 +-39cm 随机噪声决定了身份匹配的精度上限，无法完全消除
+- **final_mission HOVER_SEARCH 检测选择不当 (2026-08-07 发现, 已修复)**：静止状态下 `valid[0]` 取 YOLO 返回列表第一个，不保证是离图像中心最近的桶。**修复**: 改为 `min(..., key=hypot(cx-CX, cy-CY))`。
+- **final_mission 快速重搜索位置不一致 (2026-08-07 发现, 已修复)**：CLIMB 后 3 帧快速重搜给出的桶坐标与第一次 5 帧搜索偏差 1.3m。**修复**: 去掉 quick mode，CLIMB→TRACK 直接用第一次锁定的 `_target_buckets` 坐标。
+- **YOLOv8 sim 检测器 `body_fwd < -0.5` 误杀 (2026-08-07 发现, 已修复)**：下视摄像头在 H=4m 时后方可见范围约 2m，但 `body_fwd < -0.5` 门槛把 >0.5m 后方的桶全过滤了。当 drone 飞到 HOVER_SEARCH 的偏差位置时，目标桶刚好在后方被误杀 → 只能看到 1 个桶 → 身份混淆。**修复**: 删除 `yolov8_bucket_detector.py:282` 的 `body_fwd < -0.5` 门槛，下视摄像头靠像素边界检查已足够。
+- **final_mission v5 选桶策略跳过大距离桶 (2026-08-07 发现, 待改进)**：HOVER_SEARCH 按距离排序选最近 2 桶，B2 (距搜索中心 2.06m) 被排除。需改进策略覆盖所有桶 (如选完 B1 后排除已选桶附近区域强制选 B2)。
+- **DESCEND 混合伺服 nearest-center 身份混淆 (2026-08-07 发现, 已修复)**：`_cb_detect` 在 DESCEND/DROP 阶段用 nearest-center 匹配 ROI，多桶时追错目标。**修复**: v5 改为几何身份锁 + APPROACH 隔离单目标 + VISUAL_SERVO 纯伺服。
+- **VISUAL_SERVO 位置增量无界漂移 (2026-08-07 发现, v6 已修复)**：`_servo_target` 通过增量无限累加，长期伺服可能漂离原始目标。v6 新增 `SERVO_MAX_DRIFT=1.5m`，_servo_target 距 _current_target_ned 锚点超限时拉回 50%
+- **FORWARD `_pub_vel` 过冲无限飞走 (2026-08-07 发现, v8 已修复)**：`_pub_vel` 的 distance-based ramp-down 是对称的——`dist_to_target` 减小时减速、增大时加速。飞机过冲目标后 `dist_to_target` 增大 → `ratio→1.0` → 速度回 2.0m/s → 越飞越快。同时 PX4 速度控制器惯性可能跳过 `POS_ARRIVE_DIST=0.5` 退出条件。此前 v7.2 全靠运气抓到 `<0.5` 窗口。**修复 (v8)**: FORWARD 改为一维投影 `travel = (x-home_x)*cos_h0 + (y-home_y)*sin_h0` 判断过冲，`effective_dist = max(0, remain)` 非对称 ramp-down (飞过头不加速)，双重退出条件 (一维过冲 + 二维距离兜底)。影响: final_mission.py
+- **final_mission 旧 HOVER_SEARCH 门控无时间确认 (2026-08-08 发现, v9 已修复)**：旧版几何围栏+帧间稳定性+_search_good_frames 计数在 0.25s (5帧) 内即可通过，瞬时 YOLO 误检可轻松闯过。且几何围栏/距离门依赖先验位置，实机不可用。**修复 (v9)**: 引入多桶追踪器 `_update_trackers()`，每桶独立 NED 最近邻匹配 + 指数平滑位置更新，需持续观测 ≥1.5s 才确认。替换旧四层门控。影响: final_mission.py (SITL + fly)
+- **GROUND_NED_Z 硬编码导致实机 LAND 直飞上天 + 巡航高度投弹 (2026-08-08 实机发现, 已修复)**：... **修复**: 所有高度计算改用 `self.home_z`（起飞时动态记录的地面 NED z），覆盖 drop_opt_mission / drop_opt_mission_wide / final_mission 共 3 文件 ~40 处。`fly/drop.py`（实机原生）早已正确使用 `self.home_z` 不受影响。
+- **飞行边界软墙与视觉伺服互斥 → 实机任务中止 (2026-09-11 实机发现, 已按用户指示完全移除边界机制)**：实机试飞 (`d_mission_20260911_170203.log`) 中目标桶位于航向侧向 **4.21m > LATERAL_BOUNDARY 4.0m**，`_enforce_boundaries()` 触发时用 `_pub_vel` 侧推 **并 `return` 跳过整个状态机** → 视觉伺服 `_pub_pos`/收敛判定/投弹计时全部停摆 → 推回与伺服拉锯循环 → err `74→142→218px` 永不收敛（Boundary 每 1-2s 触发）→ 进 DROP 后 17s 日志中断（无投弹/返航/SUMMARY，疑人为终止保护飞机）。**修复**: **完全移除软墙机制** — 删除 `_enforce_boundaries()` 方法 + 主循环调用点 + `LATERAL_BOUNDARY`/`BOUNDARY_PUSH_SPEED` 常量 + 启动日志字段（SITL + fly 双版本，备份 `d.py.bak.20260911_183110_no_boundary`）。SITL 验证任务完整跑通 (End reason normal, 投弹 2/2, 着陆距 home 0.06m, 全程无 Boundary)。**风险**: 横向不再受限，追远侧/误检目标时飞机可能飞远，实机试飞需人工保持接管准备。
+- **边界软墙横向推回方向反了 (2026-08-09 审查发现, 已修复)**：`_enforce_boundaries()` 中 `lateral > +4m`（飞机偏右）应往左推回，但旧代码速度向量指向右侧 → 越推越远。根因是 `lateral` 计算的是机体右向分量，而推回速度 `(-sin,+cos)` 也是右向。**修复**: 两行符号对调，右超限推左 `(+sin,-cos)`，左超限推右 `(-sin,+cos)`。影响: final_mission.py (SITL + fly)。**注**: 该机制已于 2026-09-11 整体移除。
+- **`_fly_toward` fly 版距离公式被误改 (2026-08-09 审查发现, 已修复)**：fly 版 `_fly_toward()` 在相对坐标 `replace_all` 时被误改为 `hypot((x-home_x)-tx, ...)`，与 RETURN 传入的绝对 `home_x/y` 不匹配 → 距离 = `x - 2*home_x`。SITL 版未被误改。**修复**: 统一用绝对公式 `hypot(tx - self.x, ty - self.y)`。
+- **fly/final_mission.py GROUND_NED_Z 残留 (2026-08-09 发现, 已修复)**：2026-08-08 的 `GROUND_NED_Z → self.home_z` 修复遗漏了 `fly/final_mission.py`，高度计算仍用 `GROUND_NED_Z=0.0`。**修复**: ~10 处改为 `self.home_z`。
+- **PX4 本地 NED 绝对坐标不可靠 (2026-08-09 分析确认)**：EKF 原点每次上电不同 + 飞行中可能漂移 → 存储/依赖绝对 NED 坐标的导航逻辑有风险。**缓解**: final_mission 坐标系重构为相对 home 偏移 (见坐标系章节)。drop_opt_mission / fly/drop 主要用速度控制，风险较低。
+- **起飞离地瞬间自旋导致 heading0 漂移 (2026-08-10 实机发现, 已修复)**：5.3kg 重机离地瞬间地面摩擦力 + 电机转速不协调导致飞机自旋，heading 漂移 ~14°。旧逻辑在 STABILIZE 3s 后才锁 heading0（延迟锁航向），此时航向早已偏离起飞方向，整个任务飞行方向错误。**修复 (heading0_pre)**: 在 `_cb_local` 收到首帧位置时（地面静止）同时捕获 `_heading0_pre = self.heading`，STABILIZE 结束后直接使用预锁值替代 `self.heading`（当前航向）。FORWARD 阶段 yaw 命令 = heading0，PX4 自动将机头回正到正确方向。影响: final_mission (SITL + fly), a.py (SITL + fly). 备份: `*_heading0_prelock`.
+- **下降限速 bug (2026-08-15 调查, 已按用户指示回退旧代码)**：`target_z = max(pre_z, self.z - SERVO_DESCENT_SPEED*0.05)` 的 0.25m/s 限速从未生效——NED z 向下为正，`self.z - 0.0125` 增量方向反了，且阶段入口时 max() 直接选中最终高度 → 目标瞬间跳变 → PX4 全速俯冲（实机实测 0.65~1.3m/s，VISUAL_SERVO 仅 ~2s 就压到投放高度，收敛全靠 DROP_AFTER_DELAY 兜底）。两次修复尝试均失败：(1) `min(pre_z, self.z + 0.0125)` 目标锚定飞机当前 z，飞机不动则目标不动、误差无法积累，SITL 实测每桶 PRE_SERVO 卡死 120s (STEP_TIMEOUT 强制推进)；(2) 阶段入口 z + 时间锚定版未及验证。**最终回退旧 max() 行为**（b/c 全部回退），配合 DROP_AFTER_DELAY=10s 兜底 SITL 实测 18/20 分。教训: 下降目标必须独立于飞机实际位置（入口锚定或时间锚定），否则 MPC 无误差可跟。详见 [project_log 2026-08-15](docs/project_log.md)。
+- **增量伺服积分漂移 → 投弹偏 0.6m (2026-08-29 发现, 2026-08-31 已修复)**：`_servo_target += v·dt` 的增量累加是纯积分器，在 PX4 SITL 低速段（<0.3 m/s，指令甚至反偏）执行失效时，飞机追不上 → 像素误差保持 → target 继续累加 → **积分漂移正反馈**（SITL 实测 target 18.9s 漂 0.45m，飞机被漂移 target 带偏，投弹偏 0.6m/2分）。SERVO_MAX_DRIFT=1.5m 拉回阈值太宽未触发。c 项目实机横向误差大与增量漂移机制同源。**修复 (d/fly d)**: VISUAL_SERVO/DROP 每帧用 `_roi_to_ned()` 反投影重建 target（锚点身份锁 SERVO_GEO_LOCK_MAX=0.5m + 混合 SERVO_EST_WEIGHT=0.7），投放补偿移到 target 上，废弃增量累加与 SERVO_MAX_DRIFT。SITL 验证: 横向 ex -13→0px 两秒收敛、target 全程零漂移（上轮发散）；残余 aim 偏差 0.1~0.2m 为单目视觉固有（由分桶补偿承担）。
+- **检测器 sim 投影 H 与任务节点不一致 → 低空反投影系统偏差 (2026-08-31 发现, 已修复)**：`yolov8_bucket_detector` sim 投影用 `dz = bz - drone_z`（飞机→桶，含桶高 NED 0.58m），任务节点 `_roi_to_ned` 用 `H = home_z - z`（飞机→地面）——低空 H=1.7m 时投影比例偏差 **25%**，反投影把被扭曲的像素当物理位置 → 伺服假稳态偏 0.13m+。**修复**: sim 投影 `dz = -self.drone_z` 统一（实机 see.py 无投影不受影响）。监听+实验验证（真实草地背景 + YOLO）：bbox 中心与圆心偏差仅 ±2px，链路本身精确。
+- **SITL MPC 悬停漂移主导投弹残余误差 (2026-08-31 分析确认, 收敛即投缓解)**：SITL MPC 位置保持有 ~0.13 m/s 随机漂移（15s 漂 0.19m，与 RETURN 判稳 drift 0.28m 同源），伺服修正速度仅 0.005 m/s（KP×小误差×height_scale）拉不住；且 MPC 微振荡使 err 在 8px 附近来回摆，收敛判据（持续 2.5s）难以满足。**缓解**: DROP 收敛即投（`err<DROP_ARRIVE_PX(10px)` 持续 1.5s 提前投弹，25s 兜底）。SITL 投弹精度上限 ≈ 0.2-0.3m（历史 18/20 的 0.03m 为收敛顺利+漂移小的幸运样本）；实机 MPC 更稳，待实飞验证。
+- **d 独有诊断日志 aim 混用坐标系 (2026-09-11 审查发现, 已修复)**：`_drop_records["aim"]` 存相对 home 偏移、`"pos"` 存绝对 NED，相减算 dev 虚高 |home|。**关键定性**: 该字段是 d 独有日志功能（`c.py`/`fly/c.py` 中 `_drop_records`/`aim`/`MISSION SUMMARY` 计数全为 0，故 c 实机跑通与它无关）；随 d 的日志增强引入时即为相对坐标，SITL home≈0 掩盖。**修复**: aim 存绝对坐标与 pos 同系。**控制链本身无误**（c 实机验证: `_roi_to_ned` 返回相对 → `_pub_pos(home_x+tx)` 转绝对）。
+- **d 独有诊断日志 dist_to_target 混用坐标系 (2026-09-11 实机日志发现, 已修复)**：FORWARD 阶段状态行 `dist_to_target` 写作 `hypot(self.x-tx, self.y-ty)`，`self.x/self.y` 是绝对 NED 而 `_bucket_target()` 返回的是相对 home 偏移 → 显示值虚高 |home|。实机 `d_mission_20260911_170203.log` 开头显示 **72.9m**（真实剩余距离只有 33.9m），随飞行递减到 45.2m 时飞机其实已到航点。**只影响日志可读性，不影响控制**（FORWARD 实际用 `travel` 一维投影判过冲 + `dist2d` 二维兜底，两者都正确地减了 home）。**修复**: 改为 `hypot((self.x-self.home_x)-tx,(self.y-self.home_y)-ty)`（SITL + fly 双版本，备份 `d.py.bak.20260911_190448_dist_log_abscord`）。用实机日志逐行复算验证: 修复后首帧 33.9m→末帧 0.6m，与"起飞点→航点 34m 单调接近"完全吻合。
+- **选桶策略按"检测框面积降序"会选中侧向最远的桶 (2026-09-11 事故分析发现, 已改为"优先离航向中线最近")**：面积最大 ≠ 最合适。实机 `d_mission_20260911_170203.log` 中三个桶的侧向位置为 **B3 −0.42m / B2 −2.19m / B1 −4.21m**（相对 heading0 中线），按面积降序第一目标是 **B1(−4.21m)** —— 既贴着飞行边界（−4.0m，当时机制），又落在 85° 广角镜头像场边缘（定位偏差最大区，见下条），而几乎正前方的 B3(−0.42m) 反被丢弃。**修复**: `confirmed.sort(key=...)` 主键改为 `abs(-ned_x*sin(h0) + ned_y*cos(h0))` 升序（越靠中线越优先），次键保留面积降序；`_heading0` 为 None 时回退旧行为（SITL + fly 双版本，备份 `d.py.bak.20260911_193014_sel_nearest_centerline`）。用实机那三个桶回放验证: 第一目标 B1(−4.21m)→**B3(−0.42m)**，最大侧向机动 4.21m→**2.19m**。SITL 跑两轮: run1 选中 b1(lat +0.46m) 得 **10/20**（b1 在 SITL 世界里位于航点后方 2.47m → 需倒飞 1.4m 且纵向 aim 偏 0.26m）；run2 选中 b3(lat −1.26m) 得 **18/20**（aim 偏 0.057m，第二投 last_err **0px**）。**两轮共同结论: 横向 aim 偏差已很小（0.01~0.09m），残差现由纵向主导**。实机三桶纵向位置 B3 35.40 / B1 34.83 / B2 33.87m（航点 34m）→ 新策略第一目标 B3 在航点**前方**，不会出现 run1 的倒飞，**可安全带到实机**。
+- **桶位置估计随高度变化 0.65m → 高空广角边缘畸变 (2026-09-11 事故分析发现, 待地面标定确认)**：同一个静止桶，反投影估计值随飞机高度单调变化：5.16m 高 → 侧向 **−4.21m**；2.8m → **−4.82m**；1.5m → **−4.86m**。同一公式三次给出不同答案，**说明像素→物理换算存在随高度变化的系统偏差**（此判定不依赖外部真值）。最可能原因是 **85° 广角镜头在像场边缘的桶形畸变使针孔反投影偏小**：5m 高度时该桶位于半视场 **86%** 处（半视场宽 4.73m，桶偏 4.06m），1.5m 时降到 57%。**影响**: 5m 巡航高度建立的追踪器锚点系统性偏保守，会带偏选桶与伺服锚点。**待办**: 地面静态标定（飞机置于已知高度、桶置于已知侧向偏移，读 `_roi_to_ned` 输出 vs 卷尺）确定 FX/畸变修正量。
+- **收敛即投缺高度门控 → 可能高空投弹 (2026-09-11 审查发现, 已修复)**：VISUAL_SERVO 可在任意高度因收敛切 DROP（实测 H=2.23m），DROP 的 z 设定点跳变到 drop_z 后 1.5s 即可能在高空投弹。**修复**: early_ok 加 `self.z > drop_z - 0.2`（同"高度到达切 DROP"判据 H<1.7m）。修复后实测 B2 在 H=1.60m + err=8px **首次真正走通"收敛即投"**（此前数轮要么 err 超阈值、要么高度未到）。
+- **反投影伺服对检测噪声的敏感性 (2026-09-11 分析, 待实机验证)**：反投影把像素误差直接换算成位置，实机 `see.py` bbox jitter (1-3px) 会直接进入 target（增量方案的 `v·dt` 累加对噪声有积分平滑）；SITL GT 投影 ±2px 无 jitter 掩盖了此差异。已有缓解: `SERVO_EST_WEIGHT=0.7` 锚点混合 + `SERVO_GEO_LOCK_MAX=0.5` 身份锁 + 实机 PID 抽帧 4Hz。**若实飞发现 target 抖动导致跟踪不稳 → 加 target 指数低通滤波 (~3 行)**。
+- **反投影方案下 PID 参数对飞行失效 (2026-09-11 审查确认, 有意设计)**：`_pub_pos` 直接发送反投影重建的 target，PID 的 `v_fwd/v_lat` 仅用于日志（已标注 `(log-only)`）与收敛判据（只看 `err_px`，与增益无关）→ **KP_H/KI_H/KD_H/MAX_HORIZ_VEL/INTEGRAL_LIMIT 对实际飞行不再生效**，调 PID 无法改善伺服；速度上限由 PX4 MPC 参数决定。设计原因: 若让 PID 速度参与 target 构建即退化为积分器结构（8-29 偏 0.6m 事故根因）。
+- **中断仿真后 Gazebo lockstep 卡死 (2026-08-15 测试经验)**：仿真被中断后，残留环境可能使下一次启动的 Gazebo lockstep 握手卡死——PX4 仿真时钟冻结在启动瞬间（vehicle_status 的 nav_state_timestamp 不再前进）、px4 以 ~200% CPU 空转等 Gazebo、任务节点 30s 墙钟超时 "Mode timeout"（PX4 仿真时间才到 ~3s，ARM 永远来不及处理）。**修复**: 完整清理后重跑：lsof 杀端口 11345/8888 进程 + pkill px4/gzserver/gzclient/agent/drone_drl + rm /tmp/px4_lock-0 /tmp/px4-sock-0 + 删除 PX4 持久化状态（dataman/eeprom/parameters.bson）。注意 `pkill -f drone_drl` 会匹配自身命令行导致自爆，用 pgrep 确认后按 PID 杀。
+
+- **`vehicle_to_anchor` 不是脱靶量 (2026-09-24 复盘澄清)**：`>>> DROP` 行与 MISSION SUMMARY 里的 `vehicle_to_anchor` 算的是"飞机 ↔ `_current_target_ned` 锚点"的距离, 而锚点在进入 DROP 时冻结、飞机自己还在漂 (9-24 第 1 投 7.2s 内水平漂移峰峰 23.6cm), 所以 9-24 该值 0.201/0.170m 远大于真实释放相位误差 (`last_err` 7/5px = 2.60/1.78cm)。**复盘判精度请看 `last_err`/`conv_m` 与 `等效地面=`, 不要用 `vehicle_to_anchor`** (9-23 分析曾把它当"飞机偏移"用, 会高估)。
+- **N1 (投放脉冲被 RC 派生样本抢占) 在 9-24 复飞中又出现了一次, 只是没夹断脉冲 (2026-09-24)**：`9.24/log_425_2026-9-24-17-39-10.ulg` 的 `manual_control_setpoint` 在 **t=875.94** (2000µs 脉冲开始后 0.10s) 出现 **PX4 RC 派生样本** (`aux5=0.000, roll=−0.00957, yaw=+0.00238`, 与 9-19 抓到的签名完全相同), 而节点自己的样本是 `aux5=+0.833` 且三轴全零; 本次 10Hz `actuator_outputs[4]` **未抓到** 1500µs 掉线 (脉冲 875.841→876.940 完整 1.099s) ⇒ **风险仍在**: 若 Jetson 恰在释放后 0.1~0.3s 停顿, 脉冲会被拉回锁定。彻底修法仍是投放改 PX4 一等公民通道 (`MAV_CMD_DO_SET_ACTUATOR` / `PWM_AUX_FUNC`+`MAV_CMD_DO_SET_SERVO`) 或关 RC manual 输入 (`COM_RC_IN_MODE`) + 回读 PWM 校验。
+- **e 的释放判据"最坏情况会脱靶" (2026-09-24 量化, 已在项目 f 修正)**：`DROP_ARRIVE_M=0.10` ⇒ 最坏释放残差 10cm + 弹道漂移 3~7.6cm (`vxy`×0.5s) > 桶半径 12.5cm; 9-24 两次命中 (预测 5.3/5.4cm) 是"残差小 + 漂移方向恰好抵消"的结果, **不是设计保证**。项目 f 用两级判据 (Tier1 5cm+低谷+准静止 / Tier2 10cm 保底 / 35s 兜底) 解决, 见 f 章节; **e 本身按用户指示不动**。
+- **⚠️ 文档漂移 (2026-09-24 发现并就地修正)**：CLAUDE.md 的 d/e 参数块此前仍写 `DROP_HEIGHT=1.5`, 而四份代码自 2026-09-13 起已是 **1.2m**; `scripts/test_e.sh` 头部注释也仍写"投放补偿全部去掉/25s 兜底/10px 判据"(实际为两轴补偿/35s/米制 10cm) —— **e 的脚本按"e 不动"原则未改, 仅在此记录**。
+
+- **两瓶镜像挂载 ⇒ 横向瞄准补偿必须按瓶分别设, 符号相反 (2026-09-27 实飞落点定性; e/f 的 `+0.048` 对第 2 瓶是错的)**：载荷是**一左一右**挂在相机两侧 —— 第 1 瓶(先投, PWM 2000µs)在机体右侧、释放点在相机轴 **右 +5.5cm**; 第 2 瓶(后投, PWM 1000µs)在左侧、**左 −5.5cm**。而 e/f 对两瓶都用 `PAYLOAD_OFFSET_BODY_Y = +0.048`(瞄准点左移) ⇒ **第 2 瓶的补偿方向反了**, 把落点往左推了约 10cm。9-27 两次实飞的落点证明: 第 1 瓶偏右 5/8cm、第 2 瓶偏左 12/2.5cm; 由此反推所需补偿 **第 1 瓶 ≈ +11.3cm, 第 2 瓶 ≈ −2.5cm** (差值 13.8cm ≈ 两瓶间距 11cm + 动态项)。**项目 g 已按此重标**; **e/f 未改 (用户指示)**。**台架几何 (5.5cm) 与飞行反推 (~14cm) 相差 ~6~8cm** ⇒ 存在动态右偏项 (插销/摩擦侧向冲量 + 相机光轴安装偏角的模型误差) ⇒ **标定必须以实飞落点为准**。
+- **"释放相位"已经不是误差瓶颈 (2026-09-27 定量)**：9-27 四次投放的释放残差 1.4~4.2cm、弹道漂移 2~5cm、载荷摆动 (由 50Hz 力矩设定点反推) 0.7~2.6cm ⇒ **可测三项合计 ≤6cm**, 而出现了一次 12cm 脱靶 ⇒ 继续收紧 Tier1 门限/加平稳窗口的收益远小于**把两瓶的横向补偿标对**。**e#2 的脱靶就是补偿符号错的后果** (模型预测 −13.2cm vs 实测 −12cm, 误差仅 1.2cm)。
+
+### PX4 自定义模型
+
+`iris_mono_cam_down` = iris + simple_rgb_cam 下视 RGB 摄像头（物理载荷已移除）。注册新模型需改 3 个文件：`models/<name>/`(SDF+model.config)、`sitl_targets_gazebo-classic.cmake`(models 列表)、`airframes/CMakeLists.txt`(airframe 配置)。摄像头 SDF：模型级 `<pose>` 为 identity，include `<pose>` pitch=1.5708 控制朝下。当前活跃节点 `drop_opt_mission` 使用 ManualControlSetpoint AUX5 舵机投放，旧版 `payload_dropper.py` + `drop_judge.py` 的 `/spawn_entity` 虚拟载荷机制已废弃。
+
+## 项目报告索引
+
+详细开发迭代记录存放在 `docs/reports/`，按需查阅：
+
+| 日期 | 主题 | 关键结果 |
+|---|---|---|
+| 2026-06-09 | [双桶视觉伺服 v1](docs/reports/2026-06-09-visual-servo-v1.md) | 11 状态机, 双桶依次投弹, 落点 ~0.3m, 端到端 ~80s |
+| 2026-06-10 | [侦察任务](docs/reports/2026-06-10-scout.md) | 8 状态机, 5 筒逐个伺服悬停, 5/5 成功率, ~160s |
+| 2026-06-10 | [全任务串联](docs/reports/2026-06-10-full-mission.md) | 13 状态机, 投放+侦察串联, 细化计分 33 分制, 首测 16/33 |
+| 2026-06-10 | [投放精度优化](docs/reports/2026-06-10-drop-opt.md) | 单桶参数迭代, 最佳 0.21m (6分), 载荷偏移补偿探索 |
+| 2026-06-10 | [竞赛场地适配 + 蛇形侦察](docs/reports/2026-06-10-competition-field.md) | competition_field.world, 蛇形扫描 24s 替代伺服 480s, **27/33** |
+| 2026-06-11 | [A3 中心悬停 + 视觉面积排序](docs/reports/2026-06-11-a3-center-hover.md) | yolo_bucket_detector, 14 状态机, 自主选目标, 27/33 (第二目标误匹配待修复) |
+| 2026-07-22 | [地面测试 sim→实机迁移](ground_test_migration_guide.md) | 文件清单、3 终端手动启动、camera_device 直读摄像头、3 个 bug 修复 |
+| 2026-07-24 | [真实环境仿真升级](docs/project_log.md) | 风力 0.8m/s、YOLOv8检测、投放质量突变、强制投弹、坐标监视、sim→real 可迁移性 (详细记录丢失于 2026-07-27 编辑失误) |
+| 2026-07-25 | [overshoot 修复 + 随机桶验证 + 实机迁移](docs/project_log.md) | FORWARD ramp down + 确认门控 4s→1.5s + SEARCH 刹车, overshoot 2.5m→0.32m (8x), 随机桶 Mean=0.042m, 独立版 drop.py (详细记录丢失于 2026-07-27 编辑失误) |
+| 2026-07-26 | [盲降 + CLAUDE.md 精简 + fly 同步](docs/project_log.md) | DESCEND/HOVER 丢检测不可逆盲降, CLAUDE.md 617→493行, fly/drop.py 同步迁移 (详细记录丢失于 2026-07-27 编辑失误) |
+| 2026-07-26 | [drop.py DDS修复 + launch_drop.sh](docs/project_log.md) | VehicleStatus→VehicleControlMode 全面迁移, 一键启动脚本, watchdog 存活监控 (详细记录丢失于 2026-07-27 编辑失误) |
+| 2026-07-26 | [TRACK_MAX_TIME 死代码 + 门控升级 (四层+刹车+几何)](docs/project_log.md) | 实机试飞 bug 分析, 几何一致性反投影, FORWARD 确认刹车, SITL 仿真验证通过 (详细记录丢失于 2026-07-27 编辑失误) |
+| 2026-07-27 | [PID y 轴符号修复 + 图像约定统一](docs/project_log.md#2026-07-27--pid-y-轴符号修复--图像约定统一-top前) | 实机首次试飞发现正反馈发散, 根因为 SITL GT 投影与真实摄像头约定相反, 统一 10 文件为 TOP=前, SITL 验证收敛 284→28px |
+| 2026-08-03 | [PID 抽帧控制](docs/project_log.md#2026-08-03--pid-抽帧控制-实机高频抖动抑制) | TRACK=5Hz, DESCEND/HOVER=4Hz, SITL 与实机参数分离, dt 同步缩放, 气球摆动分析 |
+
+### 当前活跃版本
+
+- **drop_opt_mission v4** (`drop_opt_mission.py`): 投放精度优化, FORWARD `_pub_vel` 速度控制沿 heading0 直飞 (v3 `_pub_pos` 方向错误已回退), HOVER_SEARCH `_pub_pos`+驻留 1.5s, PID height_scale. **2026-08-08: GROUND_NED_Z→self.home_z 修复**
+- **drop_opt_wide v4** (`drop_opt_mission_wide.py`): 130° 广角版, FORWARD `_pub_vel` 同步 v4, PID ×3.72 广角补偿. **2026-08-08: GROUND_NED_Z→self.home_z 修复**
+- **fly/drop v4** (`fly/src/fly/fly/drop.py`): 实机 60° 投放, 抽帧控制 + FORWARD `_pub_vel` 速度控制 + PID height_scale. **已正确使用 self.home_z, 不受影响**
+- **fly/drop_wide v4** (`fly/src/fly/fly/drop_wide.py`): 实机 130° 广角投放, FORWARD `_pub_vel` 同步 v4
+- **v1** (`full_mission.py` + `bucket_vision_detector.py`): 硬编码航点, 双桶+侦察全任务, 27/33 稳定
+- **v2** (`full_mission_v2.py` + `yolo_bucket_detector.py`): A3 中心悬停自主选目标, 着陆改用 MAV_CMD_NAV_LAND, 着陆精度 0.167m, 总时长 214s
+- **path_follow** (`path_follow.py`): 纯位置控制轨迹复现, 零外部依赖, 9航点平滑限速, 总时长 ~120s
+- **final v9** (`final_mission.py` + `final_judge.py`): 终极项目, 多桶追踪器 1.5s 时间确认 + 检测框面积选桶 + FORWARD_DIST=12.0 + 一维投影 + 边界软墙 + 零检测返航, 12 状态机, DROP_HEIGHT=1.0m, DROP_AFTER_DELAY=5s, B1=0.028m. **2026-08-11: 面积选桶+DROP_HEIGHT 1.0+DROP_AFTER_DELAY 5s.** **2026-08-10: heading0_pre.** **2026-08-09: 坐标系重构.**
+- **fly/final_mission v9** (`fly/src/fly/fly/final_mission.py`): 实机版多桶投放, PID 抽帧 4Hz, VehicleControlMode 单源, _v1 话题, DROP_HEIGHT=1.0m, DROP_AFTER_DELAY=5s. **2026-08-11: 参数同步.** **2026-08-10: heading0_pre.** **2026-08-09: 坐标系重构.**
+- **fly/see** (`fly/src/fly/fly/see.py`): 实机多桶 YOLOv8 检测, 发布 /bucket/detections JSON
+- **a v1** (`a.py`): **子项目 a** 投放区 30m + 侦察区悬停 10s, 基于 final_mission v9, 13 状态机 (新增 SCOUT), 远边边界去除, 检测框面积选桶, DROP_HEIGHT=1.0m, DROP_AFTER_DELAY=5s, 视觉兼容 see.py. **SITL 验证: B1=0.36m.** **2026-08-11: 面积选桶+参数优化.** **2026-08-10: heading0_pre.**
+- **fly/a v1** (`fly/src/fly/fly/a.py`): 实机版 a, PID 抽帧 4Hz, VehicleControlMode 单源, _v1 话题, 侦察区悬停 10s, DROP_HEIGHT=1.0m, DROP_AFTER_DELAY=5s. **2026-08-11: 参数同步.** **2026-08-10: heading0_pre.**
+- **b v1** (`b.py`): **子项目 b** 投放区 30m + 侦察区悬停 10s, 基于 a v1, **固定航向 HEADING_DEG=92° 硬编码** (替代 heading0_pre 预锁), **分桶投放补偿 B1 -10cm / B2 +10cm** (替代单一 PAYLOAD_OFFSET_BODY_Y). **SITL 验证: B1=0.18m B2=0.09m.** **2026-08-12: 新建.** **2026-08-14: 补偿符号交换.** **2026-08-14: RETURN_SPEED=3.0.** **2026-08-14: 搜索超时转侦察.**
+- **fly/b v1** (`fly/src/fly/fly/b.py`): 实机版 b, PID 抽帧 4Hz, VehicleControlMode 单源, _v1 话题, HEADING_DEG 硬编码 + 分桶补偿. **2026-08-12: 新建.** **2026-08-14: 补偿符号交换.** **2026-08-14: RETURN_SPEED=3.0.** **2026-08-14: 搜索超时转侦察.** **2026-08-15: 回退到实飞备份版 (b.py.bak.20260814_224912), 含实机试飞参数 HEADING=54°/B1=+0.05/B2=-0.05/延迟10s.**
+- **c v1** (`c.py`): **子项目 c** 基于 b 分叉, 13 状态机 + 侦察动作 7 子阶段, DROP_HEIGHT=1.5m, FORWARD_DIST=34/SCOUT_DIST=59.5/SCOUT_EDGE_DIST=55, B1=0/B2=-0.05, DROP_AFTER_DELAY=15, 下降代码回退旧 max() 版. **2026-08-15 晚: RETURN 判稳 (漂移<0.3m/3s) + LAND 限速 0.4m/s, SITL 验证着陆距 home 0.20m, 总时长 4'30"; DROP_AFTER_DELAY 10→15 (实机伺服收敛不完).** **上午: B3=0.033m(10分) B2=0.078m(8分) 总分 18/20, 总时长 4'29". 2026-08-15: 新建.**
+- **fly/c v1** (`fly/src/fly/fly/c.py`): 实机版 c, 参数同 SITL 版 (HEADING_DEG=54° 实机场地, SCOUT_EDGE_DIST=57.0), PID 抽帧 4Hz, _v1 话题. **2026-08-15 晚: 侦察 7 子阶段 + RETURN 判稳 + LAND 限速同步, 待 Jetson 编译+实飞.**
+- **d v1** (`src/drone_drl/drone_drl/d.py`): **子项目 d** 基于 c, 下降限速修复 (PRE_SERVO/VISUAL_SERVO 时间锚定: `target_z = min(final_z, entry_z + SERVO_DESCENT_SPEED*elapsed)`), B1 补偿恢复 +0.10 (起始值待实飞校准), DROP 状态 SERVO 日志 + 投放瞬间像素误差 + 阶段切换耗时日志. **SITL 验证: B2=0.020m(10分) B3=0.122m(8分, 补偿瞄准点偏移) 总分 18/20, 总时长 4'05", VISUAL_SERVO 历史首次自然收敛 err=0px. 2026-08-15: 新建.** **2026-08-27: 合并 c 8-15 晚改动 (侦察 7 子阶段 + RETURN 判稳 + LAND 限速 + DROP_AFTER_DELAY 15), 成为全改动完整版; SITL 复验 B2=0.036m(10分) B3=0.127m(8分) 总分 18/20, 侦察 7 子阶段全对+判稳 4.0s+限速 0.28m/s, 总时长 5'20".** **2026-08-31: 视觉伺服增量累加→锚点+反投影重建 (SERVO_EST_WEIGHT=0.7/SERVO_GEO_LOCK_MAX=0.5, 废弃 SERVO_MAX_DRIFT); 检测器 sim 投影 H 统一 (dz=-drone_z, 消除桶高 0.58m 比例偏差 25%); DROP 收敛即投 (DROP_ARRIVE_PX=10px + DROP_CONVERGE_EARLY=1.5s 提前投弹, DROP_AFTER_DELAY=25s 兜底).** **2026-09-11: 代码审查修复 — aim 记录改绝对坐标 (与 pos 同系, 原相对偏移致 dev 虚高 |home|); early_ok 加高度门控 (H<1.7m, 防 VISUAL_SERVO 收敛后高空投弹); fly 缓移注释修正; 日志 v_fwd/v_lat 标 (log-only).** **最新 SITL 验证 14/20: B3=0.180m(历轮第一投最佳) B2=0.097m, "收敛即投"首次真正走通 (H=1.60m + err=8px), End reason normal.** **2026-09-11 晚: 飞行边界机制按用户指示完全移除 (实机试飞中软墙接管跳过状态机导致伺服发散/任务中止, 详见已知问题); 无边界版 SITL 验证任务完整跑通 (12/20, End reason normal, 着陆距 home 0.06m, 全程无 Boundary).** **2026-09-11 晚 2: 诊断日志 `dist_to_target` 坐标系混用修复 (绝对 self.x − 相对 target, 仅日志); 选桶策略由"检测框面积降序"改为"优先离航向中线最近" (实测事故中第一目标由侧向 −4.21m 的桶变为 −0.42m 的桶)。**
+- **fly/d v1** (`fly/src/fly/fly/d.py`): 实机版 d, 改动同 SITL 版 (下降限速+B1补偿+日志+侦察 7 子阶段+RETURN 判稳+LAND 限速), PID 抽帧 4Hz, _v1 话题, SCOUT_EDGE_DIST=57.0. **2026-08-15: 新建, 待 Jetson 编译+实飞. 2026-08-27: 合并 c 晚间改动. 2026-08-31: 反投影伺服同步, 待 Jetson 编译+实飞.**
+- **f v1** (`src/drone_drl/drone_drl/f.py`): **子项目 f** 基于 e (2026-09-24 新建, **e 一行未动**), 唯一改动 = **两级释放判据** (Tier1 `conv_m<5cm`+低谷`<=本段最小+2cm`+准静止`vxy<0.12` 确认 0.5s / Tier2 = e 旧判据 10cm 确认 1.0s 但须等过 10s / Tier3 35s 兜底), 其余与 e 完全一致。验收: `scripts/test_f_gate_logic_20260924.py` (真代码路径 5 场景全过) + `scripts/replay_f_drop_gate_20260924.py` (8 份历史实飞日志 13 投回放: Tier1 10/Tier2 1/兜底 2, 释放残差中位 9.5→4.0cm)。
+- **fly/f v1** (`fly/src/fly/fly/f.py`): 实机版 f, 与 SITL 版本判据块逐字一致 (HEADING_DEG=180.0, PID 抽帧 4Hz, `_v1` 话题), 实机启动 `bash ~/fly/f.sh`。
+- 启动 f: `bash ~/SITL/scripts/test_f.sh`
+- **g v1** (`src/drone_drl/drone_drl/g.py`): **子项目 g** 基于 f (2026-09-27 新建, e/f 不动), 唯一改动 = **两瓶横向补偿分别重标** (`Y_B1=+0.113` / `Y_B2=-0.025` 反号; XF 保持 +0.040), 依据 9-27 双航班实测落点。离线验收 `scripts/test_g_aim_comp_20260927.py`: 真实 PID 路径均衡点正确 + 四次实测落点回放最坏 12cm→4.8cm。
+- **fly/g v1** (`fly/src/fly/fly/g.py`): 实机版 g (HEADING_DEG=180.0, PID 抽帧 4Hz, `_v1` 话题), 实机启动 `bash ~/fly/g.sh`。
+- 启动 g: `bash ~/SITL/scripts/test_g.sh`
+- 启动 drop_opt: `bash ~/SITL/scripts/test_drop.sh`
+- 启动 drop_opt_wide: `bash ~/SITL/scripts/test_drop_wide.sh`
+- 启动 v1: `bash ~/SITL/scripts/clean_start.sh`
+- 启动 v2: `bash ~/SITL/scripts/clean_start_v2.sh`
+- 启动 path_follow: `bash ~/SITL/scripts/path_follow_start.sh`
+- 启动 final: `bash ~/SITL/scripts/test_final.sh`
+- 启动 a: `bash ~/SITL/scripts/test_a.sh`
+- 启动 b: `bash ~/SITL/scripts/test_b.sh`
+- 启动 c: `bash ~/SITL/scripts/test_c.sh`
+- 启动 d: `bash ~/SITL/scripts/test_d.sh`
+
+### single_drop_mission — 单桶投弹
+
+sim/real 双模式，11 状态机，螺旋搜索 + PID 伺服 + AUX5 PWM 投放。已被 `drop_opt_mission` 取代为当前投放主力，保留作为实机 AUX5 VehicleCommand(cmd=187) 方案的参考实现。
+
+### yolov8_bucket_detector — YOLOv8 检测器 (sim/real 统一)
+
+同一推理链路，仅图像来源不同：sim→合成图像(GT投影+噪声背景+白圆)，real→真实摄像头或 ROS2 Image 话题。
+
+- 模型: `~/SITL/yolo_v8/best2.pt` (PyTorch) / `.engine` (TensorRT)，class={0: 'bucket'}
+- sim 合成: RandomState(42) 噪声背景 + 白圆(min 25px) + GaussianBlur → YOLOv8
+- 推理节流 10Hz，跳帧时重发缓存 ROI，模型预热 dummy 推理
+- 话题: `/bucket/detection` (ROI)
+- **real 模式两种摄像头接入**：
+  - 直读模式（推荐）：`camera_device:=/dev/video0`，检测器用 OpenCV 直接打开摄像头，无需 ROS2 摄像头驱动节点
+  - 话题模式：`camera_device` 留空 + `camera_topic:=/image_raw`，订阅 ROS2 话题（需额外的摄像头驱动节点如 usb_cam）
+- 参数: `conf_threshold=0.5` (实机) / `0.30` (sim), `infer_hz=10.0`, `camera_device=""` (默认空=话题模式)
+
+### path_follow — 轨迹复现
+
+4 状态机，9 航点纯位置控制，零外部依赖。机体系航点绕 heading0 旋转到 NED，yaw 锁定 heading0。
+
+**当前最优参数**：
+```
+MAX_HORIZ_SPEED=2.0  MAX_VERT_SPEED=0.35  TIMER_PERIOD=0.05
+WAYPOINTS: (35,0,-3.5,3s)→(34.5,-1,-3.5,2s)→(34.5,-1,-1,5s)→(34.5,-1,-3.5,2s)
+         →(36,0,-3.5,2s)→(36,0,-1,5s)→(36,0,-3.5,2s)→(57.5,0,-3.5,5s)→(0,0,-3.5,0s)
+CRUISE_HEIGHT=3.5  ARRIVE_DIST=0.5  HOVER_LAND_DRIFT_THRESH=0.1
+```
+
+### full_mission_v2 — v2 A3 全任务 (15 状态机)
+
+```
+KP_B=0.005  KI_B=0.00003  KD_B=0.0005  MAX_VEL_B=1.5  INT_LIMIT_B=80.0
+TRACK_ARRIVE_PX=50  HOVER_ARRIVE_PX=25  STABILIZE_TIME=3.0  DESCEND_SPEED=0.35
+HOVER_LAND_STABLE_TIME=2.0  HOVER_LAND_DRIFT_THRESH=0.1
+```
+
+### drop_opt_mission — 投放精度优化 v4 (11 状态机)
+
+单桶最简任务，专为投放精度参数迭代调优设计。v4 11 状态机：`TAKEOFF → STABILIZE → FORWARD → HOVER_SEARCH → TRACK → DESCEND → DROP → CLIMB → RETURN → LAND`（DESCEND 到投放高度直接投弹，跳过 HOVER 收敛等待）
+
+**v2 核心改动** (2026-08-05)：
+- **起飞前预锁航向**: 收到首帧位置时在地面捕获 `heading0_pre`，STABILIZE 结束后直接使用预锁值，而非当前航向。避免起飞瞬态自旋（地面摩擦/电机不协调）导致 heading0 漂移
+- **盲飞 FORWARD**: 基于 locked heading0 直飞正前方，全程忽略视觉检测，保证飞行轨迹笔直
+- **到点搜索 HOVER_SEARCH**: 到达目标点悬停后才开始接收检测 + 四层门控确认。连续 10s 无有效目标 → 自动返航，不浪费时间
+- **Yaw 分层**: 盲飞阶段 (TAKEOFF/STABILIZE/FORWARD/HOVER_SEARCH/CLIMB/RETURN/LAND) yaw=heading0 保方向准确；视觉伺服阶段 (TRACK/DESCEND/DROP) yaw=live heading 不干扰 PID
+
+**v3 核心改动** (2026-08-06, **FORWARD `_pub_pos` 方向错误已于 v4 回退**)：
+- ~~**FORWARD 位置控制**: 从 `_pub_vel`(手动 ramp-down) 改为 `_pub_pos`(PX4 MPC 自动刹车)~~ — 实机发现方向错误, 已回退
+- **HOVER_SEARCH 位置控制**: 从 `_fly_toward`+`_pub_vel` 改为 `_pub_pos`。新增 `HOVER_SEARCH_SETTLE_TIME=1.5s` 驻留等 MPC 初始刹车，剩余由四层门控自然过滤
+- **PID 高度缩放**: `height_scale = H/CRUISE_HEIGHT`，KP/KD 等比缩小。低空 (H=1m) 有效增益缩小为 1/3，消除像素/物理比变化导致的 PID 过调摇晃
+
+**v4 核心改动** (2026-08-07) — FORWARD 方向修复：
+- **FORWARD 回退 `_pub_vel`**: 实机试飞发现 v3 `_pub_pos` 飞行方向错误，回退到 v2 方案：`vx,vy = speed*cos_h0, speed*sin_h0`，速度向量直接由 heading0 的 cos/sin 算出，**速度方向=yaw 方向=heading0 严格一致，数学上不可能侧偏**
+- **保留 v3 其余改进**: GROUND_NED_Z、HOVER_SEARCH `_pub_pos`+SETTLE_TIME、PID height_scale、DESCEND 直达 DROP、抽帧控制全部保留
+- **方向正确 > 距离精确**: 惯性导致的 overshoot 通过 `CRUISE_SPEED`/`FORWARD_RAMP_DIST`/`FORWARD_DIST` 调校，先保证飞对方向
+
+**关键设计** (保留自 v1)：
+- **投放**: ManualControlSetpoint.aux5 200Hz，LOCK=0.0(1500us)/DROP=0.833(2000us) 保持1s
+- **姿态补偿**: 启用。实机 YOLOv8 真摄像头需要补偿镜头倾斜导致的像素偏移
+- **四层门控**: (1)检测新鲜度 (2)距离门<3m (3)几何一致性 ROI→NED<1.5m (4)时空确认 1.5s ROI漂移<120px
+- **DESCEND 直达 DROP**: 到达投放高度即刻投弹，不做 HOVER 低空等待
+- **丢检测盲降**: DESCEND 丢检≥3s 盲降到投放高度→直接 DROP
+- **TRACK_MAX_TIME**: 丢检测路径先检查超时再处理丢检，防止死代码
+- **着陆**: PX4 自主着陆 MAV_CMD_NAV_LAND + 高度回退 disarm 兜底
+- **ROI 内容去重**: 连续≥5帧相同 ROI→YOLO 节流重发缓存→不刷新时间戳
+
+启动：
+- 标准仿真 `bash ~/SITL/scripts/test_drop.sh`
+- 实机 `bash ~/SITL/scripts/real_drop_start.sh`
+
+**当前最优参数** (v4 2026-08-08, GROUND_NED_Z 已修复为 self.home_z, SITL 仿真验证通过)：
+```
+# GROUND_NED_Z 已废弃 — 所有高度计算改用 self.home_z (起飞时动态记录的地面 NED z)
+CRUISE_HEIGHT=3.0  DROP_HEIGHT=1.0  FORWARD_DIST=10.0
+# FORWARD (v4: _pub_vel 速度控制, 沿 heading0 直飞)
+CRUISE_SPEED=2.0  FORWARD_RAMP_DIST=3.0  FORWARD_MIN_SPEED=0.5
+# PID (纯 PD, height_scale=H/CRUISE_HEIGHT 低空等比缩小)
+KP_H=0.0015  KI_H=0.0  KD_H=0.001  MAX_HORIZ_VEL=0.3  INTEGRAL_LIMIT=0.0
+DEAD_ZONE_PX=5.0
+TRACK_ARRIVE_PX=40.0  STABILIZE_TIME=5.0
+TRACK_MAX_TIME=60.0
+# HOVER_SEARCH
+HOVER_SEARCH_TIMEOUT=10.0  HOVER_SEARCH_SETTLE_TIME=1.5
+# 四层门控 (新鲜度+距离+几何一致性+时空确认)
+TRACK_ENTRY_DIST_MAX=3.0  TRACK_ENTRY_CONFIRM_TIME=1.5  TRACK_ENTRY_ROI_DRIFT=120.0
+TRACK_ENTRY_GEO_ERR_MAX=1.5
+STABILIZE_LOST_FRAMES_MAX=10
+DESCEND_SPEED=0.25
+HOVER_VZ_KP=0.8  TRACK_VZ_KP=0.5  CLIMB_VZ=-0.8
+DETECT_TIMEOUT=3.0  STEP_TIMEOUT=120.0
+POS_ARRIVE_DIST=0.5  LAND_DWELL_TIME=3.0
+PAYLOAD_OFFSET_BODY_Y=0.0  DROP_AFTER_DELAY=5.0
+AUX5_LOCK=0.0(PWM1500us)  AUX5_DROP=0.83333(PWM2000us)  AUX5_DROP_HOLD=1.0  MANUAL_TIMER_PERIOD=0.005(200Hz)
+STABILIZE_HOVER_TIME=3.0  TAKEOFF_CLIMB_RATE=0.8
+# 相机参数 (2026-08-06 实机适配: 640x360 16:9, 85°HFOV/54°VFOV)
+IMG_W=640 IMG_H=360 CX=320 CY=180 HFOV=85° VFOV=54° FX≈349 FY≈353
+# PID height_scale: KP/KD *= H/CRUISE_HEIGHT, 低空自动缩小防摇晃
+# FORWARD (v4): _pub_vel 速度控制, vx,vy=speed*cos_h0,speed*sin_h0 沿 heading0 直飞
+# HOVER_SEARCH: _pub_pos 位置控制 + 驻留 1.5s 等 MPC 收敛
+# Yaw 策略: 盲飞阶段 yaw=heading0; 视觉伺服阶段 yaw=live heading
+# SITL vs 实机差异: 话题后缀 _v4/_v1 + xy_valid + ARM/OFFBOARD 检测源
+```
+
+### 确认系统架构 (v4 四层门控 + 收敛确认)
+
+```
+v4 流程:
+  TAKEOFF (位置保持 → 竖直爬升) → STABILIZE (悬停 3s → 锁 heading0/home)
+  → FORWARD (_pub_vel 速度控制沿 heading0 直飞, ramp-down 刹车, 忽略检测)
+  → HOVER_SEARCH (_pub_pos 位置保持 + 驻留 1.5s 等 MPC 收敛 → 开始四层门控搜目标)
+
+HOVER_SEARCH (驻留 1.5s 后开始门控):
+  │
+  ├─ 第 1 层: _detect_fresh() — ROI 时间戳 < 3s
+  ├─ 第 2 层: 距离门 — dist_to_bucket < TRACK_ENTRY_DIST_MAX (3m)
+  ├─ 第 3 层: 几何一致性 — ROI→NED 反投影与桶期望位置偏差 < 1.5m
+  │     _roi_to_ned(): cam_right=(cx-CX)*H/FX, cam_fwd=(cy-CY)*H/FY
+  │     → _body_to_ned(cam_fwd, cam_right) → 与 _bucket_target() 比较
+  ├─ 第 4 层: _confirm_detection_stable() — ROI 漂移<120px 持续≥1.5s
+  │
+  ▼ 切入 TRACK
+  │
+  └─ 收敛确认: 稳定器迟滞 err<40px 持续 5s (STABILIZE_LOST_FRAMES_MAX=10 帧容错)
+        ├─ track_max_time=60s 强制 DESCEND (丢检路径也检查, 已修复死代码)
+        ▼
+     DESCEND (水平伺服 + 匀速下降, PID height_scale 缩放增益)
+        │ z > drop_z - 0.2 → 直接 DROP (跳过 HOVER 收敛等待)
+        ▼
+     DROP (高度保持 + AUX5 投放 1s) → CLIMB → RETURN → LAND
+
+HOVER_SEARCH 10s 内无有效目标 → RETURN → LAND (自动返航)
+```
+
+### 几何一致性反投影原理
+
+单目摄像头 + 已知高度 → 可恢复水平位置（含 pitch 补偿）：
+
+```
+H_eff = H / cos(pitch)                                   ← 有效斜距
+pitch_shift_px = FY × tan(pitch)                         ← 前倾→光轴地面点像素下移
+cam_right = (cx - CX) × H_eff / FX                       ← 桶在机体右侧多少米
+cam_fwd   = (CY + pitch_shift_px - cy) × H_eff / FY      ← 桶在机体前方多少米
+dx, dy = _body_to_ned(cam_fwd, cam_right)                ← 机体 → NED 旋转
+桶估计 NED = (飞机NED_x + dx, 飞机NED_y + dy)
+
+误差 = hypot(估计 - 期望) > TRACK_ENTRY_GEO_ERR_MAX → 拒绝
+```
+
+其中 H = home_z - self.z (离地高度, NED z+ 向下)。H < 0.3m 或 cos(pitch) < 0.5 时跳过检查。
+
+
+### final_mission — 终极项目 v9 (12 状态机, 多桶追踪 + 纯视觉伺服)
+
+`final_mission.py` 从 `drop_opt_mission.py` 升级改造。12 状态机: TAKEOFF→STABILIZE→FORWARD→HOVER_SEARCH→TRACK→POSITION_REFINE→PRE_SERVO→VISUAL_SERVO→DROP→CLIMB→RETURN→LAND。
+
+**v9 最终状态 (2026-08-08, 2026-08-10 heading0_pre)**:
+- **heading0 起飞前预锁**: `_cb_local` 首帧地面静止时捕获 `heading0_pre`，STABILIZE 后直接使用预锁值。避免起飞瞬态自旋导致飞行方向偏差
+- **多桶追踪器**: 每个候选桶独立时间确认 ≥1.5s，防御瞬时 YOLO 误检。替换旧 0.25s 帧计数+几何围栏方案
+- **FORWARD_DIST=12.0**: 预设 0.5m undershoot，利用 PX4 MPC 自然过冲到达矩形中心 (NED y=12.5)。SITL 验证: travel 13.0→12.5m
+- **DROP_HEIGHT=1.0m**: 减少下洗气流干扰和碰撞风险
+- **FORWARD 一维投影+方向感知 ramp-down**: `travel` 标量投影判断过冲，`effective_dist = max(0, remain)` 非对称减速
+- **飞行边界软墙**: 横向 ±4m + 前向 16m，超限 0.5m/s 温和推回
+- **HOVER_SEARCH 零检测返航**: 连续 5s 无任何检测 → RETURN
+- **CRUISE_HEIGHT=5.0m**: 扩大 FOV, 3 桶全可见
+- **FORWARD `_pub_vel`**: 速度控制沿 heading0 直飞, 方向=yaw=heading0 严格一致
+- **PRE_SERVO + VISUAL_SERVO**: 下降到 2.5m 低空 pinhole 精度 → 单目标纯 PID 像素伺服
+- **几何身份锁**: GEO_IDENTITY_MAX=1.5m，NED 最近邻防多桶身份混淆
+- **漂移保护**: SERVO_MAX_DRIFT=1.5m, 超限拉回 50%
+- **PID 抽帧 (实机)**: SERVO=4Hz, DROP=4Hz, dt 同步缩放
+- **CLIMB 直达**: 投完直接飞下一桶，不回中心
+
+**环境**: worlds/final.world, 3 个相同红桶在 8m×5m 矩形区域内。飞机 heading0≈92° (纯东)。
+
+**核心架构 (v9)**:
+
+```
+_cb_detect (每帧) → _update_trackers()
+  ├─ 检测 → NED 最近邻匹配已有追踪器 (<1.5m)
+  ├─ 匹配: 指数平滑更新位置 + 刷新时间 + 检查确认
+  ├─ 已追踪 ≥1.5s → confirmed = True
+  └─ 超时 >2s → 清理
+
+HOVER_SEARCH (驻留 1.5s 等 MPC 收敛 + 追踪器积累)
+  → 已确认追踪器 ≥2 → 按检测框面积降序选最大 2 个 → TRACK
+  → TRACK (_pub_pos 位置控制飞向锁定坐标)
+  → POSITION_REFINE (悬停 2s, 几何身份锁修正桶坐标)
+  → PRE_SERVO (匀速下降 0.25m/s 到 2.5m, 低空更新桶 NED)
+  → VISUAL_SERVO (单目标纯 PID 像素伺服, 4Hz 抽帧)
+       │  PID(roi) → v_fwd,v_lat×dt → servo_target += delta → _pub_pos
+       │  收敛: err<8px 持续 2.5s → DROP
+       │  漂移保护: SERVO_MAX_DRIFT=1.5m 拉回 50%
+       ▼
+  → DROP (继续伺服 + AUX5 舵机投放)
+  → CLIMB → 下一桶 TRACK (不返回中心)
+  → RETURN → LAND
+
+所有飞行阶段持续受 _enforce_boundaries() 软墙保护
+HOVER_SEARCH 连续 5s 零检测 → 自动 RETURN
+```
+
+**关键设计原则 (v8)**:
+- **FORWARD 一维投影**: 用标量投影代替二维距离判断过冲和 ramp-down，区分方向（接近 vs 远离目标）
+- **飞行边界软墙**: 温和推回 (0.5m/s) 优于硬边界返航——不会因瞬间越界浪费整次飞行
+- **零检测返航**: 搜索阶段 5s 无目标自动返航，避免无限等待或误飞
+- **几何身份锁全程使用**: `_cb_detect` 在 `_current_target_ned is not None` 时遍历所有检测找 NED 最接近目标的 ROI，不再用 nearest-center。消除多桶身份混淆
+- **位置控制粗导 + 伺服精调**: POSITION_REFINE 修正定位偏差 → PRE_SERVO 位置保持下降 → VISUAL_SERVO 单目标收敛
+- PID → 位置增量 → `_pub_pos`，绕过 PX4 SITL 低速速度跟踪问题
+
+**v9 新增改动 (2026-08-08)**:
+- **多桶追踪器**: `_update_trackers()` 每帧 NED 最近邻匹配，持续 ≥1.5s → confirmed。替换旧的几何围栏+帧间稳定性+帧计数方案
+- **FORWARD_DIST**: 12.5→12.0，预设 0.5m undershoot 利用 PX4 MPC 自然过冲到达矩形中心
+- **实机迁移**: fly/final_mission.py + fly/see.py (多桶检测) + fly/final.sh (一键启动) + fly/setup.py (入口点)
+
+**v8 新增改动 (2026-08-07)**:
+- **DROP_HEIGHT**: 1.0→1.5m
+- **FORWARD 过冲修复**: 一维投影 + 方向感知 ramp-down + 双重退出条件
+- **`_enforce_boundaries()`**: 飞行边界软墙
+- **HOVER_SEARCH 零检测超时**: >5s → RETURN
+
+**启动**：
+- SITL: `bash ~/SITL/scripts/test_final.sh`
+- 检测器: `yolov8_bucket_detector` (bucket_count:=3, conf_threshold:=0.3)
+
+**仿真验证 (v9, 2026-08-08, FORWARD_DIST=12.0+追踪器)**:
+
+| 桶 | 落点 NED | 真值 NED | 误差 | 状态 |
+|------|----------|----------|------|------|
+| B1 | (-1.508, 11.473) | (-1.50, 11.50) | **0.028m** | ✓ |
+| B3 | (0.089, 13.891) | (0.00, 14.00) | **0.14m** | B2 跳过 |
+
+FORWARD_DIST=12.0 生效: travel=12.50m (过冲 0.5m)。追踪器在 HOVER_SEARCH 驻留后 1.6s 确认 3 桶，选 B3+B1 (最近 2 个)。B1=0.028m 极佳。
+
+**v8 验证 (2026-08-07, FORWARD_DIST=12.5)**:
+
+| 桶 | 落点 NED | 真值 NED | 误差 |
+|------|----------|----------|------|
+| B1 | (-1.36, 11.24) | (-1.50, 11.50) | 0.29m |
+| B3 | (-0.14, 13.37) | (0.00, 14.00) | 0.65m |
+
+**历史最佳 (v7.2, DROP_HEIGHT=1.0m)**:
+
+| 桶 | 落点 NED | 真值 NED | 误差 |
+|------|----------|----------|------|
+| B1 | (-1.43, 11.29) | (-1.50, 11.50) | **0.23m** |
+| B2 | (0.01, 13.90) | (0, 14.00) | **0.10m** |
+| B3 | (1.94, 12.87) | (2.00, 13.00) | **0.15m** |
+全部 <0.25m, B2=0.10m 为项目历史最佳。
+
+**当前最优参数 (v9, 2026-08-08 GROUND_NED_Z 已修复)**:
+```
+# GROUND_NED_Z 已废弃 — 所有高度计算改用 self.home_z
+# 飞行参数
+CRUISE_HEIGHT=5.0  DROP_HEIGHT=1.0  FORWARD_DIST=12.0
+MISSION_TIMEOUT=300.0
+# 追踪器 (v9: 每桶独立时间确认)
+TRACKER_CONFIRM_TIME=1.5  TRACKER_TIMEOUT=2.0  TRACKER_NED_MATCH=1.5
+# PID (纯 PD, height_scale=H/CRUISE_HEIGHT 低空等比缩小)
+KP_H=0.0015  KI_H=0.0  KD_H=0.001  MAX_HORIZ_VEL=0.3  DEAD_ZONE_PX=5.0
+# FORWARD (v8: 一维投影+方向感知 ramp-down + 帧数迟滞防 GPS 跳变)
+CRUISE_SPEED=2.0  FORWARD_RAMP_DIST=3.0  FORWARD_MIN_SPEED=0.5  FORWARD_EXIT_CONFIRM_FRAMES=5
+# 边界 (v8: 软墙推回)
+LATERAL_BOUNDARY=4.0  FORWARD_BOUNDARY=16.0  BOUNDARY_PUSH_SPEED=0.5
+# HOVER_SEARCH
+HOVER_SEARCH_TIMEOUT=10.0  HOVER_SEARCH_SETTLE_TIME=1.5
+HOVER_SEARCH_ZERO_DETECT_TIMEOUT=5.0
+# VISUAL_SERVO (v5: 单目标纯伺服)
+SERVO_DESCENT_SPEED=0.25  PRE_SERVO_HEIGHT=2.5
+VISUAL_SERVO_ARRIVE_PX=8.0  VISUAL_SERVO_CONVERGE_TIME=2.5
+VISUAL_SERVO_TIMEOUT=35.0  SERVO_MAX_DRIFT=1.5
+# POSITION_REFINE
+POSITION_REFINE_DURATION=2.0  POSITION_REFINE_MIN_SAMPLES=5
+POSITION_REFINE_CENTER_MAX=150.0  POSITION_REFINE_MAX_CORRECTION=1.5
+POSITION_REFINE_IDENTITY_MAX=1.5
+# 降落
+POS_ARRIVE_DIST=0.5  LAND_DWELL_TIME=3.0
+# 投放
+AUX5_LOCK=0.0(PWM1500us)  AUX5_DROP=0.83333(PWM2000us)  AUX5_DROP2=-0.83333(PWM1000us)
+AUX5_DROP_HOLD=1.0  DROP_AFTER_DELAY=5.0
+# 起飞
+STABILIZE_HOVER_TIME=3.0  TAKEOFF_CLIMB_RATE=0.8  STABILIZE_TIME=5.0
+# 相机参数 (640x360 16:9, 85°HFOV/54°VFOV)
+IMG_W=640 IMG_H=360 CX=320 CY=180 HFOV=85° VFOV=54° FX≈349 FY≈353
+# HOVER_SEARCH (v9): 追踪器时间确认 → 选最大检测框2个 → TRACK
+# FORWARD (v8): _pub_vel 速度控制 + 一维投影判断过冲 + 方向感知 ramp-down + 退出帧数迟滞
+# 边界 (v8): _enforce_boundaries() 横向 ±4m 前向 16m 软墙. 2026-08-09 横向推回方向修复
+# Yaw 策略: 盲飞阶段 yaw=heading0; 视觉伺服阶段 yaw=live heading
+# 坐标系 (v9 2026-08-09): 所有桶位置/目标以相对home偏移存储, _pub_pos发前加home_x/y转绝对; _fly_toward用绝对坐标
+```
+
+### a — 子项目 a v1 (13 状态机, 投放区 30m + 侦察区悬停)
+
+`a.py` 从 `final_mission.py` v9 升级改造。13 状态机: TAKEOFF→STABILIZE→FORWARD→HOVER_SEARCH→TRACK→POSITION_REFINE→PRE_SERVO→VISUAL_SERVO→DROP→CLIMB→SCOUT→RETURN→LAND。
+
+**与 final_mission 的差异**:
+- **投放区距离**: FORWARD_DIST=32.0 (final=12.0), 近边距起飞点 30m
+- **远边限制去除**: 无 FORWARD_BOUNDARY, 仅保留横向 ±4m 软墙
+- **新增 SCOUT 状态**: 投完 2 桶后直飞侦察区中心 (SCOUT_DIST=57.5m) 悬停 5s, 然后返航
+- **侦察区**: 5×8m 空白矩形, 蓝色边框, 距投放区远边 20m, 无目标物
+- **其余完全一致**: PID、追踪器、视觉伺服、投放机构、QoS、坐标系 — 全部与 final_mission v9 相同
+
+**环境**: `worlds/a.world`, 3 桶在投放区 NED y=30~35 范围内 (相对布局同 final.world)。
+侦察区 NED y=55~60, 中心 NED (0, 57.5)。
+
+**新增状态**:
+```
+[11] SCOUT          速度控制直飞侦察区中心 (~57.5m)
+                      到达 → 位置保持悬停 5s → RETURN
+```
+
+CLIMB 全部投完后切 SCOUT 而非直接 RETURN。SCOUT 豁免边界检查 (允许飞越投放区)。
+
+**启动**：
+- SITL: `bash ~/SITL/scripts/test_a.sh`
+- 实机: `bash ~/fly/launch_a.sh` (先 see.py 再 a.py)
+- 检测器: `yolov8_bucket_detector` (SITL sim 模式) / `see.py` (实机 YOLOv8)
+
+**仿真验证 (v1, 2026-08-09)**:
+
+| 桶 | 落点 NED | 真值 NED | 误差 | 状态 |
+|------|----------|----------|------|------|
+| B1 | (-1.429, 30.970) | (-1.50, 31.50) | **0.53m** | ✓ |
+| B3 | (-0.017, 34.030) | (0.00, 34.00) | **0.03m** | B2 跳过 |
+
+SCOUT: 飞抵 (-2.12, 57.43) 悬停 5s, 返航着陆成功。总时长 ~245s。
+
+**当前最优参数 (v1, 2026-08-09, 实机部署版)**:
+```
+# ===== 与原 final_mission 一致 (不重复列全部, 仅突出差异) =====
+MISSION_TIMEOUT=600.0    # final=300, 飞行距离更远
+FORWARD_DIST=32.0        # final=12.0, 投放区 30m
+SCOUT_DIST=57.5          # 新增, 侦察区中心沿 heading0 距离
+SCOUT_HOVER_TIME=10.0    # 新增, 侦察区悬停时长
+# 远边边界已去除 (无 FORWARD_BOUNDARY)
+
+# ===== 以下与 final_mission v9 完全一致 =====
+CRUISE_HEIGHT=5.0  DROP_HEIGHT=1.0
+KP_H=0.0015  KI_H=0.0  KD_H=0.001  MAX_HORIZ_VEL=0.3  DEAD_ZONE_PX=5.0
+CRUISE_SPEED=2.0  FORWARD_RAMP_DIST=3.0  FORWARD_MIN_SPEED=0.5
+TRACKER_CONFIRM_TIME=1.5  TRACKER_TIMEOUT=2.0  TRACKER_NED_MATCH=1.5
+# ... 其余 PID/视觉伺服/投放/相机/追踪器 参数全部相同
+
+# ===== 实机版额外参数 (fly/a.py) =====
+PID_DECIMATION_SERVO=5(4Hz)  PID_DECIMATION_DROP=5(4Hz)
+话题 _v1 后缀  VehicleControlMode 单源  GROUND_NED_Z=0.0
+```
+
+### b — 子项目 b v1 (13 状态机, 固定航向 + 分桶投放补偿)
+
+`b.py` 从 `a.py` 复制改造。与 a 的唯一差异:
+
+- **固定航向 HEADING_DEG**: 硬编码度数 (默认 92°), 替代 a 的 heading0_pre 预锁机制。飞之前测场地, 指南针对准机头方向读数填入代码。头文件常量, 改一处即可
+- **分桶投放补偿**: `PAYLOAD_OFFSET_BODY_Y_B1 = -0.10` (B1 右桶先投, 落点偏右→瞄准点左偏补偿 10cm) / `PAYLOAD_OFFSET_BODY_Y_B2 = 0.10` (B2 左桶后投, 落点偏左→瞄准点右偏补偿 10cm)。替代 a 的单一 `PAYLOAD_OFFSET_BODY_Y=0.0`。VISUAL_SERVO 和 DROP 阶段根据 `_drop_count` 自动选择补偿量。**2026-08-14: 补偿方向符号交换 (原 B1=+0.10/B2=-0.10 落点补偿方向相反)**
+
+其余全部与 a 完全相同 (状态机、PID、追踪器、QoS、坐标系、世界)。
+
+**启动**:
+- SITL: `bash ~/SITL/scripts/test_b.sh`
+- 实机: `ros2 run fly b` (先编译 `colcon build --packages-select fly`)
+
+**仿真验证 (v1, 2026-08-12)**:
+
+| 桶 | 落点 NED | 真值 NED | 误差 | 状态 |
+|------|----------|----------|------|------|
+| B1 | (-1.447, 31.327) | (-1.50, 31.50) | **0.18m** | ✓ |
+| B2 | (-0.090, 34.003) | (0.00, 34.00) | **0.09m** | B2=桶3 |
+
+SCOUT: 飞抵 (-2.00, 57.54) 悬停 10s, 返航着陆成功。航向全程 92° 笔直, 无偏航。
+
+**与 a 的参数差异**:
+```
+# ===== 替代 a 的 heading0_pre 预锁 =====
+HEADING_DEG = 92.0               # 固定航向, 赛场测好改
+
+# ===== 替代 a 的 PAYLOAD_OFFSET_BODY_Y = 0.0 =====
+PAYLOAD_OFFSET_BODY_Y_B1 = -0.10 # B1 右桶先投: 落点偏右, 瞄准点左偏补偿 10cm (机体左向-)
+PAYLOAD_OFFSET_BODY_Y_B2 =  0.10 # B2 左桶后投: 落点偏左, 瞄准点右偏补偿 10cm (机体右向+)
+
+# ===== 返航速度独立 (2026-08-14) =====
+RETURN_SPEED = 3.0              # RETURN 返航平飞速度, 独立于 CRUISE_SPEED=2.0 (FORWARD/SCOUT 不变)
+
+# ===== 搜索无目标转侦察 (2026-08-14) =====
+# HOVER_SEARCH 零检测超时/总超时 → STEP_SCOUT (不再直接 RETURN), 与投完弹一致
+
+# ===== 实机版 (fly/b.py) 差异 (2026-08-14 实飞调参, 与 SITL 版不同) =====
+HEADING_DEG = 54.0                  # 实机场地指南针实测
+PAYLOAD_OFFSET_BODY_Y_B1 =  0.05    # 挂载在相机右: 机身停在桶左侧, 桶在画面右侧
+PAYLOAD_OFFSET_BODY_Y_B2 = -0.05    # 挂载在相机左
+DROP_AFTER_DELAY = 10.0             # 实机 10s 收敛
+
+# ===== 其余参数与 a 完全一致 =====
+```
+
+### c — 子项目 c v1 (13 状态机 + 侦察动作序列, 基于 b 分叉)
+
+`c.py` 从 `b.py` 复制改造 (2026-08-15)。13 状态机同 b (TAKEOFF→STABILIZE→FORWARD→HOVER_SEARCH→TRACK→POSITION_REFINE→PRE_SERVO→VISUAL_SERVO→DROP→CLIMB→SCOUT→RETURN→LAND)，SCOUT 重写为 7 子阶段。
+
+**与 b 的差异**:
+- **DROP_HEIGHT**: 1.0 → 1.5m (实机 H=1m 低空丢检)
+- **距离 +2m**: FORWARD_DIST 32→34, SCOUT_DIST 57.5→59.5 (实机起飞点比假定位置后退 2m)
+- **侦察动作序列** (SCOUT 7 子阶段, 2026-08-15 晚实飞反馈重写): 直飞第一根线近边中点 (SCOUT_EDGE_DIST=55/57, 不再直冲预定点防过冲) → 先下降 1m (到 4m 高) → **10s 时间锚定缓移**到预定点 (线性插值 0.45m/s) → 机体左移 1.5m → 停 5s → 再右移 3m (终点=预定点右侧 1.5m) → 停 5s → 返航。子动作到位判据 0.3m、各 10s 超时强制推进。左右方向基于锁定航向 (机体坐标: 左=(sin h0, -cos h0))
+- **RETURN 判稳** (2026-08-15 晚): 飞回 home 上方后切位置保持, 3s 滑动窗口内水平漂移 <0.3m 才允许降落 (10s 兜底强制)。MPC 位置保持同时隐式修正 RETURN 末速过冲的残余偏差
+- **LAND 限速** (2026-08-15 晚): 时间锚定 `target_z = min(low_z, entry_z + 0.4*elapsed)` 匀速下降 (防 MPC 全速俯冲), 到 0.5m 低空才发 PX4 自主着陆 (MAV_CMD_NAV_LAND)
+- **补偿**: B1=0.0 (移除, 实机两次投弹均偏右待定位来源), B2=-0.05 (SITL 完全跟实机, 替代 SITL 原 ±0.10)
+- **DROP_AFTER_DELAY**: SITL 5→10 同步实机, 2026-08-15 晚 10→15 (实机俯冲下 10s 伺服收敛不完, err 69→90px 不降反升)
+- **下降代码**: 回退旧 max() 行为 (下降限速 bug 修复失败后按用户指示回退, 见已知问题)
+- HEADING_DEG 各场地独立: SITL=92° / fly=54°, 不互相同步
+
+**其余完全一致**: PID、追踪器、视觉伺服、投放机构、QoS、坐标系、边界软墙 — 全部与 b 相同。
+
+**环境**: `worlds/c.world` (复制自 a.world)。启动: `bash ~/SITL/scripts/test_c.sh`。
+
+**仿真验证 (2026-08-15 上午, 侦察+降落重做前)**:
+
+| 桶 | 落点 NED | 真值 NED | 误差 | 得分 |
+|------|----------|----------|------|------|
+| B3 | (-0.027, 33.981) | (0.00, 34.00) | **0.033m** | **10** |
+| B2 | (1.929, 32.968) | (2.00, 33.00) | **0.078m** | **8** |
+
+总分 **18/20**。原侦察序列实测: 悬停 5.0s → 降 1m (2.6s) → 左 1m (3.5s, 距目标 0.18m) → 右 2m (4.6s, 距目标 0.29m) → 返航。FORWARD 过冲 0.51m, 着陆距 home 0.15m, 总时长 4'29"。
+
+**仿真验证 (2026-08-15 晚, 侦察+降落重做后)**:
+
+新侦察序列 7 子阶段全部按设计执行: 直飞近边 26s 停在 y≈54.4 (**未冲过侦察区**, 原版直冲 59.5 过冲出区) → 降 1m (1.7s) → 10s 缓移 (y 55.5→58.8, ~0.33m/s 平滑无过冲, MPC 滞后 0.7m 由后续子阶段自然修正) → 左 1.5m (4.6s) → 停 5s → 右 3m (3.6s) → 停 5s。RETURN 42s 到 home, 过冲 0.85m 被位置保持拉回, 判稳 4.5s (drift 0.28m < 0.3m)。LAND 限速下降 19s (实测 0.11~0.49m/s), 离地 ~0.15m 才发 PX4 LAND。**着陆距 home 仅 0.20m** (原版无稳定步骤)。总时长 4'30"。
+
+**当前最优参数 (v1, 2026-08-15 晚)**:
+```
+# ===== 与 b 的差异 =====
+DROP_HEIGHT = 1.5        # 1.0→1.5, 防低空丢检
+FORWARD_DIST = 34.0      # 32→34, 起飞点后退 2m
+SCOUT_DIST = 59.5        # 57.5→59.5, 侦察区正上方(预定点)
+SCOUT_EDGE_DIST = 55.0   # 2026-08-15: 侦察区第一根线(近边)沿 heading0 距离 (fly=57.0), 直飞目标改近边防过冲
+SCOUT_SLOW_MOVE_TIME = 10.0  # 近边→预定点 缓移时长 (s), 0.45m/s
+SCOUT_DESCENT_DELTA = 1.0  # 到达近边后先下降 1m
+SCOUT_LEFT_DIST = 1.5      # 机体左移 1.5m
+SCOUT_RIGHT_DIST = 3.0     # 再右移 3m (终点=预定点右侧 1.5m)
+SCOUT_PAUSE_TIME = 5.0     # 左右移动后各停 5s
+SCOUT_SUB_ARRIVE = 0.3     # 子动作到位判据 (m)
+SCOUT_SUB_TIMEOUT = 10.0   # 子动作超时 (s)
+RETURN_STAB_DRIFT_MAX = 0.3  # 返航后稳定判据 — 3s 窗口内水平漂移 <0.3m
+RETURN_STAB_WINDOW = 3.0     # 漂移监测窗口 (s)
+RETURN_STAB_TIMEOUT = 10.0   # 稳定等待超时, 强制 LAND (s)
+LAND_DESCENT_SPEED = 0.4     # LAND 前下降限速 (m/s), 时间锚定
+PAYLOAD_OFFSET_BODY_Y_B1 = 0.0    # 补偿移除 (实机偏右待定位)
+PAYLOAD_OFFSET_BODY_Y_B2 = -0.05  # SITL 完全跟实机
+DROP_AFTER_DELAY = 15.0   # 2026-08-15晚: 10→15, 实机伺服收敛不完 (err 69→90px 不降反升), 延长悬停收敛
+# 下降代码: 旧 max() 行为 (target_z = max(pre_z/drop_z, self.z - SERVO_DESCENT_SPEED*0.05))
+
+# ===== 其余参数与 b 完全一致 =====
+CRUISE_HEIGHT=5.0  KP_H=0.0015  KI_H=0.0  KD_H=0.001  MAX_HORIZ_VEL=0.3
+CRUISE_SPEED=2.0  RETURN_SPEED=3.0  FORWARD_RAMP_DIST=3.0  FORWARD_MIN_SPEED=0.5
+TRACKER_CONFIRM_TIME=1.5  TRACKER_TIMEOUT=2.0  TRACKER_NED_MATCH=1.5
+LATERAL_BOUNDARY=4.0  BOUNDARY_PUSH_SPEED=0.5  VISUAL_SERVO_ARRIVE_PX=8.0
+# HEADING_DEG: SITL=92.0 / fly=54.0 (各场地独立)
+```
+
+### d — 子项目 d v1 (下降限速修复 + B1 补偿 + 日志增强 + 侦察重做, 基于 c)
+
+`d.py` 从 `c.py` 复制改造 (2026-08-15)。动机：今早 c 两轮实飞日志分析发现 (1) 下降俯冲 (2) 第一投系统性偏右 (3) DROP 阶段无伺服日志不可观测。**2026-08-27 合并 c 8-15 晚全部改动**（侦察 7 子阶段重做、RETURN 判稳、LAND 限速、DROP_AFTER_DELAY 15），成为包含全部最新改动的完整版本。
+
+**与 c 的差异**:
+- **下降限速修复 (时间锚定)**: PRE_SERVO/VISUAL_SERVO 的目标高度从旧 `max(pre_z, self.z - 0.0125)` 改为 `target_z = min(final_z, entry_z + SERVO_DESCENT_SPEED * elapsed)`。旧代码增量方向反 (NED z 向下为正, `self.z - 0.0125` 向上) 且 max() 每次都直接选中最终高度 → 目标瞬间跳变 → PX4 全速俯冲 (实机实测 0.59~0.94m/s)。新方案目标从入口高度以 0.25m/s 匀速下移、min() 封顶，与飞机实时位置无关 (吸取 2026-08-15 修复尝试教训: 目标锚定飞机当前 z 会导致 MPC 无误差可跟卡死)。`_desc_entry_z` 在 `_enter_step(STEP_PRE_SERVO/VISUAL_SERVO)` 时记录
+- **B1 补偿恢复**: `PAYLOAD_OFFSET_BODY_Y_B1` 0.0 → **+0.10**。1 号载荷挂相机右侧，相机居中则载荷落在桶右侧一个挂载偏移量；b 时代 +0.05 实测仍偏右，起始值取 +0.10 待实飞校准 (可配合 DROP-SERVO 日志观察收敛后残差再微调)。B2=-0.05 保持不变
+- **阶段日志增强**: (1) `_enter_step` 每次状态切换打印 `STEP A->B (prev X.Xs) NED(...) H=X.XXm`，每阶段耗时一目了然 (2) DROP 状态新增 `DROP-SERVO err/ex/ey/v_fwd/v_lat/H` 每秒日志，观察 15s 延时内收敛 (3) 投放瞬间日志追加 `last_err=XXpx(ex,ey@H)` — 投放时刻最后像素误差
+- **任务日志体系 (2026-08-27)**: (1) ARM/OFFBOARD 切换全链路日志 (`Requesting ARM` → `ARM OK, requesting OFFBOARD` → `ARM + OFFBOARD active (t=Xs)`) (2) LAND 命令发出日志 (`Sending MAV_CMD_NAV_LAND at NED(...) H=...m`) + 着陆完成日志 (vehicle_land_detected/高度回退 + 距 home 距离) (3) **MISSION SUMMARY 总结报告**: `_shutdown(reason)` 结束原因 (normal/land_timeout/land_step_timeout/mode_timeout/dds_timeout/mission_timeout)、总时长、投弹明细 (aim/pos/H/dev/last_err)、侦察完成状态+耗时、返航判稳耗时+漂移、着陆偏差、搜索失败/超时强制 NOTE (4) test_d.sh 裁判输出捕获到 `/tmp/d_judge.log` 并在任务结束后打印打分
+- **2026-08-27 合并自 c 8-15 晚**: 侦察 7 子阶段 (直飞近边 55m → 降 1m → 10s 缓移至预定点 → 左 1.5m → 停 5s → 右 3m → 停 5s → 返航) + RETURN 位置保持判稳 (漂移<0.3m/3s, 10s 兜底) + LAND 时间锚定限速 0.4m/s + DROP_AFTER_DELAY 10→15
+
+**其余完全一致**: 状态机、PID、追踪器、投放机构、QoS、坐标系、边界软墙 — 全部与 c 相同。
+
+**环境**: `worlds/d.world` (复制自 c.world)。启动: `bash ~/SITL/scripts/test_d.sh`。实机: `ros2 run fly d`。
+
+**仿真验证 (v1, 2026-08-15)**:
+
+| 桶 | 落点 NED | 真值 NED | 误差 | 得分 | 备注 |
+|------|----------|----------|------|------|------|
+| B3 | (0.104, 34.063) | (0.00, 34.00) | 0.122m | 8 | 左偏 0.106m ≈ B1 补偿 +0.10 瞄准点偏移 (SITL 无物理载荷, 实机将被挂载偏移抵消) |
+| B2 | (2.012, 33.017) | (2.00, 33.00) | **0.020m** | **10** | 投放瞬间 last_err=17px |
+
+总分 **18/20** (avg 0.071m), 总时长 4'05"。**下降限速验证**: PRE_SERVO 10.2/10.4s 实测 0.21~0.22 m/s (设计 0.25); B2 VISUAL_SERVO 2.6s 自然收敛 err=0px (历史首次, 旧版从不收敛); B1 DROP 保持期 24px→8px 持续收敛 (DROP-SERVO 日志可观测)。
+
+**仿真验证 (v1.1, 2026-08-27 合并 c 晚间改动后)**:
+
+| 桶 | 落点 NED | 真值 NED | 误差 | 得分 | 备注 |
+|------|----------|----------|------|------|------|
+| B3 | (0.118, 34.046) | (0.00, 34.00) | 0.127m | 8 | last_err=6px, 左偏 0.118m ≈ B1 补偿 +0.10 (SITL 无物理载荷, 实机将被挂载偏移抵消) |
+| B2 | (1.978, 32.972) | (2.00, 33.00) | **0.036m** | **10** | last_err=9px |
+
+总分 **18/20** (avg 0.082m), 总时长 5'20" (DROP_AFTER_DELAY 15 + 侦察 7 子阶段 + 判稳 + 限速, 较上午版 +75s, 仍在 MISSION_TIMEOUT 600s 内)。**合并验证全部通过**: (1) 侦察 7 子阶段按序执行且时间精确 (降 1.9s → 缓移 10.0s → 左 3.9s → 停 5.0s → 右 3.7s → 停 5.0s → 返航, SCOUT 总耗时 56.9s) (2) RETURN 到 home 后 4.0s 判稳 (drift 0.29m < 0.3m) 才降落 (3) LAND 时间锚定限速 ~0.28m/s 平滑下降无俯冲, 任务正常 shutdown (4) PRE_SERVO 10.9/11.0s 实测 0.20m/s 下降限速生效 (5) 投弹精度与合并前一致。
+
+**当前参数 (v1, 2026-08-31 反投影伺服版)**:
+```
+# ===== 与 c 的差异 =====
+PAYLOAD_OFFSET_BODY_Y_B1 = 0.10   # 0.0→+0.10 补偿恢复 (载荷挂相机右侧, 起始值待实飞校准)
+# 2026-08-31: 视觉伺服 target 锚点+反投影重建 (废弃增量累加 + SERVO_MAX_DRIFT 拉回)
+SERVO_EST_WEIGHT   = 0.7   # 反投影权重: target = 0.7*反投影 + 0.3*锚点 (每帧 _roi_to_ned 重建)
+SERVO_GEO_LOCK_MAX = 0.5   # 反投影距锚点身份锁阈值 (m), 超限采信锚点防误检
+# 投放补偿移到 target 上: += offset_body_y*sin(heading), -= offset_body_y*cos(heading)
+# 2026-08-31: DROP 收敛即投 — err<DROP_ARRIVE_PX(10px, DROP 专用, 比 VISUAL_SERVO 8px 宽松) 持续 DROP_CONVERGE_EARLY(1.5s) → 提前投弹;
+#            否则 DROP_AFTER_DELAY=25s 兜底 (2026-08-31 15→25 给伺服更多收敛窗口; SITL MPC 悬停漂移 ~0.13 m/s)
+# 下降: target_z = min(final_z, _desc_entry_z + SERVO_DESCENT_SPEED*elapsed)  (时间锚定限速 0.25m/s)
+
+# ===== 其余参数与 c 完全一致 (2026-08-27 合并 c 晚间改动) =====
+DROP_HEIGHT=1.2  FORWARD_DIST=34.0  SCOUT_DIST=59.5   # 2026-09-13 起 1.5→1.2 (文档同步修正)
+SCOUT_EDGE_DIST=55.0 (fly=57.0)  SCOUT_SLOW_MOVE_TIME=10.0  SCOUT_DESCENT_DELTA=1.0
+SCOUT_LEFT_DIST=1.5  SCOUT_RIGHT_DIST=3.0  SCOUT_PAUSE_TIME=5.0
+SCOUT_SUB_ARRIVE=0.3  SCOUT_SUB_TIMEOUT=10.0
+RETURN_STAB_DRIFT_MAX=0.3  RETURN_STAB_WINDOW=3.0  RETURN_STAB_TIMEOUT=10.0
+LAND_DESCENT_SPEED=0.4
+PAYLOAD_OFFSET_BODY_Y_B2=-0.05  DROP_AFTER_DELAY=15.0
+CRUISE_HEIGHT=5.0  KP_H=0.0015  KI_H=0.0  KD_H=0.001  MAX_HORIZ_VEL=0.3
+CRUISE_SPEED=2.0  RETURN_SPEED=3.0  (飞行边界已移除 2026-09-11)
+# 2026-09-11: 选桶策略 = 优先离航向中线最近 (主键 |lateral| 升序, 次键 检测框面积降序)
+#   lateral = -ned_x*sin(heading0) + ned_y*cos(heading0)  (相对 home 偏移, 正值=heading0 右侧)
+#   旧策略"面积降序"会选中侧向最远的桶 (实机事故第一目标 lateral -4.21m, 几乎正前方的 -0.42m 被丢弃)
+SERVO_DESCENT_SPEED=0.25  PRE_SERVO_HEIGHT=2.5  VISUAL_SERVO_ARRIVE_PX=8.0
+# HEADING_DEG: SITL=92.0 / fly=54.0 (各场地独立)
+```
+
+### e — 子项目 e v1 (基于 c, 只换 DROP 段伺服 + 5 处改动, 2026-09-12)
+
+**动机**: c 是唯一实飞验证过的完整版本, 但其视觉伺服内核是"增量累加" (`_servo_target += v·dt`) —— 已被定性为实机 c 时代"两次投弹均偏右"的根因 (纯积分器在追不上目标时漂移正反馈)。用户决定: **以 c 为基底, 只把"已降到 1.5m 投弹高度之后"那一段伺服换成 d 已验证的锚点+反投影重建**, 其余 (含 5m→1.5m 俯冲过程) 全部保持 c 原样。
+
+**与 c 的 5 处差异 (SITL + fly 双版本)**:
+
+| # | 项目 | c | e |
+|---|---|---|---|
+| 1 | DROP 段伺服 | `_servo_target += v·dt` 增量累加 + `SERVO_MAX_DRIFT` 拉回 | **锚点+反投影重建** (`_roi_to_ned()` 每帧重建, `SERVO_GEO_LOCK_MAX=0.5` 身份锁 + `SERVO_EST_WEIGHT=0.7` 混合)。**PRE_SERVO / VISUAL_SERVO 逐字节保持 c 原样** (已用脚本校验) |
+| 2 | 飞行边界软墙 | `_enforce_boundaries()` + `LATERAL_BOUNDARY=4.0` | **完全删除** (方法/调用点/常量/启动日志字段) |
+| 3 | 选桶策略 | 检测框面积降序 | **优先离航向中线最近** (`abs(-ned_x*sin(h0)+ned_y*cos(h0))` 升序, 次键面积降序) |
+| 4 | 投放补偿 | B1=0.0 / B2=−0.05 | **全部去掉** (B1=0.0 / B2=0.0), 瞄准点=相机中心正下方 |
+| 5 | 投弹时机 | 固定等满 `DROP_AFTER_DELAY=15s` | **25s 兜底 + 收敛即投** (`DROP_ARRIVE_PX=10px` 持续 `DROP_CONVERGE_EARLY=1.5s`, 带高度门控 `self.z > drop_z-0.2` 防高空投弹) |
+
+**2026-09-23 更新 (e 首次实飞后, SITL + fly 两份同步)**: 上表第 4 项与第 5 项按实飞数据重标 —— ④ 投放补偿从"全部去掉"改为**两轴补偿** (`_Y_=+0.048` 瞄准点左移 4.8cm, 新增 `_XF_=+0.040` 瞄准点后移 4.0cm, 由 9-23 两投落点"右上方 15~16cm"矢量分解求出 S=(前+4.0, 右+4.8)cm); ⑤ 收敛判据由 `DROP_ARRIVE_PX=10px`(≡3~4cm, 实机误差 9~18cm 永远达不到) 改**米制 `DROP_ARRIVE_M=0.10`** (`conv_m=hypot(ex·H/FX, ey·H/FY)` = 到补偿后瞄准点的地面距离 = **预测落点偏差**), 确认时间 `DROP_CONVERGE_EARLY` 1.5→1.0s。**投放通道/释放时刻/脉冲形态未动** (用户决定)。
+
+节点名/类名: `e_mission` / `EMission` (c 是 `c_mission` / `CMission`)。
+
+**全量诊断日志 (2026-09-12 补全, SITL + fly 同步)**: 目标 = "看日志即可对每时每刻飞机状态做出精准判断, 支持调参/问题分析/任务流程复盘"。共 6 类:
+
+| # | 类别 | 内容 |
+|---|---|---|
+| 1 | `MISSION SUMMARY` 总结报告 | `_shutdown(reason)` 触发 `_print_summary()`: 结束原因 / 总时长 / Home+HEADING_DEG / 选桶依据 / 每次投放 (aim+pos+dev+H+last_err) / 侦察是否完成 + 耗时 / 返航判稳耗时+漂移 / 着陆点距 home / 两条 NOTE (搜索失败, 任务超时)。**只看这一段就能拿到任务级结论** |
+| 2 | `STEP A->B` 阶段切换日志 | `_enter_step()` 里打印 `阶段名 + 上一阶段耗时 + 当前 NED + H`, 复盘各阶段耗时分布 |
+| 3 | 1Hz 状态行 (重写为定宽字段) | `[t=任务时间 阶段名 ph=阶段内耗时] NED(x,y,z) H hdg pit rol vNED=(vx,vy,vz) det=检测数 age=检测年龄`, 伺服阶段追加 `tgt=NED` `px=(ex,ey)err=Npx`; FORWARD 阶段距离改 home 相对 (与 `_bucket_target()` 同系) |
+| 4 | 阶段明细行 | PRE_SERVO 每秒 `H/target_z-GND/cmd_z/下降率/横向偏差` (用于判断是否"目标瞬间跳变→全速俯冲"); VISUAL_SERVO `SERVO` 行补 `下降率/drop_z剩余/px_raw`; DROP-SERVO 行补 `drop_z剩余/px_raw/收敛计时` |
+| 5 | 关键事件行 | ARM 链路 (`Requesting ARM...` → `ARM request sent...` → `ARM OK, requesting OFFBOARD...` → `ARM + OFFBOARD active (t=)`), 选桶 `Selection basis (all N confirmed, |lateral| asc)`, 投弹 `>>> DROP #n! aim=NED(...) dev=...m 触发方式={收敛即投\|Ns/25s 兜底} last_err=...`, SCOUT 完成 (耗时+子阶段数), LAND 命令 (下降用时/实测速率/限速) + 着陆点距 home |
+| 6 | `_px_raw()` 辅助 | 原始像素偏差 (不做 tan(roll)/tan(pitch) 补偿、不置死区), 即"相机实际看到的偏差", 与 PID 输出的补偿后控制量区分开 |
+
+**投弹时机三种触发方式的日志区分**: `触发方式=收敛即投` (**米制** `conv_m<10cm` 持续 1.0s 且已到高度; 2026-09-23 前为 err<10px 持续 1.5s) / `触发方式=X.Xs/25s 兜底` (等满 25s) / STEP_TIMEOUT 强推 (无投弹行)。
+
+**日志改造验证 (2026-09-12)**: 四轮完整可见 SITL。run#1 暴露并修复 3 个日志自身缺陷 (①`prev_step` 未定义 → `NameError` 任务崩溃, **py_compile 抓不到, 新增日志必须实跑验证** ②下降率符号反了 (`-self.vz` → `self.vz`) ③`px_raw` 裸打印 tuple → 新增 `_px_raw_s()`); run#2 复验全部生效 (16/20); run#4 复验"任务结束自动退出"修复 (14/20, `End reason: normal`, `test_e.sh` 完整跑完并自动打印裁判分数)。四轮得分 14~16/20, 选中桶一致 (侧向最近两桶), 波动来自 SITL MPC 悬停漂移。**同轮修复了 c 起就存在的"任务结束后进程挂住"缺陷** (见已知问题: 不能在回调内 `rclpy.shutdown()`)。详见 [project_log](docs/project_log.md#2026-09-12--子项目-e-全量诊断日志改造看日志即可复盘每时每刻的飞机状态)。
+
+**环境**: `worlds/e.world` (复制自 c.world)。启动: `bash ~/SITL/scripts/test_e.sh`。实机: `ros2 run fly e` (需先 `cd ~/SITL/fly && colcon build --packages-select fly`)。
+
+**当前参数**:
+```
+# ===== 与 c 的 5 处差异 =====
+# 1) DROP 段伺服改反投影重建 (俯冲段保持 c 原样)
+SERVO_EST_WEIGHT   = 0.7   # target = 0.7*反投影 + 0.3*锚点
+SERVO_GEO_LOCK_MAX = 0.5   # 反投影距锚点身份锁阈值 (m), 超限采信锚点
+# 2) 飞行边界软墙已完全移除 (无 LATERAL_BOUNDARY / BOUNDARY_PUSH_SPEED)
+# 3) 选桶: 主键 |lateral| 升序 (优先离航向中线最近), 次键 面积降序
+# 4) 投放补偿 = 两轴 (2026-09-23 按 9-23 实飞落点标定; 原为全部 0)
+PAYLOAD_OFFSET_BODY_Y_B1  = +0.048  # 横向: 正值 = 瞄准点左移 4.8cm
+PAYLOAD_OFFSET_BODY_Y_B2  = +0.048
+PAYLOAD_OFFSET_BODY_XF_B1 = +0.040  # 前向 (2026-09-23 新增): 正值 = 瞄准点后移 4.0cm
+PAYLOAD_OFFSET_BODY_XF_B2 = +0.040
+# 5) 投弹时机
+DROP_AFTER_DELAY   = 35.0  # 兜底上限 (2026-09-23: 25→35, 给「自己收敛」更多窗口; STEP_TIMEOUT=120 远大于它)
+DROP_ARRIVE_M      = 0.10  # 收敛即投阈值 (米制, conv_m=hypot(ex·H/FX, ey·H/FY); 带高度门控 self.z > drop_z-0.2)
+DROP_ARRIVE_PX     = 10.0  # 仅历史留档, 不再是判据
+DROP_CONVERGE_EARLY= 1.0   # 持续 1.0s 提前投弹 (2026-09-23: 1.5→1.0)
+
+# ===== 其余参数与 c 完全一致 =====
+DROP_HEIGHT=1.2  FORWARD_DIST=34.0  SCOUT_DIST=59.5  SCOUT_EDGE_DIST=55.0 (fly=57.0)   # 2026-09-13 起 1.5→1.2
+CRUISE_HEIGHT=5.0  CRUISE_SPEED=2.0  RETURN_SPEED=3.0
+SERVO_DESCENT_SPEED=0.25  PRE_SERVO_HEIGHT=2.5  VISUAL_SERVO_ARRIVE_PX=8.0
+VISUAL_SERVO_TIMEOUT=35.0  VISUAL_SERVO_CONVERGE_TIME=2.5  SERVO_MAX_DRIFT=1.5 (仅俯冲段用)
+# 下降仍为 c 的旧 max() 写法 (目标瞬间跳变→全速俯冲), 按用户指示保留不改
+# HEADING_DEG: SITL=92.0 / fly=54.0
+```
+
+### f — 子项目 f v1 (基于 e, 两级释放判据, 2026-09-24)
+
+**来历**: 用户指示"新建项目 f, e 不要动" ⇒ `f.py` = `e.py` **逐字节复制** (只替换 节点名 `f_mission` / 类名 `FMission` / 入口名 `f` / `MISSION_REVISION`), 唯一实质改动是**释放判据**; 生成脚本 `scripts/new_project_f_20260924.py` (12 处锚点断言 + 自动备份 + 差异审计: SITL 与 e 差 112 行, fly 差 119 行).
+
+**动机 (9-24 实飞 ULog 复盘)**: e 的 `DROP_ARRIVE_M=0.10` 允许的最坏释放残差 10cm, 加上落地前弹道漂移 3~7.6cm (`vxy`×0.5s) 就超过桶半径 12.5cm ⇒ **最坏情况会脱靶**; 9-24 两次命中 (预测落点偏差 5.3/5.4cm) 是残差小 + 漂移方向恰好抵消的运气。判据的另一半问题是**释放相位**: 9-23 的残差在 DROP 段内明明出现过 2.3~2.8cm, 却因当时判据 (10px≡3.4cm + 1.5s) 凑不满而拖到 25s 兜底, 投在 9.2/10.3cm 上 ⇒ **"投在低谷"比"门限数值"更关键**。
+
+**两级释放判据 (只改"何时投", 不碰释放通道/脉冲形态/两轴瞄准补偿)**:
+
+| 档 | 条件 | 确认时间 | 作用 |
+|---|---|---|---|
+| **Tier1 优选** | `conv_m < 5cm` **且** 低谷 (`conv_m <= 本段最小值 + 2cm`, 最小值下限夹 2cm 防单帧噪声) **且** 准静止 (`vxy < 0.12m/s`) | **0.5s** (历史低位窗口只有 1~3s) | 把释放钉在"这一段最好的相位", 最坏残差 5cm |
+| **Tier2 保底** | `conv_m < 10cm` (= e 的旧判据), 但须等过 `DROP_PREFER_WINDOW=10s` 优先窗口 | 1.0s (同 e) | 地板够不到 5cm 时仍能投, **永不比 e 更差** |
+| **Tier3 兜底** | `DROP_AFTER_DELAY = 35s` | — | 防挂死 (未改) |
+
+档位变化会**重启确认计时** (防混档提前放行); 释放瞬间的水平速度上限让弹道漂移封顶 ~6cm。
+
+**当前参数 (与 e 的差异只有这些)**:
+```
+DROP_ARRIVE_M       = 0.05   # Tier1 门限 (e=0.10)
+DROP_ARRIVE_M_LATE  = 0.10   # Tier2 = e 旧判据
+DROP_CONVERGE_EARLY = 0.5    # Tier1 确认 (e=1.0)
+DROP_CONVERGE_LATE  = 1.0    # Tier2 确认
+DROP_CONV_MIN_BAND  = 0.02   # 低谷带
+DROP_CONV_MIN_FLOOR = 0.02   # 低谷最小值下限夹 (防噪声)
+DROP_ARRIVE_VMAX    = 0.12   # 准静止门控 (m/s)
+DROP_PREFER_WINDOW  = 10.0   # Tier1 优先窗口 (s)
+DROP_AFTER_DELAY    = 35.0   # 兜底 (未改)
+# 其余 (DROP_HEIGHT 1.2 / FORWARD_DIST 34 / SCOUT_* / 两轴补偿 Y=+0.048 XF=+0.040 / PID / 相机 640x360 85°/54°)
+# 与 e 完全一致; HEADING_DEG: SITL=92.0 / fly=180.0
+```
+
+**日志新增**: `DROP-SERVO` 1Hz 行加 `收敛计时=Xs/T{档}` 与 `段内最小=XX.Xcm`, 门限打印改 `门限T1=5cm/T2=10cm`; `>>> DROP #n` 行与 MISSION SUMMARY 加 `tier=T{1|2} conv_min=XX.Xcm`, `触发方式=收敛即投(Tier1 5cm低谷准静止 段内最小=3.3cm)` / `(Tier2 10cm保底 ...)` / `X.Xs/35s 兜底`。
+
+**验收 (三层)**:
+1. 真代码路径离线测试 `scripts/test_f_gate_logic_20260924.py` — 把两份 f.py 的判据块原文 exec 成函数, 5 场景全过: 低谷穿越→Tier1@3.75s / 地板 6~9cm→Tier2@11.25s / 地板 15~25cm→不触发退兜底 / 单帧 0.5cm 噪声不误投 / `vxy=0.20` 被挡到 0.08 才放行。
+2. 历史实飞日志回放 `scripts/replay_f_drop_gate_20260924.py` (8 份日志 / 13 投): **Tier1 10 投, Tier2 1 投, 段内不触发 2 投** (两个是 pitch 符号 bug 期地板 19~23cm 的轮次) ⇒ **释放残差中位 9.5cm → 4.0cm**; 9-23 两次脱靶 (实际 9.2/10.5cm 兜底) 用 f 会在 **3.27/3.15cm** 释放; 9-24 两次仍在同一时刻附近触发 (2.62/4.02cm)。
+3. SITL 复验: `bash ~/SITL/scripts/test_f.sh` (见 docs/project_log.md 当次记录)。
+
+**环境/启动**: SITL `bash ~/SITL/scripts/test_f.sh` (world=`worlds/f.world`, 日志 `/tmp/f_output.log`, 裁判 `/tmp/f_judge.log`); 实机 `bash ~/fly/f.sh` (Jetson 编译 + `ros2 run fly f`)。
+
+### g — 子项目 g v1 (基于 f, 两瓶横向补偿按实飞落点重标, 2026-09-27)
+
+**来历**: 用户指示"新建 g, e/f 都不动"。`g.py` = `f.py` **逐字节复制** (只替换 节点名 `g_mission` / 类名 `GMission` / 入口名 `g` / `MISSION_REVISION`), 与 f 的差异仅 **56 行**; 生成脚本 `scripts/new_project_g_20260927.py`。
+
+**动机 (9-27 双航班实飞落点)**: 载荷**一左一右**挂载, 第 1 瓶释放点在相机轴 **右 +5.5cm**、第 2 瓶 **左 −5.5cm**; 而 f/e 对两瓶用同一个 `+0.048` (瞄准点左移) ⇒ **第 2 瓶方向反了**。9-27 实测首次落点: e 第 1 投偏右 5cm、第 2 投偏左 12cm (脱靶); f 第 1 投偏右 8cm、第 2 投偏左 2~3cm。用"现值 + 实测落点"反推所需补偿: **第 1 瓶 +9.8~+12.8 (均值 +11.3)**, **第 2 瓶 −7.2~+2.3 (均值 −2.5, 反号)**; 纵向实测基本不偏 ⇒ XF 不动。
+
+**当前参数 (与 f 的差异只有这两个常量)**:
+```
+PAYLOAD_OFFSET_BODY_Y_B1 = +0.113   # f: +0.048  (第 1 瓶=右瓶; 原值只有实际需要的一半)
+PAYLOAD_OFFSET_BODY_Y_B2 = -0.025   # f: +0.048  (第 2 瓶=左瓶; **必须反号**, 原值把落点推到左 ~10cm)
+PAYLOAD_OFFSET_BODY_XF_B1 = +0.040  # 纵向: 与 f 相同 (9-27 实测无前后偏差)
+PAYLOAD_OFFSET_BODY_XF_B2 = +0.040
+# 其余全部与 f 一致: DROP_HEIGHT 1.2 / FORWARD_DIST 34 / 两级释放判据
+# (DROP_ARRIVE_M 0.05 + 低谷 + vxy<0.12 确认 0.5s; Tier2 0.10/1.0s 10s 后; 兜底 35s) / 两轴补偿机制 / 相机 640x360 85°54°
+# HEADING_DEG: SITL=92.0 / fly=180.0
+```
+
+**离线验收** `scripts/test_g_aim_comp_20260927.py` (3 节全过): 常量逐位一致; **真实代码路径** (出厂 `PIDController` + `level_to_camera_pixel`) 下"桶在补偿点 +11.3/−2.5cm 处 ⇒ err 0.00px", 同一桶位用旧常量 ⇒ **+6.50 / −7.30cm = 需要的修正量**, 桶放旧符号侧 ⇒ +5.00cm ⇒ 反号必要; **9-27 四次实测落点回放** ⇒ 落点 −1.5 / −4.7 / +1.5 / +4.8cm, **最坏 12cm→4.8cm**。
+
+**SITL 复验**: `bash ~/SITL/scripts/test_g.sh` (world=`worlds/g.world`, 日志 `/tmp/g_output.log`)。**⚠ 判读注意**: SITL 里没有"载荷挂载偏置", 补偿会让飞机**故意**停在桶心左 11.3cm (第 1 瓶) / 右 2.5cm (第 2 瓶), 裁判量的是飞机地面投影 ⇒ **SITL 分数会被这个伪影压低, 不能用来评价本次改动的收益**; 要看的是 ①两投是否仍走"收敛即投" ②`aim` 与 `pos` 的差是否等于补偿量 (证明常量正确送达)。真收益在**下一次实飞落点**。
+
+**环境/启动**: SITL `bash ~/SITL/scripts/test_g.sh`; 实机 `bash ~/fly/g.sh`。
+
+
+### f_r3 — 外接盘 "f r3" 的 SITL 导入版 (2026-10-07, 非本线开发)
+
+**来历**: 外接盘 `f_20261006_predictive/f.py` (sha `e1a32bf1…`, 自称基底 "仓库 e/r7", 实机 HEADING=161°,
+自述"未跑仿真、未部署")。**不是** e/f/g/h/i 这条线, 只借来在 SITL 里验证它的低空方案。导入脚本
+`scripts/import_f_r3_to_sitl_20261007.py` (源 sha 断言 + 6 处适配 + py_compile 回滚), 生成
+`src/drone_drl/drone_drl/f_r3.py` (sha `882677a2…`, 与 install 一致) + setup.py 入口 `f_r3`。
+
+**与原版的差异只有 6 处**: ①类名 `FMission`→`FR3Mission` ②节点名 `f_mission`→`f_r3_mission` ③`main()` 实例化同名
+④`PX4_STATUS_SUFFIX "_v1"`→`"_v4"` (SITL 固件) ⑤`HEADING_DEG 161.0`→`92.0` (i.world) ⑥`MISSION_REVISION` 加 `-sitl-import`。
+
+**它的设计 (原样保留)**: 低空不做每帧重建瞄准点的闭环, 而是**持久 XY 位置设定点**——
+`v = KP·(e − v_actual·0.6s)` 再按 `0.08·d/(d+0.20)` 限幅 (≤8cm/s), 目标点积分并且**领先机体不超过 20cm**;
+满足 `vxy≥0.06` 且 (设定点已越过目标 或 剩余距离 ≤ closing×0.6s) 时**进入制动**: 把设定点钉在机体当前点
+(**固定刹停点**, 不随机体漂移); 恢复微调需 `vxy≤0.04` + 新帧持续 0.20s + 预计剩余 ≥2cm。
+释放判据 = **两帧新帧**内 `raw ≤5cm` 且 `|vxy|≤0.10` 且 `|vz|≤0.15` 且高度 ±0.20m; 否则 `DROP_FORCE_AFTER=35s` 必发。
+补偿 `±0.0567 / 前后 0` (**台架几何, 未实飞标定**); `POSITION_REFINE_IDENTITY_MAX=1.5`; 选桶 `|lateral|` 升序。
+
+**前提 (硬依赖)**: `_drop_detection_fresh()` 要求检测器每帧发 `frame_seq`。**没有它时不是"不修正", 而是更糟**:
+`_low_target_xy` 被锚死在进入 VISUAL_SERVO 的飞机位置, 35s 一动不动 ⇒ 主动丢掉 PRE_SERVO/refine 的瞄准点。
+⇒ 本轮给 **SITL 检测器 `yolov8_bucket_detector.py` 与实机 `fly/see.py` 都补了 `frame_seq`**
+(`scripts/patch_frame_seq_20261007.py`, 备份 `*.bak.20261007_080709_frame_seq`; **必须按"每次真推理"递增, 不能按 publish**,
+否则"缓存重发不算新帧"的去重失效)。离线验收 `scripts/test_f_r3_frameseq_20261007.py` **24 项全过**
+(含直接实跑补丁后的检测器方法); a~i 全部只看 `buckets` 键 ⇒ 多一个键无影响。
+
+**两轮 SITL (2026-10-07, `10.7/f_r3_mission_20261007_081524.log` + `10.7/f_r3_mission_r2_20261007_082110.log`)**:
+均 `End reason: normal`, 2/2 投; **第 1 轮 334.0s / 14/20** (B3 0.2288m/6 分 + B2 0.0773m/8 分, 着陆 0.14m),
+**第 2 轮 177.0s / 16/20** (B3 0.0685m/8 分 + B2 0.0902m/8 分, 着陆 0.21m, 两投都 `aligned_fresh_frames`)。
+
+| 项 | 第 1 轮 | 第 2 轮 |
+|---|---|---|
+| 第 1 投: 释放 / raw / vxy / DROP | `timeout_force` / **19.6cm** / 0.184 / 36.1s | **`aligned` / 3.9cm** / 0.057 / 10.2s |
+| 第 1 投: raw 轨迹 / `braking` | 1.6 → **32.0** cm / **0%** | 19.1 → **9.4** cm / **0%** |
+| 第 2 投: 释放 / raw / vxy / DROP | `aligned` / 4.9cm / 0.016 / 15.1s | `aligned` / 4.6cm / 0.060 / 17.9s |
+| 第 2 投: `braking` (hold/resume) | 35% (3 次) | 16% (3 次) |
+| `aim` 偏真值 / 飞机距 `aim` | 1.4·0.9 / **21.5**·6.2 cm | 3.2·1.0 / **4.7**·9.9 cm |
+
+**两条硬结论**: ① **瞄准链路准, 误差全在释放相位** —— 四投 `aim` 都在真值 1~3cm 内, 而飞机距 `aim` 4.7~21.5cm
+⇒ 与我们既有的 `b = 释放点 − 保持点` 同构, **单轮分数 (14 vs 16) 不可归因**;
+② **制动/刹停点尚未证明价值** —— 4 投里只在两个第 2 投触发 (那两个本来就在缓慢接近), 两个第 1 投
+`braking=0%` (第 1 轮 vxy≥0.06 的 **36/41** 样本全被几何条件挡住), 成败由低空漂移方向决定 ⇒
+**对"冲过头"有反制、对"被推走"没有** (SITL MPC 降段水平漂移 ~0.18 m/s, 与"第 1 桶停不住"同源)。
+
+**判读注意**: SITL 无机械挂载偏置 ⇒ `±0.0567` 补偿是纯伪影 (B2 的 7.7cm 里约 5.7cm 是它, 真实可归因约 2cm);
+SITL GT 投影不含姿态 ⇒ 俯仰补偿引入已知幻影 `tan(pitch)·H` (~2~6cm)。
+**未动** `e/f/g/h/f_test/i` 任何一行; `f_r3` 是独立入口, 与实机 `f.py` 不冲突。
