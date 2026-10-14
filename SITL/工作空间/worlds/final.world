@@ -1,0 +1,228 @@
+<?xml version="1.0" ?>
+<sdf version="1.6">
+  <world name="final">
+    <plugin name="gazebo_ros_init" filename="libgazebo_ros_init.so"/>
+    <plugin name="gazebo_ros_state" filename="libgazebo_ros_state.so"/>
+
+    <include>
+      <uri>model://sun</uri>
+    </include>
+
+    <include>
+      <uri>model://ground_plane</uri>
+    </include>
+
+    <!-- ================================================================
+         矩形投放区域 — 8m 宽 (NED x, 左右) × 5m 纵深 (NED y, 前后)
+         后端边距起飞点 10m (NED y=10), 前端边 NED y=15
+         几何中心: NED (0, 12.5) → Gazebo (13.51, 0.98, 0)
+         对称轴与飞机 heading0 方向 (纯东 = NED y+) 重合
+
+         Gazebo 4 角坐标:
+          后左 (NED -4, 10)  → (11.01, -3.02)
+          后右 (NED +4, 10)  → (11.01,  4.98)
+          前左 (NED -4, 15)  → (16.01, -3.02)
+          前右 (NED +4, 15)  → (16.01,  4.98)
+         ================================================================ -->
+
+    <!-- ===== 4条边框 ===== -->
+    <!-- 后端框边 (NED y=10, Gazebo x=11.01) — 8m 沿 Gazebo y -->
+    <model name="border_back">
+      <static>true</static>
+      <pose>11.01 0.98 0.015 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>0.08 8.0 0.03</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>0.08 8.0 0.03</size></box></geometry>
+          <material>
+            <ambient>1 1 0 1</ambient>
+            <diffuse>1 1 0 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- 前端框边 (NED y=15, Gazebo x=16.01) — 8m 沿 Gazebo y -->
+    <model name="border_front">
+      <static>true</static>
+      <pose>16.01 0.98 0.015 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>0.08 8.0 0.03</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>0.08 8.0 0.03</size></box></geometry>
+          <material>
+            <ambient>1 1 0 1</ambient>
+            <diffuse>1 1 0 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- 左框边 (NED x=-4, Gazebo y=-3.02) — 5m 沿 Gazebo x -->
+    <model name="border_left">
+      <static>true</static>
+      <pose>13.51 -3.02 0.015 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>5.0 0.08 0.03</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>5.0 0.08 0.03</size></box></geometry>
+          <material>
+            <ambient>1 1 0 1</ambient>
+            <diffuse>1 1 0 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- 右框边 (NED x=+4, Gazebo y=4.98) — 5m 沿 Gazebo x -->
+    <model name="border_right">
+      <static>true</static>
+      <pose>13.51 4.98 0.015 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>5.0 0.08 0.03</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>5.0 0.08 0.03</size></box></geometry>
+          <material>
+            <ambient>1 1 0 1</ambient>
+            <diffuse>1 1 0 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ===== 4个角标 ===== -->
+    <model name="corner_bl"><static>true</static><pose>11.01 -3.02 0.02 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry><sphere><radius>0.12</radius></sphere></geometry>
+          <material><ambient>1 0.6 0 1</ambient><diffuse>1 0.6 0 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name="corner_br"><static>true</static><pose>11.01 4.98 0.02 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry><sphere><radius>0.12</radius></sphere></geometry>
+          <material><ambient>1 0.6 0 1</ambient><diffuse>1 0.6 0 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name="corner_fl"><static>true</static><pose>16.01 -3.02 0.02 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry><sphere><radius>0.12</radius></sphere></geometry>
+          <material><ambient>1 0.6 0 1</ambient><diffuse>1 0.6 0 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <model name="corner_fr"><static>true</static><pose>16.01 4.98 0.02 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry><sphere><radius>0.12</radius></sphere></geometry>
+          <material><ambient>1 0.6 0 1</ambient><diffuse>1 0.6 0 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ================================================================
+         3个靶桶 (固定随机分布, 半径 0.125m, 高 0.25m, 红色)
+         位置均在矩形范围内 (NED y ∈ [10, 15], NED x ∈ [-4, +4]):
+          桶1 NED (-1.5, 11.5) → Gazebo (12.51, -0.52)
+          桶2 NED ( 2.0, 13.0) → Gazebo (14.01,  2.98)
+          桶3 NED ( 0.0, 14.0) → Gazebo (15.01,  0.98)
+         ================================================================ -->
+
+    <model name="target_bucket_1">
+      <pose>12.51 -0.52 0.25 0 0 0</pose>
+      <link name="bucket_link">
+        <inertial>
+          <mass>0.5</mass>
+          <inertia>
+            <ixx>0.01</ixx><ixy>0</ixy><ixz>0</ixz>
+            <iyy>0.01</iyy><iyz>0</iyz>
+            <izz>0.01</izz>
+          </inertia>
+        </inertial>
+        <collision name="bucket_collision">
+          <geometry>
+            <cylinder><radius>0.125</radius><length>0.25</length></cylinder>
+          </geometry>
+        </collision>
+        <visual name="bucket_visual">
+          <geometry>
+            <cylinder><radius>0.125</radius><length>0.25</length></cylinder>
+          </geometry>
+          <material>
+            <ambient>1 0 0 1</ambient>
+            <diffuse>1 0 0 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="target_bucket_2">
+      <pose>14.01 2.98 0.25 0 0 0</pose>
+      <link name="bucket_link">
+        <inertial>
+          <mass>0.5</mass>
+          <inertia>
+            <ixx>0.01</ixx><ixy>0</ixy><ixz>0</ixz>
+            <iyy>0.01</iyy><iyz>0</iyz>
+            <izz>0.01</izz>
+          </inertia>
+        </inertial>
+        <collision name="bucket_collision">
+          <geometry>
+            <cylinder><radius>0.125</radius><length>0.25</length></cylinder>
+          </geometry>
+        </collision>
+        <visual name="bucket_visual">
+          <geometry>
+            <cylinder><radius>0.125</radius><length>0.25</length></cylinder>
+          </geometry>
+          <material>
+            <ambient>1 0 0 1</ambient>
+            <diffuse>1 0 0 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="target_bucket_3">
+      <pose>15.01 0.98 0.25 0 0 0</pose>
+      <link name="bucket_link">
+        <inertial>
+          <mass>0.5</mass>
+          <inertia>
+            <ixx>0.01</ixx><ixy>0</ixy><ixz>0</ixz>
+            <iyy>0.01</iyy><iyz>0</iyz>
+            <izz>0.01</izz>
+          </inertia>
+        </inertial>
+        <collision name="bucket_collision">
+          <geometry>
+            <cylinder><radius>0.125</radius><length>0.25</length></cylinder>
+          </geometry>
+        </collision>
+        <visual name="bucket_visual">
+          <geometry>
+            <cylinder><radius>0.125</radius><length>0.25</length></cylinder>
+          </geometry>
+          <material>
+            <ambient>1 0 0 1</ambient>
+            <diffuse>1 0 0 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+  </world>
+</sdf>

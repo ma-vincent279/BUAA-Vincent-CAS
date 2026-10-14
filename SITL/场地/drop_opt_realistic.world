@@ -1,0 +1,65 @@
+<?xml version="1.0" ?>
+<sdf version="1.5">
+  <world name="default">
+    <plugin name="gazebo_ros_init" filename="libgazebo_ros_init.so"/>
+    <plugin name="gazebo_ros_state" filename="libgazebo_ros_state.so"/>
+
+    <include>
+      <uri>model://sun</uri>
+    </include>
+
+    <include>
+      <uri>model://ground_plane</uri>
+    </include>
+
+    <!-- 风力仿真 (轻风 ~1m/s 北偏东, 模拟真实微风环境) -->
+    <plugin name='wind_plugin' filename='libgazebo_wind_plugin.so'>
+      <frameId>base_link</frameId>
+      <robotNamespace/>
+      <windVelocityMean>0.8</windVelocityMean>
+      <windVelocityMax>1.5</windVelocityMax>
+      <windVelocityVariance>0.15</windVelocityVariance>
+      <windDirectionMean>1 0.3 0</windDirectionMean>
+      <windDirectionVariance>0.1</windDirectionVariance>
+      <windGustStart>60</windGustStart>
+      <windGustDuration>3</windGustDuration>
+      <windGustVelocityMean>2.0</windGustVelocityMean>
+      <windGustVelocityMax>3.0</windGustVelocityMax>
+      <windGustVelocityVariance>0.3</windGustVelocityVariance>
+      <windGustDirectionMean>1 0 0</windGustDirectionMean>
+      <windGustDirectionVariance>0.2</windGustDirectionVariance>
+      <windPubTopic>world_wind</windPubTopic>
+    </plugin>
+
+    <!-- 单桶: NED y≈10 (飞机正前方10m, 纯东方向) -->
+    <!-- Gazebo: (11.01, 0.98, 0.25) → NED (0, 10, ~0.58) -->
+    <model name="target_bucket">
+      <pose>11.01 0.98 0.25 0 0 0</pose>
+      <link name="bucket_link">
+        <inertial>
+          <mass>0.5</mass>
+          <inertia>
+            <ixx>0.01</ixx><ixy>0</ixy><ixz>0</ixz>
+            <iyy>0.01</iyy><iyz>0</iyz>
+            <izz>0.01</izz>
+          </inertia>
+        </inertial>
+        <collision name="bucket_collision">
+          <geometry>
+            <cylinder><radius>0.125</radius><length>0.25</length></cylinder>
+          </geometry>
+        </collision>
+        <visual name="bucket_visual">
+          <geometry>
+            <cylinder><radius>0.125</radius><length>0.25</length></cylinder>
+          </geometry>
+          <material>
+            <ambient>1 0 0 1</ambient>
+            <diffuse>1 0 0 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+  </world>
+</sdf>

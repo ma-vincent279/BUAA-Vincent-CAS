@@ -1,0 +1,30 @@
+=== Jetson Orin 系统恢复指南 ===
+
+备份日期: 2026-08-27
+备份文件: jetson_orin_full_20260827.img.gz
+原始系统: /dev/nvme0n1 (119GB NVMe)
+压缩方式: pigz (标准 gzip 格式, 与 gzip/gunzip 完全兼容)
+
+## 恢复到新 NVMe 固态
+
+# 在任意 Linux 机器上 (含本 Jetson), 将新 NVMe 通过 USB 盒子接入:
+
+# 1. 确认目标盘 (务必选对!)
+lsblk
+# 假设新盘为 /dev/sda (或 /dev/nvme1n1)
+
+# 2. 写入
+sudo gunzip -c jetson_orin_full_20260827.img.gz | sudo dd of=/dev/nvme0n1 bs=4M status=progress
+sync
+
+# 3. 若目标盘容量比原盘大, 扩展分区:
+sudo growpart /dev/nvme0n1 1
+sudo resize2fs /dev/nvme0n1p1
+
+## 校验
+
+md5sum -c jetson_orin_full_20260827.md5
+
+## 写入完成后
+
+将新 NVMe 换入 Jetson 即可直接启动, 无需任何额外配置。

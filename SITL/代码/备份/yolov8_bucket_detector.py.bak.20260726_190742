@@ -1,0 +1,430 @@
+#!/usr/bin/env python3
+"""
+YOLOv8 桶检测器 — sim/real 共享 YOLOv8 推理链路，发布 /bucket/detection (RegionOfInterest)。
+
+sim 模式 (use_sim:=true):
+  GT 投影 → 合成俯视图像(白桶) → YOLOv8 推理 → ROI 发布。
+  仿真中用合成图像替代 Gazebo 摄像头（Gazebo Classic 不渲染3D物体）。
+
+real 模式 (use_sim:=false):
+  真实摄像头图像 → YOLOv8 推理 → ROI 发布。
+  用于 Jetson Orin 实机部署。
+
+         sim:  GT 投影 → 合成图像 ─┐
+         real: 摄像头 → 真实图像 ──┤
+                                  ├→ YOLOv8 推理 → /bucket/detection
+                                  ↑ 完全相同 ↑
+
+ROS 参数:
+  use_sim            true=合成图像 / false=真实摄像头
+  model_path         YOLOv8 模型路径
+  camera_topic       摄像头话题 (仅 real)
+  conf_threshold     置信度阈值 (默认 0.5)
+  target_class       目标类别名 (默认 "bucket")
+  infer_hz           YOLOv8 推理频率上限 (默认 10Hz)
+  bucket_gz_x/y/z    桶 Gazebo 坐标 (仅 sim)
+  spawn_gz_x/y/z     飞机生成点 (仅 sim)
+  img_width/height   图像尺寸 (默认 640x480)
+  visualize          弹出可视化窗口 (默认 false)
+"""
+
+import math
+import time
+import numpy as np
+import cv2
+import rclpy
+from rclpy.node import Node
+from sensor_msgs.msg import RegionOfInterest, Image
+from px4_msgs.msg import VehicleLocalPosition
+from std_msgs.msg import Header
+from drone_drl.common import QOS_BE, local_pos_topic
+
+
+class YOLOv8BucketDetector(Node):
+    def __init__(self):
+        super().__init__('yolov8_bucket_detector')
+
+        # ---- 参数 ----
+        self.declare_parameter('use_sim', True)
+        self._use_sim = self.get_parameter('use_sim').value
+
+        self.declare_parameter('model_path',
+                               '/home/vincent/SITL/yolo_v8/best2.pt')
+        self.declare_parameter('camera_topic', '/camera/image_raw')
+        self.declare_parameter('camera_device', '')  # 如 /dev/video0，直接读摄像头
+        self.declare_parameter('conf_threshold', 0.5)
+        self.declare_parameter('target_class', 'bucket')
+        self.declare_parameter('infer_hz', 10.0)
+        self.declare_parameter('img_width', 640)
+        self.declare_parameter('img_height', 480)
+        self.declare_parameter('visualize', False)
+
+        # sim 参数
+        self.declare_parameter('bucket_gz_x', 6.01)
+        self.declare_parameter('bucket_gz_y', 0.98)
+        self.declare_parameter('bucket_gz_z', 0.25)
+        self.declare_parameter('spawn_gz_x', 1.01)
+        self.declare_parameter('spawn_gz_y', 0.98)
+        self.declare_parameter('spawn_gz_z', 0.83)
+
+        self.img_w = self.get_parameter('img_width').value
+        self.img_h = self.get_parameter('img_height').value
+        self.conf_threshold = self.get_parameter('conf_threshold').value
+        self.target_class = self.get_parameter('target_class').value
+        self.infer_hz = self.get_parameter('infer_hz').value
+        self.visualize = self.get_parameter('visualize').value
+
+        # ---- 加载 YOLOv8 模型 (sim / real 共用) ----
+        self._load_model()
+
+        # ---- 检测输出 ----
+        self.det_pub = self.create_publisher(
+            RegionOfInterest, '/bucket/detection', 10)
+
+        # ---- 缓存上次检测 + 推理节流 ----
+        self._last_roi = None
+        self._last_infer_time = 0.0
+        self._infer_interval = 1.0 / self.infer_hz
+
+        # ---- 按模式初始化 ----
+        if self._use_sim:
+            self._init_sim()
+        else:
+            self._init_real()
+
+        mode_str = "SIM (synthetic img + YOLOv8)" if self._use_sim else "REAL (camera + YOLOv8)"
+        self.get_logger().info(
+            f"Ready [{mode_str}] model={self._model_names} "
+            f"conf={self.conf_threshold} infer={self.infer_hz}Hz "
+            f"image={self.img_w}x{self.img_h}")
+
+    # ======================== 模型加载 (共用) ========================
+
+    def _load_model(self):
+        model_path = self.get_parameter('model_path').value
+        try:
+            from ultralytics import YOLO
+            self.model = YOLO(model_path)
+        except ImportError:
+            self.get_logger().fatal(
+                "ultralytics not installed. "
+                "Workstation: pip3 install ultralytics. "
+                "Jetson: conda activate <env>")
+            raise
+
+        # 预热推理 (首次推理可能耗时 1-2s, 避免运行时卡顿)
+        import time as _time
+        _t0 = _time.time()
+        dummy = np.random.randint(0, 255, (self.img_h, self.img_w, 3), dtype=np.uint8)
+        self.model(dummy, verbose=False)
+        self.get_logger().info(
+            f"Model warm-up: {(_time.time() - _t0)*1000:.0f}ms")
+
+        self._model_names = getattr(self.model, 'names', {})
+        self._target_cls_idx = None
+        if not self._model_names:
+            self.get_logger().error(
+                "Model has no class names! "
+                "TensorRT .engine may have been exported without metadata. "
+                "ALL detections will be treated as target -- this is dangerous!")
+        elif self.target_class:
+            for idx, name in self._model_names.items():
+                if name == self.target_class:
+                    self._target_cls_idx = idx
+                    break
+            if self._target_cls_idx is not None:
+                self.get_logger().info(
+                    f"Target '{self.target_class}' -> cls_idx={self._target_cls_idx}")
+            else:
+                self.get_logger().warn(
+                    f"Class '{self.target_class}' not in model {list(self._model_names.values())}, "
+                    f"falling back to any detection")
+
+    # ======================== 推理 + 检测提取 (共用) ========================
+
+    def _infer_and_publish(self, bgr_image):
+        """对图像做 YOLOv8 推理，提取最佳检测框并发布。"""
+        now = time.time()
+        if now - self._last_infer_time < self._infer_interval:
+            # 推理节流：未到下次推理时间，重发上次结果
+            if self._last_roi is not None:
+                self.det_pub.publish(self._last_roi)
+            return
+
+        self._last_infer_time = now
+        try:
+            results = self.model(bgr_image, verbose=False)
+        except Exception as e:
+            self.get_logger().error(f"Inference error: {e}", throttle_duration_sec=5)
+            return
+
+        roi = self._best_detection(results)
+        self._last_roi = roi
+        if roi is not None:
+            self.det_pub.publish(roi)
+
+    def _best_detection(self, results):
+        """从 YOLOv8 结果中找最佳匹配 (置信度最高 + 面积最大)。"""
+        boxes = results[0].boxes
+        if boxes is None or len(boxes) == 0:
+            return None
+
+        best_box = None
+        best_conf = self.conf_threshold
+        best_area = 0
+
+        for i in range(len(boxes)):
+            conf = float(boxes.conf[i].item())
+            if conf < self.conf_threshold:
+                continue
+            cls_idx = int(boxes.cls[i].item())
+            if self._target_cls_idx is not None and cls_idx != self._target_cls_idx:
+                continue
+
+            xyxy = boxes.xyxy[i].cpu().numpy()
+            x1, y1, x2, y2 = xyxy.astype(int)
+            area = (x2 - x1) * (y2 - y1)
+
+            if conf > best_conf or (abs(conf - best_conf) < 0.01 and area > best_area):
+                best_conf = conf
+                best_area = area
+                best_box = (x1, y1, x2, y2)
+
+        if best_box is None:
+            return None
+
+        x1, y1, x2, y2 = best_box
+        x1 = max(0, x1)
+        y1 = max(0, y1)
+        x2 = min(self.img_w - 1, x2)
+        y2 = min(self.img_h - 1, y2)
+        w, h = x2 - x1, y2 - y1
+        if w <= 0 or h <= 0:
+            return None
+
+        roi = RegionOfInterest()
+        roi.x_offset = int(x1)
+        roi.y_offset = int(y1)
+        roi.width = int(x2 - x1)
+        roi.height = int(y2 - y1)
+        roi.do_rectify = False
+        return roi
+
+    # ======================== sim 模式 ========================
+
+    def _init_sim(self):
+        sgx = self.get_parameter('spawn_gz_x').value
+        sgy = self.get_parameter('spawn_gz_y').value
+        sgz = self.get_parameter('spawn_gz_z').value
+        bgx = self.get_parameter('bucket_gz_x').value
+        bgy = self.get_parameter('bucket_gz_y').value
+        bgz = self.get_parameter('bucket_gz_z').value
+
+        self.bucket_ned = (bgy - sgy, bgx - sgx, -(bgz - sgz))
+        self.bucket_radius = 0.125
+
+        self.hfov = 1.047
+        self.vfov = 2.0 * math.atan(
+            math.tan(self.hfov / 2.0) * self.img_h / self.img_w)
+        self.fx = self.img_w / (2.0 * math.tan(self.hfov / 2.0))
+        self.fy = self.img_h / (2.0 * math.tan(self.vfov / 2.0))
+
+        self.drone_x = self.drone_y = self.drone_z = 0.0
+        self.heading = None
+
+        self.local_sub = self.create_subscription(
+            VehicleLocalPosition, local_pos_topic(),
+            self._cb_local_sim, QOS_BE)
+
+        # 合成图像发布 (可选, 调试用)
+        self.syn_img_pub = self.create_publisher(
+            Image, '/bucket/synthetic_image', 10)
+
+        self.timer = self.create_timer(1.0 / self.infer_hz, self._tick_sim)
+
+        # 预生成草地背景 (固定纹理, 避免随机变化导致 YOLO 偶尔检测不到)
+        self._syn_bg = self._make_grass_bg()
+        self.get_logger().info("SIM grass background pre-generated")
+
+        self.get_logger().info(
+            f"SIM bucket NED({self.bucket_ned[0]:.2f},"
+            f"{self.bucket_ned[1]:.2f},{self.bucket_ned[2]:.2f}) "
+            f"r={self.bucket_radius:.2f}m")
+
+    def _cb_local_sim(self, m):
+        self.drone_x, self.drone_y, self.drone_z = m.x, m.y, m.z
+        if math.isfinite(m.heading):
+            self.heading = m.heading
+
+    def _tick_sim(self):
+        """每 tick: GT 投影 → 合成图像 → YOLOv8 推理 → 发布 ROI。"""
+        if self.heading is None:
+            return
+
+        # GT 投影 — 桶在图像中的位置
+        bx, by, bz = self.bucket_ned
+        dx = bx - self.drone_x
+        dy = by - self.drone_y
+        dz = bz - self.drone_z
+
+        if dz < 0.3:  # 桶太近/在上方
+            return
+
+        cos_h = math.cos(self.heading)
+        sin_h = math.sin(self.heading)
+        body_fwd = dx * cos_h + dy * sin_h
+        body_right = -dx * sin_h + dy * cos_h
+
+        if body_fwd < -0.5:  # 桶在后方
+            return
+
+        px = self.img_w / 2.0 + (body_right / dz) * self.fx
+        py = self.img_h / 2.0 + (body_fwd / dz) * self.fy
+        radius_px = self.fx * self.bucket_radius / dz
+
+        if px < -50 or px > self.img_w + 50 or py < -50 or py > self.img_h + 50:
+            return
+
+        # 生成合成俯视图像
+        syn_img = self._gen_synthetic(px, py, max(3.0, radius_px))
+
+        # YOLOv8 推理
+        self._infer_and_publish(syn_img)
+
+        # 可视化
+        if self.visualize:
+            display = syn_img.copy()
+            if self._last_roi is not None:
+                r = self._last_roi
+                cv2.rectangle(display,
+                              (r.x_offset, r.y_offset),
+                              (r.x_offset + r.width, r.y_offset + r.height),
+                              (0, 255, 0), 2)
+            cv2.circle(display, (int(px), int(py)), int(radius_px), (0, 0, 255), 1)
+            cv2.putText(display, "SIM", (10, 25),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
+            cv2.imshow('YOLOv8 Detector (SIM)', display)
+            cv2.waitKey(1)
+
+    # ======================== 合成图像生成 ========================
+
+    def _make_grass_bg(self):
+        """预生成低纹理噪声背景 (固定种子, 高检测率 >99%)"""
+        rng = np.random.RandomState(42)
+        img = rng.randint(80, 150, (self.img_h, self.img_w, 3)).astype(np.uint8)
+        img = cv2.GaussianBlur(img, (3, 3), 0)
+        return img
+
+    def _gen_synthetic(self, cx, cy, radius_px):
+        """在预生成背景上叠加白桶, 固定纹理确保 YOLOv8 检测稳定。"""
+        img = self._syn_bg.copy()
+
+        # 白圆最小半径 25px 保证远距离也能检测
+        cx_i, cy_i = int(round(cx)), int(round(cy))
+        r_i = max(25, min(int(round(radius_px)), 120))
+        cv2.circle(img, (cx_i, cy_i), r_i, (230, 230, 230), -1)
+        img = cv2.GaussianBlur(img, (3, 3), 0)
+
+        return img
+
+    # ======================== real 模式 ========================
+
+    def _init_real(self):
+        camera_device = self.get_parameter('camera_device').value
+
+        if camera_device:
+            # 直读摄像头 — 必须 V4L2+MJPG 才能设分辨率, fly/ Known Issue #2
+            self._cap = cv2.VideoCapture(camera_device, cv2.CAP_V4L2)
+            if not self._cap.isOpened():
+                self.get_logger().fatal(f"Cannot open camera: {camera_device}")
+                raise RuntimeError(f"Cannot open camera: {camera_device}")
+            self._cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
+            self._cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.img_w)
+            self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.img_h)
+            self.get_logger().info(
+                f"Camera opened: {camera_device} "
+                f"({self._cap.get(cv2.CAP_PROP_FRAME_WIDTH):.0f}x"
+                f"{self._cap.get(cv2.CAP_PROP_FRAME_HEIGHT):.0f})")
+            self._cam_timer = self.create_timer(
+                1.0 / self.infer_hz, self._tick_camera)
+        else:
+            # ROS2 话题订阅 (需要独立的摄像头驱动节点如 usb_cam)
+            camera_topic = self.get_parameter('camera_topic').value
+            self.camera_sub = self.create_subscription(
+                Image, camera_topic, self._cb_image, 10)
+            self.get_logger().info(
+                f"Subscribed to camera topic: {camera_topic}")
+
+    def _tick_camera(self):
+        """定时器回调: 从 cv2.VideoCapture 读帧 → 推理 → 发布。"""
+        ret, frame = self._cap.read()
+        if not ret or frame is None:
+            self.get_logger().warn("Camera read failed", throttle_duration_sec=5)
+            return
+        self._infer_and_publish(frame)
+
+        if self.visualize:
+            display = frame.copy()
+            if self._last_roi is not None:
+                r = self._last_roi
+                cv2.rectangle(display,
+                              (r.x_offset, r.y_offset),
+                              (r.x_offset + r.width, r.y_offset + r.height),
+                              (0, 255, 0), 2)
+            cv2.putText(display, "REAL (direct)", (10, 25),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+            cv2.imshow('YOLOv8 Detector (REAL)', display)
+            cv2.waitKey(1)
+
+    def _cb_image(self, msg):
+        """ROS2 话题回调: 解码 → YOLOv8 推理 → 发布。"""
+        try:
+            h, w = msg.height, msg.width
+            if msg.encoding == 'rgb8':
+                arr = np.frombuffer(msg.data, dtype=np.uint8).reshape(h, w, 3)
+                arr = cv2.cvtColor(arr, cv2.COLOR_RGB2BGR)
+            elif msg.encoding == 'bgr8':
+                arr = np.frombuffer(msg.data, dtype=np.uint8).reshape(h, w, 3)
+            elif msg.encoding == 'mono8':
+                arr = np.frombuffer(msg.data, dtype=np.uint8).reshape(h, w)
+            else:
+                self.get_logger().warn(
+                    f"Encoding {msg.encoding} unsupported", throttle_duration_sec=5)
+                return
+        except Exception as e:
+            self.get_logger().error(f"Decode error: {e}", throttle_duration_sec=5)
+            return
+
+        self._infer_and_publish(arr)
+
+        if self.visualize:
+            display = arr.copy()
+            if self._last_roi is not None:
+                r = self._last_roi
+                cv2.rectangle(display,
+                              (r.x_offset, r.y_offset),
+                              (r.x_offset + r.width, r.y_offset + r.height),
+                              (0, 255, 0), 2)
+            cv2.putText(display, "REAL (topic)", (10, 25),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+            cv2.imshow('YOLOv8 Detector (REAL)', display)
+            cv2.waitKey(1)
+
+
+def main(args=None):
+    rclpy.init(args=args)
+    node = YOLOv8BucketDetector()
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        if hasattr(node, '_cap') and node._cap is not None:
+            node._cap.release()
+        cv2.destroyAllWindows()
+        node.destroy_node()
+        rclpy.shutdown()
+
+
+if __name__ == '__main__':
+    main()

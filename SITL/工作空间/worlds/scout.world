@@ -1,0 +1,66 @@
+<?xml version="1.0" ?>
+<sdf version="1.6">
+  <world name="default">
+    <plugin name="gazebo_ros_init" filename="libgazebo_ros_init.so"/>
+    <plugin name="gazebo_ros_state" filename="libgazebo_ros_state.so"/>
+
+    <include>
+      <uri>model://sun</uri>
+    </include>
+
+    <include>
+      <uri>model://ground_plane</uri>
+    </include>
+
+    <!-- 白筒1: Gazebo (53.5, 0.0) → NED x≈-1.0, y≈52.5 -->
+    <model name="scout_cylinder_1">
+      <pose>53.5 0.0 0.075 0 0 0</pose>
+      <link name="cylinder1_link">
+        <inertial><mass>0.3</mass><inertia><ixx>0.005</ixx><ixy>0</ixy><ixz>0</ixz><iyy>0.005</iyy><iyz>0</iyz><izz>0.005</izz></inertia></inertial>
+        <collision name="cylinder1_collision"><geometry><cylinder><radius>0.10</radius><length>0.15</length></cylinder></geometry></collision>
+        <visual name="cylinder1_visual"><geometry><cylinder><radius>0.10</radius><length>0.15</length></cylinder></geometry><material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse></material></visual>
+      </link>
+    </model>
+
+    <!-- 白筒2: Gazebo (55.0, 2.0) → NED x≈1.0, y≈54.0 -->
+    <model name="scout_cylinder_2">
+      <pose>55.0 2.0 0.075 0 0 0</pose>
+      <link name="cylinder2_link">
+        <inertial><mass>0.3</mass><inertia><ixx>0.005</ixx><ixy>0</ixy><ixz>0</ixz><iyy>0.005</iyy><iyz>0</iyz><izz>0.005</izz></inertia></inertial>
+        <collision name="cylinder2_collision"><geometry><cylinder><radius>0.10</radius><length>0.15</length></cylinder></geometry></collision>
+        <visual name="cylinder2_visual"><geometry><cylinder><radius>0.10</radius><length>0.15</length></cylinder></geometry><material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse></material></visual>
+      </link>
+    </model>
+
+    <!-- 白筒3: Gazebo (56.5, 1.0) → NED x≈0.0, y≈55.5 -->
+    <model name="scout_cylinder_3">
+      <pose>56.5 1.0 0.075 0 0 0</pose>
+      <link name="cylinder3_link">
+        <inertial><mass>0.3</mass><inertia><ixx>0.005</ixx><ixy>0</ixy><ixz>0</ixz><iyy>0.005</iyy><iyz>0</iyz><izz>0.005</izz></inertia></inertial>
+        <collision name="cylinder3_collision"><geometry><cylinder><radius>0.10</radius><length>0.15</length></cylinder></geometry></collision>
+        <visual name="cylinder3_visual"><geometry><cylinder><radius>0.10</radius><length>0.15</length></cylinder></geometry><material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse></material></visual>
+      </link>
+    </model>
+
+    <!-- 白筒4: Gazebo (58.0, 1.5) → NED x≈0.5, y≈57.0 -->
+    <model name="scout_cylinder_4">
+      <pose>58.0 1.5 0.075 0 0 0</pose>
+      <link name="cylinder4_link">
+        <inertial><mass>0.3</mass><inertia><ixx>0.005</ixx><ixy>0</ixy><ixz>0</ixz><iyy>0.005</iyy><iyz>0</iyz><izz>0.005</izz></inertia></inertial>
+        <collision name="cylinder4_collision"><geometry><cylinder><radius>0.10</radius><length>0.15</length></cylinder></geometry></collision>
+        <visual name="cylinder4_visual"><geometry><cylinder><radius>0.10</radius><length>0.15</length></cylinder></geometry><material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse></material></visual>
+      </link>
+    </model>
+
+    <!-- 白筒5: Gazebo (54.0, 0.5) → NED x≈-0.5, y≈53.0 -->
+    <model name="scout_cylinder_5">
+      <pose>54.0 0.5 0.075 0 0 0</pose>
+      <link name="cylinder5_link">
+        <inertial><mass>0.3</mass><inertia><ixx>0.005</ixx><ixy>0</ixy><ixz>0</ixz><iyy>0.005</iyy><iyz>0</iyz><izz>0.005</izz></inertia></inertial>
+        <collision name="cylinder5_collision"><geometry><cylinder><radius>0.10</radius><length>0.15</length></cylinder></geometry></collision>
+        <visual name="cylinder5_visual"><geometry><cylinder><radius>0.10</radius><length>0.15</length></cylinder></geometry><material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse></material></visual>
+      </link>
+    </model>
+
+  </world>
+</sdf>

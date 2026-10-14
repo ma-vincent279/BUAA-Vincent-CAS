@@ -1,0 +1,75 @@
+<?xml version="1.0" ?>
+<sdf version="1.6">
+  <world name="default">
+    <plugin name="gazebo_ros_init" filename="libgazebo_ros_init.so"/>
+    <plugin name="gazebo_ros_state" filename="libgazebo_ros_state.so"/>
+
+    <include>
+      <uri>model://sun</uri>
+    </include>
+
+    <!-- 默认灰色地面 -->
+    <include>
+      <uri>model://ground_plane</uri>
+    </include>
+
+    <!-- 红桶1: 右边 3m + 前向 5m，Gazebo (6.0, 4.0) → NED (3, 5) -->
+    <model name="red_bucket_1">
+      <pose>6.0 4.0 0.25 0 0 0</pose>
+      <link name="bucket1_link">
+        <inertial>
+          <mass>0.5</mass>
+          <inertia>
+            <ixx>0.01</ixx><ixy>0</ixy><ixz>0</ixz>
+            <iyy>0.01</iyy><iyz>0</iyz>
+            <izz>0.01</izz>
+          </inertia>
+        </inertial>
+        <collision name="bucket1_collision">
+          <geometry>
+            <cylinder><radius>0.125</radius><length>0.25</length></cylinder>
+          </geometry>
+        </collision>
+        <visual name="bucket1_visual">
+          <geometry>
+            <cylinder><radius>0.125</radius><length>0.25</length></cylinder>
+          </geometry>
+          <material>
+            <ambient>1 0 0 1</ambient>
+            <diffuse>1 0 0 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- 蓝桶2: 左边 3m + 前向 5m，Gazebo (6.0, -2.0) → NED (-3, 5) -->
+    <model name="blue_bucket_2">
+      <pose>6.0 -2.0 0.25 0 0 0</pose>
+      <link name="bucket2_link">
+        <inertial>
+          <mass>0.5</mass>
+          <inertia>
+            <ixx>0.01</ixx><ixy>0</ixy><ixz>0</ixz>
+            <iyy>0.01</iyy><iyz>0</iyz>
+            <izz>0.01</izz>
+          </inertia>
+        </inertial>
+        <collision name="bucket2_collision">
+          <geometry>
+            <cylinder><radius>0.125</radius><length>0.25</length></cylinder>
+          </geometry>
+        </collision>
+        <visual name="bucket2_visual">
+          <geometry>
+            <cylinder><radius>0.125</radius><length>0.25</length></cylinder>
+          </geometry>
+          <material>
+            <ambient>0 0 1 1</ambient>
+            <diffuse>0 0 1 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+  </world>
+</sdf>

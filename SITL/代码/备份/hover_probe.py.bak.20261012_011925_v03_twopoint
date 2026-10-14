@@ -1,0 +1,330 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""hover_probe.py — SITL 定点悬停特性探针 (2026-10-12 新建)
+
+目的
+----
+回答一个此前只能用分数间接猜的问题: **这个 SITL 的位置保持到底有多准?**
+它是投弹精度的**物理地板** —— 若仿真里飞机对固定设定点只能保持到 ±15cm, 那么
+半径 7.5cm 的小桶就不可能在仿真里被稳定命中, 再怎么调判据也没用。
+(D22 判决实验已排除"时间不够"; 本探针量化"地板在哪"。)
+
+做什么
+------
+纯位置控制, **无视觉、无任务、无 DROP**:
+    WAIT(3s) → ARM → OFFBOARD → 爬到 alt
+      → **HOLD_A**: 在起飞点正上方定点悬停 phase_a_s 秒   (无侧向机动)
+      → **TRANSIT**: 位置控制飞到 (target_x, target_y) 同高度
+      → **HOLD_B**: 在该点定点悬停 phase_b_s 秒           (模拟"进近到位之后")
+      → LAND → DISARM → 退出
+全程 20Hz 把 `设定点 / 实际位置 / 速度 / 姿态` 写 CSV。
+
+用法
+----
+    ros2 run drone_drl hover_probe --ros-args -p csv_path:=/tmp/hover.csv
+或在 `scripts/test_hover.sh` 里一键跑 (它复用 test_k.sh 的启动前导)。
+"""
+import csv
+import math
+import pathlib
+
+import rclpy
+from px4_msgs.msg import (OffboardControlMode, TrajectorySetpoint, VehicleCommand,
+                          VehicleControlMode, VehicleLandDetected, VehicleLocalPosition,
+                          VehicleStatus)
+from rclpy.node import Node
+
+from drone_drl.common import (QOS_BE, control_mode_topic, is_armed, land_detected_topic,
+                              local_pos_topic, status_topic)
+
+STEP_WAIT, STEP_ARM, STEP_OFFB, STEP_CLIMB, STEP_SETTLE_A, STEP_HOLD_A, STEP_SETTLE_B, STEP_TRANSIT, STEP_HOLD_B, STEP_LAND, STEP_DISARM, STEP_DONE = range(12)
+STEP_NAME = {STEP_WAIT: "WAIT", STEP_ARM: "ARM", STEP_OFFB: "OFFBOARD", STEP_CLIMB: "CLIMB",
+             STEP_SETTLE_A: "SETTLE_A", STEP_HOLD_A: "HOLD_A",
+             STEP_SETTLE_B: "SETTLE_B", STEP_TRANSIT: "TRANSIT", STEP_HOLD_B: "HOLD_B",
+             STEP_LAND: "LAND", STEP_DISARM: "DISARM", STEP_DONE: "DONE"}
+
+
+class HoverProbe(Node):
+
+    def __init__(self):
+        super().__init__('hover_probe')
+
+        self.declare_parameter('alt', 1.2)             # 悬停高度 (相对起飞点, m)
+        self.declare_parameter('phase_a_s', 15.0)      # 起飞点上方定点时长
+        self.declare_parameter('phase_b_s', 15.0)      # 进近到位后定点时长
+        self.declare_parameter('target_x', 2.0)        # 目标点 (相对 home NED)
+        self.declare_parameter('target_y', 32.0)
+        self.declare_parameter('csv_path', '/tmp/hover_probe.csv')
+        self.declare_parameter('log_hz', 20.0)
+        self.declare_parameter('climb_rate', 1.0)     # 爬升限速 (m/s) —— 防 35s 爬行
+        self.declare_parameter('transit_speed', 1.5)  # 前飞限速 (m/s) —— 不设就会按 PX4 最大速度冲
+        self.declare_parameter('settle_vxy', 0.15)    # 判稳阈值 (m/s)
+        self.declare_parameter('settle_hold', 2.0)    # 判稳持续时间 (s)
+        self.declare_parameter('settle_max', 25.0)    # 判稳最长等待 (s)
+
+        self.alt = float(self.get_parameter('alt').value)
+        self.phase_a_s = float(self.get_parameter('phase_a_s').value)
+        self.phase_b_s = float(self.get_parameter('phase_b_s').value)
+        self.tx = float(self.get_parameter('target_x').value)
+        self.ty = float(self.get_parameter('target_y').value)
+        self.csv_path = pathlib.Path(self.get_parameter('csv_path').value)
+        self.log_every = max(1, int(round(20.0 / float(self.get_parameter('log_hz').value))))
+        self.climb_rate = float(self.get_parameter('climb_rate').value)
+        self.transit_speed = float(self.get_parameter('transit_speed').value)
+        self.settle_vxy = float(self.get_parameter('settle_vxy').value)
+        self.settle_hold = float(self.get_parameter('settle_hold').value)
+        self.settle_max = float(self.get_parameter('settle_max').value)
+        self.cmd_x = self.cmd_y = self.cmd_z = 0.0   # 限速后的命令点
+        self.v_ok_since = None
+
+        # ---- 状态 ----
+        self.status = None
+        self.control_mode = None
+        self.x = self.y = self.z = 0.0
+        self.vx = self.vy = self.vz = 0.0
+        self.roll = self.pitch = 0.0
+        self.heading = 0.0
+        self.home_x = self.home_y = self.home_z = None
+        self.takeoff_x = self.takeoff_y = self.takeoff_z = None
+        self.landed = False
+        self.done = False
+
+        self.step = STEP_WAIT
+        self.step_t0 = None
+        self.tick = 0
+        self.rows = []
+
+        # ---- ROS ----
+        self.cmd_pub = self.create_publisher(VehicleCommand, '/fmu/in/vehicle_command', 10)
+        self.offb_pub = self.create_publisher(OffboardControlMode, '/fmu/in/offboard_control_mode', 10)
+        self.traj_pub = self.create_publisher(TrajectorySetpoint, '/fmu/in/trajectory_setpoint', 10)
+        self.create_subscription(VehicleStatus, status_topic(), self._cb_status, QOS_BE)
+        self.create_subscription(VehicleControlMode, control_mode_topic(), self._cb_mode, QOS_BE)
+        self.create_subscription(VehicleLandDetected, land_detected_topic(), self._cb_landed, QOS_BE)
+        self.create_subscription(VehicleLocalPosition, local_pos_topic(), self._cb_local, QOS_BE)
+
+        self.csv_path.parent.mkdir(parents=True, exist_ok=True)
+        self._csv = open(self.csv_path, 'w', newline='', encoding='utf-8')
+        self._w = csv.writer(self._csv)
+        self._w.writerow(['t', 'step', 'sp_x', 'sp_y', 'sp_z',
+                          'x', 'y', 'z', 'vx', 'vy', 'vz', 'roll_deg', 'pitch_deg', 'hdg_deg'])
+
+        self.create_timer(0.05, self.loop)
+        self.get_logger().info(
+            f"hover_probe ready: alt={self.alt}m HOLD_A={self.phase_a_s}s "
+            f"HOLD_B={self.phase_b_s}s target=({self.tx},{self.ty}) csv={self.csv_path}")
+
+    # ---------------- 回调 ----------------
+    def _cb_status(self, m):
+        self.status = m
+
+    def _cb_mode(self, m):
+        self.control_mode = m
+
+    def _cb_landed(self, m):
+        self.landed = bool(m.landed)
+
+    def _cb_local(self, m):
+        self.x, self.y, self.z = float(m.x), float(m.y), float(m.z)
+        self.vx, self.vy, self.vz = float(m.vx), float(m.vy), float(m.vz)
+        if math.isfinite(m.heading):
+            self.heading = float(m.heading)
+
+    # ---------------- 工具 ----------------
+    def _t0(self):
+        return self.get_clock().now()
+
+    def _elapsed(self):
+        if self.step_t0 is None:
+            return 0.0
+        return (self.get_clock().now() - self.step_t0).nanoseconds * 1e-9
+
+    def _enter(self, step):
+        self.get_logger().info(f"STEP {STEP_NAME[self.step]} -> {STEP_NAME[step]} (prev {self._elapsed():.1f}s)")
+        self.step = step
+        self.step_t0 = self._t0()
+
+    def _cmd(self, command, **params):
+        self.cmd_pub.publish(VehicleCommand(
+            timestamp=self.get_clock().now().nanoseconds // 1000,
+            command=command, target_system=1, target_component=1,
+            source_system=1, source_component=1, from_external=True, **params))
+
+    def _pub(self, sx, sy, sz):
+        ts = self.get_clock().now().nanoseconds // 1000
+        self.offb_pub.publish(OffboardControlMode(timestamp=ts, position=True))
+        self.traj_pub.publish(TrajectorySetpoint(
+            timestamp=ts, position=[float(sx), float(sy), float(sz)], yaw=float(self.heading),
+            velocity=[float('nan')] * 3, acceleration=[float('nan')] * 3))
+        self._record(sx, sy, sz)
+
+    def _ramp(self, tx, ty, tz, vmax, dt=0.05):
+        """把命令点按 vmax 朝目标推进 (时间锚定式限速; 防阶跃⇒爬行/全速冲)"""
+        ax, ay, az = self.cmd_x, self.cmd_y, self.cmd_z
+        for i, (a, t) in enumerate(((ax, tx), (ay, ty), (az, tz))):
+            d = t - a
+            step = vmax * dt
+            nv = a + max(-step, min(step, d))
+            if i == 0: ax = nv
+            elif i == 1: ay = nv
+            else: az = nv
+        self.cmd_x, self.cmd_y, self.cmd_z = ax, ay, az
+        return ax, ay, az
+
+    def _settled(self, now):
+        """要求 |vxy| 连续低于阈值 settle_hold 秒"""
+        ok = math.hypot(self.vx, self.vy) < self.settle_vxy
+        if not ok:
+            self.v_ok_since = None
+            return False
+        if self.v_ok_since is None:
+            self.v_ok_since = now
+            return False
+        return (now - self.v_ok_since).nanoseconds * 1e-9 >= self.settle_hold
+
+    # ---------------- 主循环 (20Hz) ----------------
+    def loop(self):
+        if self.step == STEP_WAIT:
+            if self.step_t0 is None:
+                self.step_t0 = self._t0()
+            if self.status is not None and self.step_t0 is not None and self._elapsed() > 3.0:
+                self.takeoff_x, self.takeoff_y, self.takeoff_z = self.x, self.y, self.z
+                self.home_x, self.home_y, self.home_z = self.x, self.y, self.z
+                self.get_logger().info(
+                    f"home/takeoff 记为 NED({self.home_x:.3f},{self.home_y:.3f},{self.home_z:.3f})")
+                self._enter(STEP_ARM)
+            return
+
+        armed = is_armed(self.status, self.control_mode)
+        offb = (self.control_mode.flag_control_offboard_enabled
+                if self.control_mode is not None else False)
+
+        if self.step == STEP_ARM:
+            if not armed:
+                if self._elapsed() > 1.0:
+                    self._cmd(400, param1=1.0)      # MAV_CMD_COMPONENT_ARM_DISARM
+                    self._enter(STEP_ARM)            # 1Hz 重试
+                self._pub(self.takeoff_x, self.takeoff_y, self.takeoff_z)
+                return
+            self._enter(STEP_OFFB)
+            return
+
+        if self.step == STEP_OFFB:
+            self._pub(self.takeoff_x, self.takeoff_y, self.takeoff_z)
+            if offb:
+                self.cmd_x, self.cmd_y, self.cmd_z = self.x, self.y, self.z   # 锚点=当前, 再限速
+                self._enter(STEP_CLIMB)
+            elif self._elapsed() > 2.0:
+                self._cmd(176, param1=1.0, param2=6.0)   # OFFBOARD
+                self._enter(STEP_OFFB)
+            return
+
+        tgt_z = self.home_z - self.alt
+
+        if self.step == STEP_CLIMB:
+            # 限速爬升 (不用阶跃: 实测阶跃会让 PX4 爬 0.034m/s ⇒ 35s)
+            cx, cy, cz = self._ramp(self.takeoff_x, self.takeoff_y, tgt_z, self.climb_rate)
+            self._pub(cx, cy, cz)
+            if abs(self.z - tgt_z) < 0.10:
+                self.v_ok_since = None
+                self._enter(STEP_SETTLE_A)
+            return
+
+        if self.step == STEP_SETTLE_A:
+            self._pub(self.takeoff_x, self.takeoff_y, tgt_z)
+            if self._settled(self.get_clock().now()) or self._elapsed() > self.settle_max:
+                self.get_logger().info(
+                    f"SETTLE_A 完成 (用时 {self._elapsed():.1f}s, vxy={math.hypot(self.vx, self.vy):.3f})")
+                self._enter(STEP_HOLD_A)
+            return
+
+        if self.step == STEP_HOLD_A:
+            self._pub(self.takeoff_x, self.takeoff_y, tgt_z)
+            if self._elapsed() >= self.phase_a_s:
+                self.get_logger().info("TRANSIT 起点")
+                self._enter(STEP_TRANSIT)
+            return
+
+        if self.step == STEP_TRANSIT:
+            ax, ay = self.home_x + self.tx, self.home_y + self.ty
+            cx, cy, cz = self._ramp(ax, ay, tgt_z, self.transit_speed)
+            self._pub(cx, cy, cz)
+            if math.hypot(self.x - ax, self.y - ay) < 0.15 and abs(self.x - cx) < 0.20:
+                self.v_ok_since = None
+                self._enter(STEP_SETTLE_B)
+            elif self._elapsed() > 120.0:
+                self.get_logger().warn("TRANSIT 超时")
+                self._enter(STEP_SETTLE_B)
+            return
+
+        if self.step == STEP_SETTLE_B:
+            ax, ay = self.home_x + self.tx, self.home_y + self.ty
+            self._pub(ax, ay, tgt_z)
+            if self._settled(self.get_clock().now()) or self._elapsed() > self.settle_max:
+                self.get_logger().info(
+                    f"SETTLE_B 完成 (用时 {self._elapsed():.1f}s, vxy={math.hypot(self.vx, self.vy):.3f})")
+                self._enter(STEP_HOLD_B)
+            return
+
+        if self.step == STEP_HOLD_B:
+            ax, ay = self.home_x + self.tx, self.home_y + self.ty
+            self._pub(ax, ay, tgt_z)
+            if self._elapsed() >= self.phase_b_s:
+                self._enter(STEP_LAND)
+            return
+
+        if self.step == STEP_LAND:
+            if not getattr(self, '_land_sent', False):
+                self._cmd(21)                        # MAV_CMD_NAV_LAND
+                self._land_sent = True
+            if self.landed or self.z > self.home_z - 0.3:
+                self._enter(STEP_DISARM)
+            elif self._elapsed() > 60.0:
+                self._enter(STEP_DISARM)
+            return
+
+        if self.step == STEP_DISARM:
+            if armed:
+                self._cmd(400, param1=0.0)
+            else:
+                self._enter(STEP_DONE)
+            return
+
+        if self.step == STEP_DONE:
+            self._finish()
+            return
+
+    # ---------------- 记录 ----------------
+    def _record(self, sx, sy, sz):
+        self.tick += 1
+        if self.tick % self.log_every:
+            return
+        self._w.writerow([f"{self.get_clock().now().nanoseconds * 1e-9:.3f}", STEP_NAME[self.step],
+                          f"{sx:.4f}", f"{sy:.4f}", f"{sz:.4f}",
+                          f"{self.x:.4f}", f"{self.y:.4f}", f"{self.z:.4f}",
+                          f"{self.vx:.4f}", f"{self.vy:.4f}", f"{self.vz:.4f}",
+                          f"{math.degrees(self.roll):.2f}", f"{math.degrees(self.pitch):.2f}",
+                          f"{math.degrees(self.heading):.2f}"])
+
+    def _finish(self):
+        self._csv.flush()
+        self._csv.close()
+        self.get_logger().info(f"CSV 写入完成: {self.csv_path}")
+        self.done = True
+
+
+def main():
+    rclpy.init()
+    node = HoverProbe()
+    try:
+        while rclpy.ok() and not node.done:
+            rclpy.spin_once(node, timeout_sec=0.1)
+    except KeyboardInterrupt:
+        pass
+    if rclpy.ok():
+        node.destroy_node()
+        rclpy.shutdown()
+
+
+if __name__ == '__main__':
+    main()

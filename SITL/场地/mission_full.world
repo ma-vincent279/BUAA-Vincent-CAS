@@ -1,0 +1,120 @@
+<?xml version="1.0" ?>
+<sdf version="1.6">
+  <world name="default">
+    <plugin name="gazebo_ros_init" filename="libgazebo_ros_init.so"/>
+    <plugin name="gazebo_ros_state" filename="libgazebo_ros_state.so"/>
+
+    <include>
+      <uri>model://sun</uri>
+    </include>
+
+    <include>
+      <uri>model://ground_plane</uri>
+    </include>
+
+    <!-- 投放区 (30m): 红桶1 — NED (2.7, 30) → Gazebo (31.01, 3.68, 0.25) -->
+    <model name="red_bucket_1">
+      <pose>31.01 3.68 0.25 0 0 0</pose>
+      <link name="bucket1_link">
+        <inertial>
+          <mass>0.5</mass>
+          <inertia>
+            <ixx>0.01</ixx><ixy>0</ixy><ixz>0</ixz>
+            <iyy>0.01</iyy><iyz>0</iyz>
+            <izz>0.01</izz>
+          </inertia>
+        </inertial>
+        <collision name="bucket1_collision">
+          <geometry>
+            <cylinder><radius>0.125</radius><length>0.25</length></cylinder>
+          </geometry>
+        </collision>
+        <visual name="bucket1_visual">
+          <geometry>
+            <cylinder><radius>0.125</radius><length>0.25</length></cylinder>
+          </geometry>
+          <material>
+            <ambient>1 0 0 1</ambient>
+            <diffuse>1 0 0 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- 投放区: 蓝桶2 — NED (-3.1, 30) → Gazebo (31.01, -2.12, 0.25) -->
+    <model name="blue_bucket_2">
+      <pose>31.01 -2.12 0.25 0 0 0</pose>
+      <link name="bucket2_link">
+        <inertial>
+          <mass>0.5</mass>
+          <inertia>
+            <ixx>0.01</ixx><ixy>0</ixy><ixz>0</ixz>
+            <iyy>0.01</iyy><iyz>0</iyz>
+            <izz>0.01</izz>
+          </inertia>
+        </inertial>
+        <collision name="bucket2_collision">
+          <geometry>
+            <cylinder><radius>0.125</radius><length>0.25</length></cylinder>
+          </geometry>
+        </collision>
+        <visual name="bucket2_visual">
+          <geometry>
+            <cylinder><radius>0.125</radius><length>0.25</length></cylinder>
+          </geometry>
+          <material>
+            <ambient>0 0 1 1</ambient>
+            <diffuse>0 0 1 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- 侦察区 (55m): 5 个白色圆筒 -->
+    <model name="scout_cylinder_1">
+      <pose>53.5 0.0 0.075 0 0 0</pose>
+      <link name="cylinder1_link">
+        <inertial><mass>0.3</mass><inertia><ixx>0.005</ixx><ixy>0</ixy><ixz>0</ixz><iyy>0.005</iyy><iyz>0</iyz><izz>0.005</izz></inertia></inertial>
+        <collision name="cylinder1_collision"><geometry><cylinder><radius>0.10</radius><length>0.15</length></cylinder></geometry></collision>
+        <visual name="cylinder1_visual"><geometry><cylinder><radius>0.10</radius><length>0.15</length></cylinder></geometry><material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse></material></visual>
+      </link>
+    </model>
+
+    <model name="scout_cylinder_2">
+      <pose>55.0 2.0 0.075 0 0 0</pose>
+      <link name="cylinder2_link">
+        <inertial><mass>0.3</mass><inertia><ixx>0.005</ixx><ixy>0</ixy><ixz>0</ixz><iyy>0.005</iyy><iyz>0</iyz><izz>0.005</izz></inertia></inertial>
+        <collision name="cylinder2_collision"><geometry><cylinder><radius>0.10</radius><length>0.15</length></cylinder></geometry></collision>
+        <visual name="cylinder2_visual"><geometry><cylinder><radius>0.10</radius><length>0.15</length></cylinder></geometry><material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse></material></visual>
+      </link>
+    </model>
+
+    <model name="scout_cylinder_3">
+      <pose>56.5 1.0 0.075 0 0 0</pose>
+      <link name="cylinder3_link">
+        <inertial><mass>0.3</mass><inertia><ixx>0.005</ixx><ixy>0</ixy><ixz>0</ixz><iyy>0.005</iyy><iyz>0</iyz><izz>0.005</izz></inertia></inertial>
+        <collision name="cylinder3_collision"><geometry><cylinder><radius>0.10</radius><length>0.15</length></cylinder></geometry></collision>
+        <visual name="cylinder3_visual"><geometry><cylinder><radius>0.10</radius><length>0.15</length></cylinder></geometry><material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse></material></visual>
+      </link>
+    </model>
+
+    <model name="scout_cylinder_4">
+      <pose>58.0 1.5 0.075 0 0 0</pose>
+      <link name="cylinder4_link">
+        <inertial><mass>0.3</mass><inertia><ixx>0.005</ixx><ixy>0</ixy><ixz>0</ixz><iyy>0.005</iyy><iyz>0</iyz><izz>0.005</izz></inertia></inertial>
+        <collision name="cylinder4_collision"><geometry><cylinder><radius>0.10</radius><length>0.15</length></cylinder></geometry></collision>
+        <visual name="cylinder4_visual"><geometry><cylinder><radius>0.10</radius><length>0.15</length></cylinder></geometry><material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse></material></visual>
+      </link>
+    </model>
+
+    <model name="scout_cylinder_5">
+      <pose>54.0 0.5 0.075 0 0 0</pose>
+      <link name="cylinder5_link">
+        <inertial><mass>0.3</mass><inertia><ixx>0.005</ixx><ixy>0</ixy><ixz>0</ixz><iyy>0.005</iyy><iyz>0</iyz><izz>0.005</izz></inertia></inertial>
+        <collision name="cylinder5_collision"><geometry><cylinder><radius>0.10</radius><length>0.15</length></cylinder></geometry></collision>
+        <visual name="cylinder5_visual"><geometry><cylinder><radius>0.10</radius><length>0.15</length></cylinder></geometry><material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse></material></visual>
+      </link>
+    </model>
+
+  </world>
+</sdf>

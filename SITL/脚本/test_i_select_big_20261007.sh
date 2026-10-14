@@ -1,0 +1,116 @@
+#!/bin/bash
+# ================================================================
+# 选桶策略验证 — "三个桶大小不同" 场景 (2026-10-07)
+#   与 test_i.sh 相同的流程, 只把仿真检测器的三个桶半径改成不同值:
+#     bucket1 r=0.180 (大) / bucket2 r=0.125 (中) / bucket3 r=0.085 (小)
+#   期望: 选中"大 + 中" = target_bucket_1 (NED -1.50,31.50) 与 target_bucket_2 (2.00,33.00),
+#         抛弃最小的 target_bucket_3 (0.00,34.00).
+#   ⚠ 关键判别性: B3 的 |lateral| 最小 (最靠航向中线) ⇒ **旧策略本来会选 B1+B3**;
+#     新策略若选出 B1+B2 就证明"按大小"真的生效了, 而不是靠兜底.
+# 用法: bash ~/SITL/scripts/test_i_select_big_20261007.sh
+# ================================================================
+set -e
+
+SITL_DIR="/home/vincent/SITL"
+PX4_DIR="/home/vincent/PX4-Autopilot"
+PX4_BUILD="$PX4_DIR/build/px4_sitl_default"
+PX4_ROOTFS="$PX4_BUILD/rootfs"
+LOG_FILE="/tmp/i_sel_output.log"
+JUDGE_LOG="/tmp/i_sel_judge.log"
+
+echo "=== 1. 清理残留进程 ==="
+for port in 11345 8888; do
+    for pid in $(lsof -ti:$port 2>/dev/null); do kill -9 $pid 2>/dev/null || true; done
+done
+pkill -9 -x "px4" 2>/dev/null || true
+pkill -9 -x "gzserver" 2>/dev/null || true
+pkill -9 -x "gzclient" 2>/dev/null || true
+pkill -9 -f "MicroXRCEAgent" 2>/dev/null || true
+pkill -9 -f "sitl_run" 2>/dev/null || true
+# 2026-10-07: 必须把上一轮的 ROS 节点也清掉! 否则残留的检测器会和本轮同时发框
+#   (实测 5 个发布者: 残留检测器用旧的位置参数发同一个桶, 会让 i 的冻结估计"跳"0.6m).
+#   ⚠ 关键: `ros2 run` 的包装进程被杀后, 真正的节点子进程
+#   (install/drone_drl/lib/drone_drl/<node>) 会留下来, 且命令行里没有 "ros2 run"
+#   ⇒ 必须按可执行路径匹配 (test_i.sh 里的 `pkill -f drone_drl` 就是干这个的, 我漏了).
+for pid in $(pgrep -f "[r]os2 run drone_drl" 2>/dev/null); do kill -9 $pid 2>/dev/null || true; done
+pkill -9 -f "drone_drl/lib/drone_drl" 2>/dev/null || true
+rm -f /tmp/px4_lock-0 /tmp/px4-sock-0 2>/dev/null
+sleep 2
+N_RESID=$(ps -eo args | grep "[d]rone_drl/lib/drone_drl" | wc -l)
+echo "  残留节点数(应为 0): $N_RESID"
+if [ "$N_RESID" != "0" ]; then echo "  !! 仍有残留节点, 放弃本轮 (避免脏数据)"; exit 1; fi
+
+echo "=== 2. 重置 PX4 持久化状态 ==="
+rm -rf "$PX4_ROOTFS/log"/*/ 2>/dev/null || true
+rm -f "$PX4_BUILD/dataman" "$PX4_ROOTFS/dataman" "$PX4_ROOTFS/parameters.bson"
+rm -rf "$PX4_ROOTFS/eeprom"
+export PX4_PARAM_CBRK_SUPPLY_CHK=894281
+export PX4_PARAM_CBRK_IO_SAFETY=22027
+export PX4_PARAM_CBRK_USB_CHK=197848
+export PX4_PARAM_COM_OF_LOSS_T=10.0
+export PX4_PARAM_COM_LOW_BAT_ACT=0
+export PX4_SITL_WORLD="$SITL_DIR/worlds/i.world"
+
+echo "=== 3. 编译 ==="
+cd "$SITL_DIR"
+colcon build --packages-select drone_drl 2>&1 | tail -4
+source "$SITL_DIR/install/setup.bash"
+
+echo "=== 4. Agent ==="
+MicroXRCEAgent udp4 -p 8888 &
+AGENT_PID=$!
+sleep 2
+
+echo "=== 5. PX4 + Gazebo ==="
+cd "$PX4_DIR"
+export GAZEBO_MODEL_DATABASE_URI=""
+make px4_sitl gazebo-classic_iris_mono_cam_down &
+for i in $(seq 1 120); do
+    if pgrep -x gzserver > /dev/null && pgrep -x px4 > /dev/null; then
+        echo "  初始化完成 (第 $((i*5))s)"; break
+    fi
+    sleep 5
+done
+pgrep -x gzserver > /dev/null || { echo "ERROR: gzserver failed"; exit 1; }
+pgrep -x px4 > /dev/null || { echo "ERROR: px4 failed"; exit 1; }
+
+echo "=== 6. 等 DDS ==="
+source "$SITL_DIR/install/setup.bash"
+for i in $(seq 1 20); do
+    if ros2 topic list 2>/dev/null | grep -q "/fmu/out/vehicle_status_v4"; then echo "  DDS 就绪"; break; fi
+    sleep 1
+done
+
+echo "=== 7. 辅助节点 (三个桶: 大 r=0.180 / 中 r=0.125 / 小 r=0.085) ==="
+# 位置特意摆成"小桶最靠航向中线(x≈0), 两个大桶分列两侧" ⇒ 旧策略(|lateral| 升序)必然
+# 先选小桶; 新策略(面积降序)必须选两个大桶并抛弃小桶 ⇒ 判别性最强.
+#   NED(-2.60,33.80) 大   NED(+2.60,33.40) 中   NED(0.00,34.30) 小
+source "$SITL_DIR/install/setup.bash"
+ros2 run drone_drl yolov8_bucket_detector --ros-args \
+    -p use_sim:=true -p conf_threshold:=0.3 -p bucket_count:=3 \
+    -p bucket1_gz_x:=34.81 -p bucket1_gz_y:=-1.62 -p bucket1_gz_z:=0.25 -p bucket1_radius:=0.180 \
+    -p bucket2_gz_x:=34.41 -p bucket2_gz_y:=3.58  -p bucket2_gz_z:=0.25 -p bucket2_radius:=0.125 \
+    -p bucket3_gz_x:=35.31 -p bucket3_gz_y:=0.98  -p bucket3_gz_z:=0.25 -p bucket3_radius:=0.085 &
+sleep 0.5
+rm -f "$JUDGE_LOG"
+ros2 run drone_drl final_judge --ros-args \
+    -p bucket1_gz_x:=34.81 -p bucket1_gz_y:=-1.62 -p bucket1_gz_z:=0.25 \
+    -p bucket2_gz_x:=34.41 -p bucket2_gz_y:=3.58 -p bucket2_gz_z:=0.25 \
+    -p bucket3_gz_x:=35.31 -p bucket3_gz_y:=0.98 -p bucket3_gz_z:=0.25 \
+    -p bucket_radius:=0.125 > "$JUDGE_LOG" 2>&1 &
+sleep 1
+
+echo "=== 8. 启动 i 任务 ==="
+source "$SITL_DIR/install/setup.bash"
+ros2 run drone_drl i 2>&1 | tee "$LOG_FILE"
+
+echo "=== 9. 清理 ==="
+# 2026-10-07: 原来只 kill agent, 检测器/裁判会留下来 → 下一轮就有 2 个发布者 (实测踩过)
+for pid in $(ps -eo pid,args | grep "[d]rone_drl/lib/drone_drl" | awk '{print $1}'); do kill -9 $pid 2>/dev/null || true; done
+sleep 1
+echo "  本轮残留节点数(应为 0): $(ps -eo args | grep "[d]rone_drl/lib/drone_drl" | wc -l)"
+kill $AGENT_PID 2>/dev/null || true
+sleep 1
+echo "=== 裁判打分 ==="
+cat "$JUDGE_LOG" 2>/dev/null || echo "(无裁判日志)"
+echo "任务日志: $LOG_FILE"

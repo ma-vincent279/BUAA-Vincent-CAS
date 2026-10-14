@@ -1,0 +1,130 @@
+#!/usr/bin/env python3
+"""
+单桶检测器 — Ground Truth 投影模拟 YOLOv8 检测。
+仿真中替代 YOLOv8，发布 /bucket/detection (RegionOfInterest)。
+实机时切换为真正的 YOLOv8 检测节点。
+
+ROS 参数:
+  bucket_gz_x/y/z   桶 Gazebo 坐标 (默认 6.01, 0.98, 0.25 → NED 0,5,0.58)
+  spawn_gz_x/y/z    飞机 Gazebo 生成点 (默认 1.01, 0.98, 0.83)
+"""
+
+import math
+import random
+import rclpy
+from rclpy.node import Node
+from sensor_msgs.msg import RegionOfInterest
+from px4_msgs.msg import VehicleLocalPosition
+from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
+
+
+class SingleBucketDetector(Node):
+    def __init__(self):
+        super().__init__('single_bucket_detector')
+
+        self.declare_parameter('bucket_gz_x', 6.01)
+        self.declare_parameter('bucket_gz_y', 0.98)
+        self.declare_parameter('bucket_gz_z', 0.25)
+        self.declare_parameter('spawn_gz_x', 1.01)
+        self.declare_parameter('spawn_gz_y', 0.98)
+        self.declare_parameter('spawn_gz_z', 0.83)
+
+        sgx = self.get_parameter('spawn_gz_x').value
+        sgy = self.get_parameter('spawn_gz_y').value
+        sgz = self.get_parameter('spawn_gz_z').value
+        bgx = self.get_parameter('bucket_gz_x').value
+        bgy = self.get_parameter('bucket_gz_y').value
+        bgz = self.get_parameter('bucket_gz_z').value
+
+        self.bucket_ned = (bgy - sgy, bgx - sgx, -(bgz - sgz))
+        self.bucket_radius = 0.125
+
+        self.img_w, self.img_h = 640, 480
+        self.hfov = 1.047
+        self.vfov = 2.0 * math.atan(math.tan(self.hfov / 2.0) * self.img_h / self.img_w)
+        self.fx = self.img_w / (2.0 * math.tan(self.hfov / 2.0))
+        self.fy = self.img_h / (2.0 * math.tan(self.vfov / 2.0))
+
+        self.drone_x = self.drone_y = self.drone_z = 0.0
+        self.heading = None
+
+        qos = QoSProfile(reliability=ReliabilityPolicy.BEST_EFFORT,
+                         durability=DurabilityPolicy.VOLATILE, depth=10)
+        self.local_sub = self.create_subscription(
+            VehicleLocalPosition, '/fmu/out/vehicle_local_position_v1',
+            self._cb_local, qos)
+        self.det_pub = self.create_publisher(
+            RegionOfInterest, '/bucket/detection', 10)
+
+        self.timer = self.create_timer(0.05, self._tick)
+        self.get_logger().info(
+            f"Single bucket detector ready — "
+            f"bucket NED({self.bucket_ned[0]:.2f},{self.bucket_ned[1]:.2f},{self.bucket_ned[2]:.2f}) "
+            f"Φ{2*self.bucket_radius:.2f}m")
+
+    def _cb_local(self, m):
+        self.drone_x, self.drone_y, self.drone_z = m.x, m.y, m.z
+        if math.isfinite(m.heading):
+            self.heading = m.heading
+
+    def _tick(self):
+        if self.heading is None:
+            return
+        bx, by, bz = self.bucket_ned
+        dx = bx - self.drone_x
+        dy = by - self.drone_y
+        dz = bz - self.drone_z
+
+        if dz < 0.3:  # 桶在飞机上方或同高度，不可见
+            return
+
+        cos_h = math.cos(self.heading)
+        sin_h = math.sin(self.heading)
+        body_fwd = dx * cos_h + dy * sin_h
+        body_right = -dx * sin_h + dy * cos_h
+
+        if body_fwd < -0.5:  # 桶明显在飞机后方 (容忍轻微 overshoot)
+            return
+
+        px = self.img_w / 2.0 + (body_right / dz) * self.fx
+        py = self.img_h / 2.0 + (body_fwd / dz) * self.fy
+        box_w = 2.0 * self.fx * self.bucket_radius / dz
+        box_h = 2.0 * self.fy * self.bucket_radius / dz
+
+        # 模拟 YOLO 抖动
+        rng = random.Random()
+        px += rng.gauss(0, 4)
+        py += rng.gauss(0, 4)
+        box_w += rng.gauss(0, 6)
+        box_h += rng.gauss(0, 6)
+        box_w = max(4, min(200, box_w))
+        box_h = max(4, min(200, box_h))
+
+        if px + box_w / 2 < 0 or px - box_w / 2 > self.img_w:
+            return
+        if py + box_h / 2 < 0 or py - box_h / 2 > self.img_h:
+            return
+
+        roi = RegionOfInterest()
+        roi.x_offset = max(0, int(px - box_w / 2))
+        roi.y_offset = max(0, int(py - box_h / 2))
+        roi.width = min(self.img_w - roi.x_offset, int(box_w))
+        roi.height = min(self.img_h - roi.y_offset, int(box_h))
+        roi.do_rectify = False
+        self.det_pub.publish(roi)
+
+
+def main(args=None):
+    rclpy.init(args=args)
+    node = SingleBucketDetector()
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
+
+
+if __name__ == '__main__':
+    main()

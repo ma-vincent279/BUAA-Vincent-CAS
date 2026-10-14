@@ -1,0 +1,111 @@
+{
+  "scene": "cuadc_2026_drop_recon",
+  "seed": 101,
+  "generated_by": "scripts/gen_world_cuadc.py",
+  "coordinate_note": "ned_* 为相对起飞点(飞机 Gazebo 生成点)的 NED 偏移; gz 坐标 = ned_to_gz(); 世界原点不是 NED 原点",
+  "spawn_gz": {
+    "x": 1.01,
+    "y": 0.98,
+    "z": 0.83
+  },
+  "zones": {
+    "drop": {
+      "ned_y_lo": 30.0,
+      "ned_y_hi": 35.0,
+      "half_width": 4.0,
+      "length": 5.0,
+      "width": 8.0
+    },
+    "recon": {
+      "ned_y_lo": 55.0,
+      "ned_y_hi": 60.0,
+      "half_width": 4.0,
+      "length": 5.0,
+      "width": 8.0
+    }
+  },
+  "scoring": {
+    "rule": "d <= bucket.radius -> A 区, 得 bucket.a_zone_score; d <= 0.5 -> B 区, 得 50; 否则 0",
+    "b_zone_radius": 0.5,
+    "b_zone_score": 50,
+    "max_score_2_buckets": 800,
+    "best_pair": "直径最小的两个桶 (500 + 300)"
+  },
+  "buckets": [
+    {
+      "id": "drop_2",
+      "num": 2,
+      "ned_x": 0.56,
+      "ned_y": 31.31,
+      "diameter": 0.2,
+      "radius": 0.1,
+      "height": 0.3,
+      "a_zone_score": 300,
+      "color": "white"
+    },
+    {
+      "id": "drop_1",
+      "num": 1,
+      "ned_x": -0.227,
+      "ned_y": 33.138,
+      "diameter": 0.15,
+      "radius": 0.075,
+      "height": 0.3,
+      "a_zone_score": 500,
+      "color": "white"
+    },
+    {
+      "id": "drop_3",
+      "num": 3,
+      "ned_x": 3.21,
+      "ned_y": 34.154,
+      "diameter": 0.25,
+      "radius": 0.125,
+      "height": 0.3,
+      "a_zone_score": 100,
+      "color": "white"
+    }
+  ],
+  "recon_buckets": [
+    {
+      "id": "recon_5",
+      "ned_x": 0.258,
+      "ned_y": 56.297,
+      "diameter": 0.2,
+      "radius": 0.1,
+      "height": 0.15
+    },
+    {
+      "id": "recon_3",
+      "ned_x": -0.428,
+      "ned_y": 56.545,
+      "diameter": 0.2,
+      "radius": 0.1,
+      "height": 0.15
+    },
+    {
+      "id": "recon_2",
+      "ned_x": 1.953,
+      "ned_y": 56.833,
+      "diameter": 0.2,
+      "radius": 0.1,
+      "height": 0.15
+    },
+    {
+      "id": "recon_4",
+      "ned_x": -2.339,
+      "ned_y": 57.286,
+      "diameter": 0.2,
+      "radius": 0.1,
+      "height": 0.15
+    },
+    {
+      "id": "recon_1",
+      "ned_x": 2.881,
+      "ned_y": 57.443,
+      "diameter": 0.2,
+      "radius": 0.1,
+      "height": 0.15
+    }
+  ]
+}

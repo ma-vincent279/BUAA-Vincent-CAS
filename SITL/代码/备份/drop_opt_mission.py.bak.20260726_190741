@@ -1,0 +1,931 @@
+#!/usr/bin/env python3
+"""
+投放精度优化任务 — 单桶最简状态机，高度 ≤ 3m。
+状态机: TAKEOFF → FORWARD → SEARCH → TRACK → DESCEND → HOVER → DROP → CLIMB → RETURN → LAND
+
+所有可调参数集中在顶部，方便自动优化迭代。
+TRACK/DESCEND/HOVER/DROP 中每秒打印像素误差、位置、速度，供分析收敛曲线。
+"""
+
+import math
+import rclpy
+from rclpy.node import Node
+from px4_msgs.msg import (
+    TrajectorySetpoint, OffboardControlMode, VehicleCommand,
+    VehicleStatus, VehicleLocalPosition, VehicleLandDetected,
+    ManualControlSetpoint, VehicleControlMode,
+)
+from sensor_msgs.msg import RegionOfInterest
+from std_msgs.msg import Float32
+from geometry_msgs.msg import Point
+from drone_drl.common import (
+    QOS_BE, status_topic, local_pos_topic, control_mode_topic,
+    is_armed, send_arm, send_offboard, send_land, send_disarm,
+)
+
+# ============================================================
+# 可调参数 — 自动优化迭代会修改这些值
+# ============================================================
+CRUISE_HEIGHT   = 3.0       # 巡航高度 (m), ≤3m
+DROP_HEIGHT     = 1.0       # 投放高度 (m), 更低=更少漂移
+FORWARD_DIST    = 10.0      # 前飞距离 (m, 机体坐标系沿机头方向)
+# 桶期望位置 = home + FORWARD_DIST * (cos(heading0), sin(heading0))  — 由 _bucket_target() 动态计算
+
+# PID 像素 → 机体速度
+KP_H = 0.006                 # 略增增益加速收敛
+KI_H = 0.00005
+KD_H = 0.002
+MAX_HORIZ_VEL = 1.5
+INTEGRAL_LIMIT = 80.0
+
+# 检测 & 伺服阈值
+TRACK_ARRIVE_PX  = 40.0    # TRACK 阶段像素误差阈值
+HOVER_ARRIVE_PX  = 25.0    # HOVER 阶段像素误差阈值
+STABILIZE_TIME   = 5.0     # 稳定对准 N 秒后进入下一阶段, 确保零速
+TRACK_MAX_TIME   = 60.0    # TRACK 最长停留秒数, 超时强制 DESCEND (即使未收敛)
+HOVER_MAX_TIME   = 30.0    # HOVER 最长停留秒数, 超时强制 DROP (无论如何都要投)
+CRUISE_SPEED    = 1.0      # 巡航前飞速度
+FORWARD_RAMP_DIST = 3.0    # FORWARD 减速距离 (m), 距目标剩余此距离时线性降速
+FORWARD_MIN_SPEED = 0.3    # FORWARD 最低速度 (m/s), ramp 末端不小于此值
+SEARCH_SPEED     = 0.5     # 搜索前飞速度
+SEARCH_BRAKE_TIME = 1.0    # SEARCH 开始后悬停刹车秒数 (消除 FORWARD 惯性)
+DESCEND_SPEED    = 0.25    # 下降速度 (m/s, NED z+)
+HOVER_VZ_KP      = 0.8     # 高度锁定 P 增益
+TRACK_VZ_KP      = 0.5     # 巡航高度锁定 P 增益
+CLIMB_VZ         = -0.8    # 爬升速度 (m/s, NED z- = 上升)
+
+DETECT_TIMEOUT   = 3.0     # 丢 target 悬停等待秒数
+STEP_TIMEOUT     = 120.0
+
+# === TRACK 切入门控 (防 YOLO 误检) ===
+TRACK_ENTRY_DIST_MAX     = 3.0    # 距桶期望位置距离门限 (m), 只有足够近才接受切入
+TRACK_ENTRY_CONFIRM_TIME = 1.5    # 检测时空确认时长 (s), 连续稳定检测 N 秒才切入 TRACK (缩短以减少 overshoot)
+TRACK_ENTRY_ROI_DRIFT    = 120.0  # 确认期 ROI 中心最大漂移 (px), 超过则重置确认
+
+# === 稳定器迟滞 (防检测振荡无法收敛) ===
+STABILIZE_LOST_FRAMES_MAX = 10   # 允许连续超阈值帧数 (20Hz 下 0.5s), 偶尔丢帧不重置
+
+# 航点到达 / 降落
+POS_ARRIVE_DIST  = 0.5
+LAND_DWELL_TIME  = 3.0
+
+# 投放参数
+PAYLOAD_OFFSET_BODY_Y = 0.0   # 载荷偏移补偿量 (0=关, 纯视觉伺服)
+DROP_AFTER_DELAY = 0.0     # HOVER 收敛进入 DROP 后等 N 秒投放
+
+# 投放质量突变仿真 (sim->real: 关闭即回退标准仿真行为)
+MASS_LOSS_ENABLE  = False     # True=投放时模拟载荷释放导致的质量突变
+MASS_LOSS_IMPULSE = -0.5      # 投放瞬间 z 轴负向速度脉冲 (m/s, NED z- = 上升)
+MASS_LOSS_DECAY   = 0.3       # 脉冲衰减时间 (s), 0.3s 后完全恢复
+MONITOR_HZ        = 2.0       # 独立位置监视日志频率 (Hz, 0=关闭)
+
+# AUX5 舵机 — ManualControlSetpoint 控制 (已验证方案)
+AUX5_LOCK  =  0.0            # aux5 值 → PWM 1500us (舵机锁定/关仓)
+AUX5_DROP  =  0.83333        # aux5 值 → PWM 2000us (舵机投放/开仓)
+AUX5_DROP_HOLD = 1.0         # 投放信号保持秒数, 之后恢复 LOCK
+MANUAL_TIMER_PERIOD = 0.005  # ManualControlSetpoint 发布频率 200Hz
+
+# 相机参数
+IMG_W = 640
+IMG_H = 480
+HFOV = 1.047                # 水平视场角 (rad, ~60°)
+FX = IMG_W / (2.0 * math.tan(HFOV / 2.0))  # 水平焦距 ≈554px
+
+# ============================================================
+# 状态
+# ============================================================
+(STEP_TAKEOFF, STEP_FORWARD, STEP_SEARCH, STEP_TRACK, STEP_DESCEND,
+ STEP_HOVER, STEP_DROP, STEP_CLIMB, STEP_RETURN, STEP_LAND) = range(10)
+
+STEP_NAME = {
+    STEP_TAKEOFF: "TAKEOFF", STEP_FORWARD: "FORWARD",
+    STEP_SEARCH: "SEARCH", STEP_TRACK: "TRACK", STEP_DESCEND: "DESCEND",
+    STEP_HOVER: "HOVER", STEP_DROP: "DROP", STEP_CLIMB: "CLIMB",
+    STEP_RETURN: "RETURN", STEP_LAND: "LAND",
+}
+
+
+class PIDController:
+    def __init__(self, kp, ki, kd, max_vel, int_limit):
+        self.kp, self.ki, self.kd = kp, ki, kd
+        self.max_vel = max_vel
+        self.int_limit = int_limit
+        self.prev_ex = self.prev_ey = 0.0
+        self.int_ex = self.int_ey = 0.0
+
+    def reset(self):
+        self.prev_ex = self.prev_ey = 0.0
+        self.int_ex = self.int_ey = 0.0
+
+    def compute(self, roi, dt, pixel_offset_x=0.0):
+        cx = roi.x_offset + roi.width / 2.0
+        cy = roi.y_offset + roi.height / 2.0
+        ex = cx - IMG_W / 2.0 - pixel_offset_x
+        ey = cy - IMG_H / 2.0
+
+        dt = max(dt, 0.001)
+        self.int_ex += ex * dt
+        self.int_ey += ey * dt
+        self.int_ex = max(-self.int_limit, min(self.int_limit, self.int_ex))
+        self.int_ey = max(-self.int_limit, min(self.int_limit, self.int_ey))
+
+        dex = (ex - self.prev_ex) / dt
+        dey = (ey - self.prev_ey) / dt
+
+        v_lat = self.kp * ex + self.ki * self.int_ex + self.kd * dex
+        v_fwd = self.kp * ey + self.ki * self.int_ey + self.kd * dey
+        v_lat = max(-self.max_vel, min(self.max_vel, v_lat))
+        v_fwd = max(-self.max_vel, min(self.max_vel, v_fwd))
+
+        self.prev_ex, self.prev_ey = ex, ey
+        return v_fwd, v_lat, math.hypot(ex, ey), ex, ey
+
+
+class DropOptMission(Node):
+    def __init__(self):
+        super().__init__('drop_opt_mission')
+
+        # Pub
+        self.traj_pub = self.create_publisher(TrajectorySetpoint, '/fmu/in/trajectory_setpoint', 10)
+        self.offboard_mode_pub = self.create_publisher(OffboardControlMode, '/fmu/in/offboard_control_mode', 10)
+        self.cmd_pub = self.create_publisher(VehicleCommand, '/fmu/in/vehicle_command', 10)
+        self.manual_pub = self.create_publisher(ManualControlSetpoint, '/fmu/in/manual_control_input', 10)
+        self.aux5_pwm_pub = self.create_publisher(Float32, '/drop/aux5_pwm', 10)
+        self.impact_pub = self.create_publisher(Point, '/drop/impact_point', 10)
+
+        # Sub
+        self.status_sub = self.create_subscription(
+            VehicleStatus, status_topic(), self._cb_status, QOS_BE)
+        self.local_sub = self.create_subscription(
+            VehicleLocalPosition, local_pos_topic(), self._cb_local, QOS_BE)
+        self.land_sub = self.create_subscription(
+            VehicleLandDetected, '/fmu/out/vehicle_land_detected', self._cb_land, QOS_BE)
+        self.detect_sub = self.create_subscription(RegionOfInterest, '/bucket/detection', self._cb_detect, 10)
+        self.control_mode_sub = self.create_subscription(
+            VehicleControlMode, control_mode_topic(),
+            self._cb_control_mode, QOS_BE)
+
+        # 飞机状态
+        self.x = self.y = self.z = 0.0
+        self.home_x = self.home_y = self.home_z = None
+        self.heading = None
+        self._heading0 = None      # 起飞时的机头朝向，用于计算桶的期望位置
+        self.landed = False
+        self.status = None
+        self._control_mode = None
+
+        # 检测
+        self.latest_roi = None
+        self._last_detect_time = self.get_clock().now()
+
+        # 任务
+        self.step = STEP_TAKEOFF
+        self._step_start_time = None
+        self.pid = PIDController(KP_H, KI_H, KD_H, MAX_HORIZ_VEL, INTEGRAL_LIMIT)
+        self._stabilize_start = None
+        self._detect_loss_logged = False  # 丢检测 warn 日志只打一次
+        self._detect_loss_start = None     # 丢检测计时起点 (3s 后盲投)
+        self._confirm_start_time = None     # 时空确认计时起点
+        self._confirm_first_cx = 0.0        # 确认期首次 ROI 中心 x
+        self._confirm_first_cy = 0.0        # 确认期首次 ROI 中心 y
+        self._stabilize_lost_frames = 0     # 连续超阈值帧计数
+        self._forward_start_x = 0.0         # FORWARD 起始位置 (机体坐标系前飞距离)
+        self._forward_start_y = 0.0
+
+        # 投放 — ManualControlSetpoint AUX5 舵机控制
+        self._aux5_value = AUX5_LOCK      # 当前 aux5 值, 200Hz 定时器读取
+        self._drop_triggered = False      # 是否已触发投放信号
+        self._drop_signal_start = None    # 投放信号开始时间
+        self._mass_loss_vz = 0.0          # 质量突变残余 z 轴速度
+        self._mass_loss_start = None      # 质量突变开始时间
+
+        # ROS2 可覆盖参数 (sim->real: 通过 --ros-args -p 切换)
+        self.declare_parameter('mass_loss_enable', MASS_LOSS_ENABLE)
+        self._mass_loss_enable = self.get_parameter('mass_loss_enable').value
+        self.declare_parameter('monitor_hz', MONITOR_HZ)
+        self._monitor_hz = self.get_parameter('monitor_hz').value
+        self.declare_parameter('track_max_time', TRACK_MAX_TIME)
+        self._track_max_time = self.get_parameter('track_max_time').value
+        self.declare_parameter('hover_max_time', HOVER_MAX_TIME)
+        self._hover_max_time = self.get_parameter('hover_max_time').value
+
+        # 降落
+        self._land_dwell_start = None
+        self._land_cmd_sent = False
+
+        # 模式
+        self._mode_req = self._arm_req = False
+        self._mode_req_start = None
+        self._last_arm_attempt = -10.0
+        self._init_wait_start = None
+        self._initial_wait_done = False
+
+        # 日志
+        self._print_ctr = 0
+        self._last_pid_print = 0.0
+        self._last_vel_x = 0.0
+        self._last_vel_y = 0.0
+        self._last_vel_z = 0.0
+        self._start_wall = self.get_clock().now()
+
+        self.timer = self.create_timer(0.05, self.control_loop)
+        self.manual_timer = self.create_timer(MANUAL_TIMER_PERIOD, self._publish_manual_control)
+        if self._monitor_hz > 0:
+            self.monitor_timer = self.create_timer(1.0 / self._monitor_hz, self._monitor_log)
+        self.get_logger().info(
+            f"Drop Opt Mission ready [AUX5 ManualControlSetpoint 200Hz]. "
+            f"cruise={CRUISE_HEIGHT}m drop={DROP_HEIGHT}m "
+            f"fwd={FORWARD_DIST}m ramp={FORWARD_RAMP_DIST}m→{FORWARD_MIN_SPEED}m/s "
+            f"KP={KP_H} KD={KD_H} MAX_V={MAX_HORIZ_VEL} "
+            f"track_px={TRACK_ARRIVE_PX} hover_px={HOVER_ARRIVE_PX} "
+            f"stab={STABILIZE_TIME}s desc={DESCEND_SPEED}m/s brake={SEARCH_BRAKE_TIME}s drop_delay={DROP_AFTER_DELAY}s "
+            f"gate: dist<={TRACK_ENTRY_DIST_MAX}m confirm>={TRACK_ENTRY_CONFIRM_TIME}s drift<={TRACK_ENTRY_ROI_DRIFT}px "
+            f"lost_frames<={STABILIZE_LOST_FRAMES_MAX} "
+            f"aux5: LOCK={AUX5_LOCK}(1500us) DROP={AUX5_DROP}(2000us) hold={AUX5_DROP_HOLD}s "
+            f"mass_loss={'ON' if self._mass_loss_enable else 'OFF'} "
+            f"monitor={'ON' if self._monitor_hz > 0 else 'OFF'}({self._monitor_hz}Hz)")
+
+    # ========== 回调 ==========
+    def _cb_status(self, m):
+        self.status = m
+
+    def _cb_control_mode(self, m):
+        self._control_mode = m
+
+    def _cb_land(self, m):
+        self.landed = m.landed
+
+    def _cb_local(self, m):
+        self.x, self.y, self.z = m.x, m.y, m.z
+        if math.isfinite(m.heading):
+            self.heading = m.heading
+        if self.home_x is None and m.xy_valid:
+            self.home_x, self.home_y, self.home_z = self.x, self.y, self.z
+            self._heading0 = self.heading  # 锁存起飞时机头朝向
+            bx, by = self._bucket_target()
+            self.get_logger().info(
+                f"Home: NED({self.home_x:.2f},{self.home_y:.2f},{self.home_z:.2f}) "
+                f"heading0={math.degrees(self._heading0):.0f}deg "
+                f"bucket NED({bx:.1f},{by:.1f})")
+
+    def _cb_detect(self, m):
+        self.latest_roi = m
+        self._last_detect_time = self.get_clock().now()
+
+    # ========== 发布 ==========
+    def _pub_vel(self, vx, vy, vz, yaw):
+        self._last_vel_x = vx
+        self._last_vel_y = vy
+        self._last_vel_z = vz
+        self.offboard_mode_pub.publish(OffboardControlMode(
+            timestamp=self.get_clock().now().nanoseconds // 1000, velocity=True))
+        self.traj_pub.publish(TrajectorySetpoint(
+            timestamp=self.get_clock().now().nanoseconds // 1000,
+            velocity=[float(vx), float(vy), float(vz)], yaw=float(yaw),
+            position=[float('nan')]*3, acceleration=[float('nan')]*3))
+
+    def _pub_pos(self, x, y, z, yaw):
+        self.offboard_mode_pub.publish(OffboardControlMode(
+            timestamp=self.get_clock().now().nanoseconds // 1000, position=True))
+        self.traj_pub.publish(TrajectorySetpoint(
+            timestamp=self.get_clock().now().nanoseconds // 1000,
+            position=[float(x), float(y), float(z)], yaw=float(yaw),
+            velocity=[float('nan')]*3, acceleration=[float('nan')]*3))
+
+    def _send_cmd(self, cmd, **p):
+        self.cmd_pub.publish(VehicleCommand(
+            timestamp=self.get_clock().now().nanoseconds // 1000,
+            command=cmd, target_system=1, target_component=1,
+            source_system=1, source_component=1, from_external=True, **p))
+
+    def _confirm_detection_stable(self):
+        """时空一致性确认：检测需在画面同一区域连续存在 CONFIRM_TIME 秒才确认"""
+        if not self._detect_fresh():
+            self._confirm_start_time = None
+            return False
+
+        roi = self.latest_roi
+        cx = roi.x_offset + roi.width / 2.0
+        cy = roi.y_offset + roi.height / 2.0
+
+        if self._confirm_start_time is None:
+            self._confirm_start_time = self.get_clock().now()
+            self._confirm_first_cx = cx
+            self._confirm_first_cy = cy
+            return False
+
+        drift = math.hypot(cx - self._confirm_first_cx, cy - self._confirm_first_cy)
+        if drift > TRACK_ENTRY_ROI_DRIFT:
+            self._confirm_start_time = None
+            return False
+
+        elapsed = (self.get_clock().now() - self._confirm_start_time).nanoseconds * 1e-9
+        return elapsed >= TRACK_ENTRY_CONFIRM_TIME
+
+    def _enter_step(self, step):
+        self.step = step
+        self._step_start_time = self.get_clock().now()
+        self._stabilize_start = None
+        self._detect_loss_logged = False  # 丢检测 warn 日志只打一次
+        self._detect_loss_start = None
+        self._confirm_start_time = None
+        self._stabilize_lost_frames = 0
+        self._drop_triggered = False
+        self._drop_signal_start = None
+        if step == STEP_DESCEND:
+            self.pid.reset()
+        if step == STEP_FORWARD:
+            self._forward_start_x = self.x
+            self._forward_start_y = self.y
+
+    def _step_elapsed(self):
+        if self._step_start_time is None:
+            return 0.0
+        return (self.get_clock().now() - self._step_start_time).nanoseconds * 1e-9
+
+    def _detect_fresh(self):
+        if self.latest_roi is None:
+            return False
+        return (self.get_clock().now() - self._last_detect_time).nanoseconds * 1e-9 < DETECT_TIMEOUT
+
+    def _body_to_ned(self, v_fwd, v_lat, v_down=0.0):
+        cos_h, sin_h = math.cos(self.heading), math.sin(self.heading)
+        return (v_fwd * cos_h - v_lat * sin_h,
+                v_fwd * sin_h + v_lat * cos_h,
+                v_down)
+
+    def _dist_to(self, x, y, z):
+        return math.hypot(self.x - x, self.y - y, self.z - z)
+
+    def _bucket_target(self):
+        """桶期望 NED 位置 = home + FORWARD_DIST 沿起飞时机头方向（与 heading 无关）"""
+        if self.home_x is None or self._heading0 is None:
+            return (0.0, 0.0)
+        cos_h0 = math.cos(self._heading0)
+        sin_h0 = math.sin(self._heading0)
+        return (self.home_x + FORWARD_DIST * cos_h0,
+                self.home_y + FORWARD_DIST * sin_h0)
+
+    def _fly_toward(self, tx, ty, speed, vz=0.0):
+        """速度控制飞往目标点 (水平方向+高度修正)"""
+        dist = math.hypot(self.x - tx, self.y - ty)
+        if dist > 0.1:
+            ratio = max(0.2, min(1.0, dist / 3.0))
+            vx = (tx - self.x) / dist * speed * ratio
+            vy = (ty - self.y) / dist * speed * ratio
+        else:
+            vx = vy = 0.0
+        return vx, vy, dist
+
+    # ========== 丢检测恢复 (TRACK/DESCEND/HOVER 共用) ==========
+    def _handle_detect_loss(self, target_z):
+        """检测丢失时原地悬停并修正高度。超时推进由外层状态机的 STEP_TIMEOUT/track_max_time/hover_max_time 负责。"""
+        if not self._detect_loss_logged:
+            self._detect_loss_logged = True
+            self.get_logger().warn(f"Detection lost in {STEP_NAME[self.step]}, hovering (will force progress after max time)...")
+
+        vz = (target_z - self.z) * TRACK_VZ_KP
+        self._pub_vel(0.0, 0.0, vz, self.heading)
+
+    # ========== ManualControlSetpoint 200Hz 发布 (AUX5 舵机控制) ==========
+    def _publish_manual_control(self):
+        """200Hz 定时器: 持续发布 ManualControlSetpoint，aux5 走 RC AUX5 直通"""
+        msg = ManualControlSetpoint()
+        msg.timestamp = self.get_clock().now().nanoseconds // 1000
+        msg.timestamp_sample = msg.timestamp
+        msg.valid = True
+        msg.data_source = ManualControlSetpoint.SOURCE_RC
+        msg.roll = 0.0
+        msg.pitch = 0.0
+        msg.yaw = 0.0
+        msg.throttle = -1.0   # 最低油门怠速, 与 fly/test.py 对齐 (OFFBOARD 下 PX4 忽略 throttle)
+        msg.flaps = 0.0
+        msg.aux1 = 0.0
+        msg.aux2 = 0.0
+        msg.aux3 = 0.0
+        msg.aux4 = 0.0
+        msg.aux5 = float(self._aux5_value)
+        msg.aux6 = 0.0
+        msg.sticks_moving = True
+        msg.buttons = 0
+        self.manual_pub.publish(msg)
+
+        # PWM 监控 (~10Hz, 避免 200Hz 刷屏 DDS)
+        if not hasattr(self, '_aux5_pwm_ctr'):
+            self._aux5_pwm_ctr = 0
+        self._aux5_pwm_ctr += 1
+        if self._aux5_pwm_ctr >= 20:  # 200Hz / 20 = 10Hz
+            self._aux5_pwm_ctr = 0
+            pwm_us = 1500.0 + self._aux5_value * 600.0
+            self.aux5_pwm_pub.publish(Float32(data=float(pwm_us)))
+
+    def _monitor_log(self):
+        """独立位置监视日志 (MONITOR_HZ Hz) — 用于观察风力和投放质量突变效果"""
+        if self.home_x is None or self.heading is None:
+            return
+        tag = STEP_NAME.get(self.step, "???")
+
+        vel_mag = math.hypot(self._last_vel_x, self._last_vel_y, self._last_vel_z)
+        bx, by = self._bucket_target()
+        dist_to_bucket = math.hypot(self.x - bx, self.y - by)
+        self.get_logger().info(
+            f"[MONITOR] {tag} NED({self.x:.4f},{self.y:.4f},{self.z:.4f}) "
+            f"vel=({self._last_vel_x:.3f},{self._last_vel_y:.3f},{self._last_vel_z:.3f}) "
+            f"|vel|={vel_mag:.3f} dist2bucket={dist_to_bucket:.3f}m "
+            f"heading={math.degrees(self.heading) if self.heading else 0:.1f}deg "
+            f"mass_loss_vz={self._mass_loss_vz:.3f}")
+
+    # ========== 主循环 ==========
+    def control_loop(self):
+        if self.home_x is None or self.heading is None:
+            return
+
+        sim_t = (self.get_clock().now() - self._start_wall).nanoseconds * 1e-9
+
+        # ---- 基础状态打印 (~1Hz) ----
+        self._print_ctr += 1
+        if self._print_ctr >= 20:
+            tag = STEP_NAME.get(self.step, "???")
+            hdg = math.degrees(self.heading) if self.heading else 0
+            has_det = "DET" if self._detect_fresh() else "no-det"
+            extra = ""
+            if self.step == STEP_FORWARD:
+                dist_traveled = math.hypot(self.x - self._forward_start_x, self.y - self._forward_start_y)
+                extra = f" traveled={dist_traveled:.1f}/{FORWARD_DIST}m"
+            elif self.step == STEP_RETURN:
+                d = math.hypot(self.x - self.home_x, self.y - self.home_y)
+                extra = f" →home dist={d:.1f}m"
+            self.get_logger().info(
+                f"[{tag}] NED({self.x:.2f},{self.y:.2f},{self.z:.2f}) "
+                f"h={hdg:.0f}deg {has_det}{extra}")
+            self._print_ctr = 0
+
+        target_z = self.home_z - CRUISE_HEIGHT
+
+        # ---- 初始等待 ----
+        if not self._initial_wait_done:
+            if self._init_wait_start is None:
+                self._init_wait_start = self.get_clock().now()
+            self._pub_vel(0.0, 0.0, 0.0, self.heading)
+            elapsed = (self.get_clock().now() - self._init_wait_start).nanoseconds * 1e-9
+            if self.status is not None and self.status.pre_flight_checks_pass and elapsed > 3.0:
+                self._initial_wait_done = True
+                self.get_logger().info("Initial wait done, preflight passed")
+            elif elapsed > 30.0:
+                self.get_logger().error(f"Preflight timeout ({elapsed:.0f}s)")
+                self.timer.cancel()
+            return
+
+        # ---- 解锁 & 切模式 ----
+        if self.status is None:
+            self._pub_vel(0, 0, 0, self.heading)
+            return
+        if self._mode_req_start is None:
+            self._mode_req_start = self.get_clock().now()
+        elapsed = (self.get_clock().now() - self._mode_req_start).nanoseconds * 1e-9
+
+        # LAND 阶段发送 MAV_CMD_NAV_LAND 后 PX4 切到 AUTO_LAND (nav=18)，不要干涉
+        if self.step == STEP_LAND and self._land_cmd_sent:
+            pass
+        elif self.status.arming_state == 2 and self.status.nav_state == 14:
+            pass
+        elif elapsed > 30.0:
+            self.get_logger().error("Mode switch timeout")
+            self.timer.cancel()
+            return
+        elif self.status.arming_state != 2:
+            if not self._arm_req or elapsed - self._last_arm_attempt > 1.0:
+                self._arm_req = True
+                self._last_arm_attempt = elapsed
+                send_arm(self.cmd_pub, self)
+                self.get_logger().info(f"Requesting ARM (t={elapsed:.1f}s)")
+            self._pub_pos(self.home_x, self.home_y, target_z, self.heading if self.heading else 0.0)
+            return
+        elif self.status.nav_state != 14:
+            if not self._mode_req:
+                self._mode_req = True
+                self._send_cmd(176, param1=1.0, param2=6.0)
+                self.get_logger().info(f"Requesting OFFBOARD (nav={self.status.nav_state})")
+            self._pub_pos(self.home_x, self.home_y, target_z, self.heading if self.heading else 0.0)
+            return
+
+        # ================================================================
+        # 投放质量突变衰减 (sim->real: MASS_LOSS_ENABLE=False 时跳过)
+        # ================================================================
+        if self._mass_loss_vz != 0.0 and self._mass_loss_start is not None:
+            elapsed = (self.get_clock().now() - self._mass_loss_start).nanoseconds * 1e-9
+            if elapsed >= MASS_LOSS_DECAY:
+                self._mass_loss_vz = 0.0
+                self._mass_loss_start = None
+            else:
+                # 线性衰减到 0
+                ratio = 1.0 - elapsed / MASS_LOSS_DECAY
+                self._mass_loss_vz = MASS_LOSS_IMPULSE * ratio
+
+        # ================================================================
+        # 状态机
+        # ================================================================
+        if self.step == STEP_TAKEOFF:
+            if self._step_start_time is None:
+                self._enter_step(STEP_TAKEOFF)
+                self._tkoff_x = self.x
+                self._tkoff_y = self.y
+                self._tkoff_z_start = self.z
+
+            tkoff_elapsed = self._step_elapsed()
+            if tkoff_elapsed < 3.0:
+                self._pub_pos(self._tkoff_x, self._tkoff_y, self._tkoff_z_start, self.heading)
+            else:
+                ramp_t = tkoff_elapsed - 3.0
+                z_ramp = self._tkoff_z_start - min(CRUISE_HEIGHT, ramp_t * 0.5)
+                self._pub_pos(self._tkoff_x, self._tkoff_y, z_ramp, self.heading)
+
+            if abs(self.z - target_z) < 0.8 and abs(self.z - self.home_z) > 1.5:
+                tx, ty = self._bucket_target()
+                self._enter_step(STEP_FORWARD)
+                self.get_logger().info(f"Takeoff complete → FORWARD (body-frame, {FORWARD_DIST}m ahead)")
+
+        # ---- 飞往桶区域 (机体坐标系: 沿机头前飞) ----
+        elif self.step == STEP_FORWARD:
+            if self._step_elapsed() > STEP_TIMEOUT:
+                self.get_logger().warn("FORWARD timeout → SEARCH")
+                self._enter_step(STEP_SEARCH)
+                return
+
+            # 已飞行距离 (用于判断到达)
+            dist_traveled = math.hypot(self.x - self._forward_start_x, self.y - self._forward_start_y)
+
+            # 机体坐标系前飞: 距目标剩余距离线性 ramp down, 消除 overshoot
+            dist_remaining = max(0.0, FORWARD_DIST - dist_traveled)
+            if dist_remaining < FORWARD_RAMP_DIST:
+                speed = max(FORWARD_MIN_SPEED, CRUISE_SPEED * (dist_remaining / FORWARD_RAMP_DIST))
+            else:
+                speed = CRUISE_SPEED
+            vx, vy, _ = self._body_to_ned(speed, 0.0)
+            vz = (target_z - self.z) * TRACK_VZ_KP
+            self._pub_vel(vx, vy, vz, self.heading)
+
+            # 距桶期望位置 (用于距离门)
+            tx, ty = self._bucket_target()
+            dist_to_bucket = math.hypot(self.x - tx, self.y - ty)
+
+            # 距离门 + 时空一致性确认 (防 YOLO 误检)
+            if self._detect_fresh() and dist_to_bucket < TRACK_ENTRY_DIST_MAX:
+                if self._confirm_detection_stable():
+                    self.get_logger().info("Detection confirmed during FORWARD → TRACK")
+                    self.pid.reset()
+                    self._enter_step(STEP_TRACK)
+                    return
+            else:
+                self._confirm_start_time = None
+
+            if dist_traveled >= FORWARD_DIST:
+                self._enter_step(STEP_SEARCH)
+                self.get_logger().info(f"FORWARD done (traveled={dist_traveled:.1f}m) → SEARCH")
+
+        # ---- 搜索 ----
+        elif self.step == STEP_SEARCH:
+            if self._step_elapsed() > STEP_TIMEOUT:
+                self.get_logger().warn("Search timeout → RETURN")
+                self._enter_step(STEP_RETURN)
+                return
+
+            tx, ty = self._bucket_target()
+            dist_to_bucket = math.hypot(self.x - tx, self.y - ty)
+
+            # 距离门 + 时空一致性确认 (防 YOLO 误检, 刹车期间也可切入 TRACK)
+            if self._detect_fresh() and dist_to_bucket < TRACK_ENTRY_DIST_MAX:
+                if self._confirm_detection_stable():
+                    self.get_logger().info("Detection confirmed during SEARCH → TRACK")
+                    self.pid.reset()
+                    self._enter_step(STEP_TRACK)
+                    return
+            else:
+                self._confirm_start_time = None
+
+            # 刹车悬停: 消除 FORWARD 惯性, 让飞机先停下来
+            if self._step_elapsed() < SEARCH_BRAKE_TIME:
+                vz = (target_z - self.z) * TRACK_VZ_KP
+                self._pub_vel(0.0, 0.0, vz, self.heading)
+                return
+
+            # 朝桶的期望位置慢速前飞 (不依赖 heading)
+            vx, vy, _ = self._fly_toward(tx, ty, SEARCH_SPEED)
+            vz = (target_z - self.z) * TRACK_VZ_KP
+            self._pub_vel(vx, vy, vz, self.heading)
+
+        # ---- 视觉伺服 TRACK ----
+        elif self.step == STEP_TRACK:
+            if self._step_elapsed() > STEP_TIMEOUT:
+                self.get_logger().warn("TRACK timeout → RETURN")
+                self._enter_step(STEP_RETURN)
+                return
+
+            if not self._detect_fresh():
+                # _handle_detect_loss 发布悬停指令后 return，等待检测恢复或 max_time 强制推进
+                self._handle_detect_loss(target_z)
+                return
+
+            self._detect_loss_logged = False  # 丢检测 warn 日志只打一次（检测恢复时重置）
+
+            roi = self.latest_roi
+            v_fwd, v_lat, err_px, ex, ey = self.pid.compute(roi, 0.05)
+            vx, vy, _ = self._body_to_ned(v_fwd, v_lat)
+            vz = (target_z - self.z) * TRACK_VZ_KP
+            self._pub_vel(vx, vy, vz, self.heading)
+
+            if sim_t - self._last_pid_print > 1.0:
+                self.get_logger().info(
+                    f"[TRACK] px_err=({ex:.0f},{ey:.0f}) total={err_px:.0f}px "
+                    f"pos=({self.x:.2f},{self.y:.2f},{self.z:.2f}) "
+                    f"vel=({vx:.3f},{vy:.3f},{vz:.3f})")
+                self._last_pid_print = sim_t
+
+            track_elapsed = self._step_elapsed()
+            if err_px < TRACK_ARRIVE_PX:
+                self._stabilize_lost_frames = 0
+                if self._stabilize_start is None:
+                    self._stabilize_start = self.get_clock().now()
+                elif (self.get_clock().now() - self._stabilize_start).nanoseconds > STABILIZE_TIME * 1e9:
+                    self.get_logger().info(f"TRACK converged (err={err_px:.0f}px) → DESCEND")
+                    self._enter_step(STEP_DESCEND)
+            elif track_elapsed > self._track_max_time:
+                self.get_logger().warn(f"TRACK max time ({self._track_max_time:.0f}s) reached → DESCEND (forced, err={err_px:.0f}px)")
+                self._enter_step(STEP_DESCEND)
+            else:
+                self._stabilize_lost_frames += 1
+                if self._stabilize_lost_frames > STABILIZE_LOST_FRAMES_MAX:
+                    self._stabilize_start = None
+                    self._stabilize_lost_frames = 0
+
+        # ---- 下降 (不可逆: 一旦进入不再回退, 丢检测盲降) ----
+        elif self.step == STEP_DESCEND:
+            if self._step_elapsed() > STEP_TIMEOUT:
+                self.get_logger().warn("DESCEND timeout → DROP (forced)")
+                self._enter_step(STEP_DROP)
+                return
+
+            drop_z = self.home_z - DROP_HEIGHT
+
+            if not self._detect_fresh():
+                if self._detect_loss_start is None:
+                    self._detect_loss_start = self.get_clock().now()
+                    self.get_logger().warn(f"Detection lost in DESCEND, holding position...")
+                loss_t = (self.get_clock().now() - self._detect_loss_start).nanoseconds * 1e-9
+
+                if loss_t >= 3.0:
+                    # 盲降: 保持水平位置, 继续下降, 到投放高度直接投
+                    if not self._detect_loss_logged:
+                        self._detect_loss_logged = True
+                        self.get_logger().warn(f"Detection lost {loss_t:.1f}s → blind descend, holding position")
+                    if self.z > drop_z - 0.2:
+                        self.get_logger().info(f"Blind descend reached drop height (z={self.z:.2f}) → DROP")
+                        self._enter_step(STEP_DROP)
+                    else:
+                        self._pub_vel(0.0, 0.0, DESCEND_SPEED, self.heading)
+                else:
+                    # <3s: 保持水平位置, 继续下降
+                    self._pub_vel(0.0, 0.0, DESCEND_SPEED, self.heading)
+                return
+            else:
+                self._detect_loss_start = None
+                self._detect_loss_logged = False
+
+            dz = max(0.3, abs(self.z - self.home_z))
+            pixel_offset = PAYLOAD_OFFSET_BODY_Y * FX / dz
+            roi = self.latest_roi
+            v_fwd, v_lat, err_px, ex, ey = self.pid.compute(roi, 0.05, pixel_offset)
+            vx, vy, _ = self._body_to_ned(v_fwd, v_lat)
+            self._pub_vel(vx, vy, DESCEND_SPEED, self.heading)
+
+            if sim_t - self._last_pid_print > 1.0:
+                self.get_logger().info(
+                    f"[DESCEND] px_err=({ex:.0f},{ey:.0f}) total={err_px:.0f}px "
+                    f"offset={pixel_offset:.0f}px "
+                    f"pos=({self.x:.2f},{self.y:.2f},{self.z:.2f}) "
+                    f"vel=({vx:.3f},{vy:.3f},{DESCEND_SPEED:.3f}) z→{drop_z:.1f}")
+                self._last_pid_print = sim_t
+
+            if self.z > drop_z - 0.2:
+                self._enter_step(STEP_HOVER)
+                self.get_logger().info(f"At drop altitude (z={self.z:.2f}) → HOVER")
+
+        # ---- 低空锁定 (不可逆: 丢检测盲投) ----
+        elif self.step == STEP_HOVER:
+            if self._step_elapsed() > STEP_TIMEOUT:
+                self.get_logger().warn("HOVER timeout → DROP (forced)")
+                self._enter_step(STEP_DROP)
+                return
+
+            drop_z = self.home_z - DROP_HEIGHT
+            hover_elapsed = self._step_elapsed()
+
+            if not self._detect_fresh():
+                if self._detect_loss_start is None:
+                    self._detect_loss_start = self.get_clock().now()
+                    self.get_logger().warn(f"Detection lost in HOVER, holding position...")
+                loss_t = (self.get_clock().now() - self._detect_loss_start).nanoseconds * 1e-9
+
+                if loss_t >= 3.0:
+                    self.get_logger().warn(f"Detection lost {loss_t:.1f}s in HOVER → DROP (forced)")
+                    self._enter_step(STEP_DROP)
+                else:
+                    # <3s: 保持水平位置, 锁定投放高度
+                    vz = (drop_z - self.z) * HOVER_VZ_KP
+                    vz = max(-0.3, min(0.3, vz))
+                    self._pub_vel(0.0, 0.0, vz, self.heading)
+                return
+            else:
+                self._detect_loss_start = None
+                self._detect_loss_logged = False
+
+            # hover_max_time 强制推进要在检测 fresh 分支内也生效
+            if hover_elapsed > self._hover_max_time:
+                self.get_logger().warn(f"HOVER max time ({self._hover_max_time:.0f}s) → DROP (forced)")
+                self._enter_step(STEP_DROP)
+                return
+
+            dz = max(0.3, abs(self.z - self.home_z))
+            pixel_offset = PAYLOAD_OFFSET_BODY_Y * FX / dz
+
+            roi = self.latest_roi
+            v_fwd, v_lat, err_px, ex, ey = self.pid.compute(roi, 0.05, pixel_offset)
+            vx, vy, _ = self._body_to_ned(v_fwd, v_lat)
+            vz = (drop_z - self.z) * HOVER_VZ_KP
+            vz = max(-0.3, min(0.3, vz))
+            self._pub_vel(vx, vy, vz, self.heading)
+
+            if sim_t - self._last_pid_print > 1.0:
+                self.get_logger().info(
+                    f"[HOVER] px_err=({ex:.0f},{ey:.0f}) total={err_px:.0f}px "
+                    f"offset={pixel_offset:.0f}px "
+                    f"pos=({self.x:.2f},{self.y:.2f},{self.z:.2f}) "
+                    f"vel=({vx:.3f},{vy:.3f},{vz:.3f}) drop_z={drop_z:.2f}")
+                self._last_pid_print = sim_t
+
+            hover_elapsed = self._step_elapsed()
+            if err_px < HOVER_ARRIVE_PX:
+                self._stabilize_lost_frames = 0
+                if self._stabilize_start is None:
+                    self._stabilize_start = self.get_clock().now()
+                elif (self.get_clock().now() - self._stabilize_start).nanoseconds > STABILIZE_TIME * 1e9:
+                    self.get_logger().info(f"HOVER converged (err={err_px:.0f}px) → DROP")
+                    self._enter_step(STEP_DROP)
+            else:
+                self._stabilize_lost_frames += 1
+                if self._stabilize_lost_frames > STABILIZE_LOST_FRAMES_MAX:
+                    self._stabilize_start = None
+                    self._stabilize_lost_frames = 0
+
+        # ---- 投放 (AUX5 舵机 ManualControlSetpoint 控制) ----
+        elif self.step == STEP_DROP:
+            if self._step_elapsed() > STEP_TIMEOUT:
+                self.get_logger().warn("DROP timeout → CLIMB")
+                self._aux5_value = AUX5_LOCK
+                self._enter_step(STEP_CLIMB)
+                return
+
+            drop_z = self.home_z - DROP_HEIGHT
+            dz = max(0.3, abs(self.z - self.home_z))
+            pixel_offset = PAYLOAD_OFFSET_BODY_Y * FX / dz
+            if self._detect_fresh():
+                roi = self.latest_roi
+                v_fwd, v_lat, _, ex, ey = self.pid.compute(roi, 0.05, pixel_offset)
+                vx, vy, _ = self._body_to_ned(v_fwd, v_lat)
+            else:
+                vx, vy, ex, ey = 0.0, 0.0, 0, 0
+            vz = (drop_z - self.z) * HOVER_VZ_KP
+            vz = max(-0.2, min(0.2, vz))
+
+            self._pub_vel(vx, vy, vz + self._mass_loss_vz, self.heading)
+
+            if sim_t - self._last_pid_print > 1.0:
+                vel_mag = math.hypot(vx, vy)
+                self.get_logger().info(
+                    f"[DROP] px_err=({ex:.0f},{ey:.0f}) "
+                    f"offset={pixel_offset:.0f}px vel_mag={vel_mag:.3f} "
+                    f"aux5={self._aux5_value:.3f} "
+                    f"pos=({self.x:.2f},{self.y:.2f},{self.z:.2f}) "
+                    f"wait={max(0, DROP_AFTER_DELAY - self._step_elapsed()):.1f}s")
+                self._last_pid_print = sim_t
+
+            # 等待 DROP_AFTER_DELAY 秒零速稳定后触发投放
+            if self._step_elapsed() < DROP_AFTER_DELAY:
+                return
+
+            if not self._drop_triggered:
+                # 触发: aux5 切到 DROP 值 → 舵机开仓投放
+                self._drop_triggered = True
+                self._drop_signal_start = self.get_clock().now()
+                self._aux5_value = AUX5_DROP
+                # 记录落点 (飞机地面投影)
+                self.impact_pub.publish(Point(
+                    x=float(self.x), y=float(self.y), z=float(self.home_z)))
+                # 投放质量突变仿真: 载荷释放后飞机短时上跳
+                if self._mass_loss_enable:
+                    self._mass_loss_vz = MASS_LOSS_IMPULSE
+                    self._mass_loss_start = self.get_clock().now()
+                self.get_logger().info(
+                    f"{'='*60}\n"
+                    f">>> DROP! AUX5={AUX5_DROP:.3f} (PWM 2000us) "
+                    f"at NED({self.x:.3f},{self.y:.3f},{self.z:.3f}) "
+                    f"heading={math.degrees(self.heading):.1f}deg "
+                    f"mass_loss={'ON' if self._mass_loss_enable else 'OFF'}\n"
+                    f"{'='*60}")
+                return
+
+            # 投放信号保持 AUX5_DROP_HOLD 秒后恢复 LOCK
+            hold_elapsed = (self.get_clock().now() - self._drop_signal_start).nanoseconds * 1e-9
+            if hold_elapsed < AUX5_DROP_HOLD:
+                if self._print_ctr == 0:  # ~1Hz
+                    self.get_logger().info(
+                        f"  AUX5 DROP hold {hold_elapsed:.1f}s / {AUX5_DROP_HOLD}s...")
+                return
+
+            # 恢复 LOCK, 投放完成
+            self._aux5_value = AUX5_LOCK
+            self._drop_triggered = False
+            self._drop_signal_start = None
+            self.get_logger().info(
+                f"AUX5 restored to LOCK ({AUX5_LOCK:.3f}, PWM 1500us) → CLIMB")
+            self._enter_step(STEP_CLIMB)
+
+        # ---- 爬升 ----
+        elif self.step == STEP_CLIMB:
+            if self._step_elapsed() > STEP_TIMEOUT:
+                self.get_logger().warn("CLIMB timeout → RETURN")
+                self._enter_step(STEP_RETURN)
+                return
+
+            vz = CLIMB_VZ
+            vz += (target_z - self.z) * TRACK_VZ_KP
+            self._pub_vel(0.0, 0.0, vz, self.heading)
+
+            if abs(self.z - target_z) < 0.5:
+                self.get_logger().info(f"CLIMB complete (z={self.z:.2f}) → RETURN")
+                self._enter_step(STEP_RETURN)
+
+        # ---- 返航 (速度控制+平滑限速) ----
+        elif self.step == STEP_RETURN:
+            if self._step_elapsed() > STEP_TIMEOUT:
+                self.get_logger().warn("RETURN timeout → LAND")
+                self._enter_step(STEP_LAND)
+                return
+
+            rx, ry = self.home_x, self.home_y
+            rz = target_z
+
+            vx, vy, dist_to_home = self._fly_toward(rx, ry, CRUISE_SPEED)
+            vz = (rz - self.z) * TRACK_VZ_KP
+            self._pub_vel(vx, vy, vz, self.heading)
+
+            if dist_to_home < POS_ARRIVE_DIST and abs(self.z - rz) < 0.5:
+                self.get_logger().info(f"Returned home (dist={dist_to_home:.1f}m) → LAND")
+                self._enter_step(STEP_LAND)
+
+        # ---- 降落 (PX4 自主着陆 MAV_CMD_NAV_LAND) ----
+        elif self.step == STEP_LAND:
+            if self._step_elapsed() > STEP_TIMEOUT:
+                self.get_logger().warn("LAND timeout, force disarm")
+                self._send_cmd(400, param1=0.0)
+                self.timer.cancel()
+                return
+
+            if not self._land_cmd_sent:
+                # 先降到 0.5m 低空再交给 PX4 自主着陆
+                low_z = self.home_z - 0.5
+                self._pub_pos(self.home_x, self.home_y, low_z, self.heading)
+                if abs(self.z - low_z) < 0.5:
+                    self._land_cmd_sent = True
+                    self._send_cmd(21, param1=0.0, param2=0.0, param7=float('nan'))
+                    self.get_logger().info("Sent MAV_CMD_NAV_LAND, PX4 taking over...")
+            else:
+                # PX4 自主着陆中，监控完成
+                if self.landed:
+                    if self._land_dwell_start is None:
+                        self._land_dwell_start = self.get_clock().now()
+                    elif (self.get_clock().now() - self._land_dwell_start).nanoseconds > LAND_DWELL_TIME * 1e9:
+                        self._send_cmd(400, param1=0.0)
+                        self.timer.cancel()
+                        self.get_logger().info("=== DROP OPT MISSION COMPLETE (landed) ===")
+                elif abs(self.z - self.home_z) < 0.15:
+                    if self._land_dwell_start is None:
+                        self._land_dwell_start = self.get_clock().now()
+                    elif (self.get_clock().now() - self._land_dwell_start).nanoseconds > LAND_DWELL_TIME * 1e9:
+                        self._send_cmd(400, param1=0.0)
+                        self.timer.cancel()
+                        self.get_logger().info("=== DROP OPT MISSION COMPLETE (altitude) ===")
+                else:
+                    self._land_dwell_start = None
+
+
+def main():
+    rclpy.init()
+    node = DropOptMission()
+    rclpy.spin(node)
+    node.destroy_node()
+    rclpy.shutdown()
+
+
+if __name__ == '__main__':
+    main()

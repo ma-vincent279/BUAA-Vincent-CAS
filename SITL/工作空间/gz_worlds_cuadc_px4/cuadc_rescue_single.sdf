@@ -1,0 +1,192 @@
+<?xml version="1.0"?>
+    <sdf version="1.9">
+      <world name="cuadc_rescue_single">
+    <!-- 2026-10-13 补: **他们的世界没有任何碰撞体** —— `cuadc_field`(场地) 与 `takeoff_pad`
+         都是 <static> 且 <collision> 数 = 0 (纯视觉, 给 ArduPilot 用的), 桶才有 1 个 collision。
+         ⇒ PX4 的飞机没有地面可站 ⇒ spawn 后自由落体 ⇒ EKF 永远初始化不了 ⇒
+           `Preflight Fail: ekf2 missing data` (**这就是那条遗留项的根因**)。
+         补一个地面 (照抄 worlds/k_gz.sdf 的定义), **不动他们的任何模型**。 -->
+    <model name="ground_plane">
+      <static>true</static>
+      <link name="link">
+        <collision name="collision">
+          <geometry><plane><normal>0 0 1</normal><size>400 400</size></plane></geometry>
+          <surface><friction><ode><mu>1.0</mu><mu2>1.0</mu2></ode></friction></surface>
+        </collision>
+        <visual name="visual">
+          <geometry><plane><normal>0 0 1</normal><size>400 400</size></plane></geometry>
+          <material>
+            <ambient>0.25 0.25 0.25 1</ambient>
+            <diffuse>0.55 0.55 0.55 1</diffuse>
+            <specular>0.1 0.1 0.1 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+        <physics name="1ms" type="ignore">
+          <max_step_size>0.001</max_step_size>
+          <real_time_factor>1.0</real_time_factor>
+        </physics>
+
+        <scene>
+          <ambient>1.0 1.0 1.0</ambient>
+          <background>0.78 0.80 0.82</background>
+          <sky/>
+        </scene>
+
+        <spherical_coordinates>
+          <latitude_deg>-35.363262</latitude_deg>
+          <longitude_deg>149.165237</longitude_deg>
+          <elevation>584</elevation>
+          <heading_deg>0</heading_deg>
+          <surface_model>EARTH_WGS84</surface_model>
+        </spherical_coordinates>
+
+        <light type="directional" name="sun">
+          <cast_shadows>true</cast_shadows>
+          <pose>0 0 20 0 0 0</pose>
+          <diffuse>0.9 0.9 0.85 1</diffuse>
+          <specular>0.6 0.6 0.6 1</specular>
+          <attenuation>
+            <range>1000</range>
+            <constant>0.9</constant>
+            <linear>0.01</linear>
+            <quadratic>0.001</quadratic>
+          </attenuation>
+          <direction>-0.45 0.15 -0.88</direction>
+        </light>
+
+        <include>
+  <name>cuadc_field</name>
+  <uri>model://cuadc_field</uri>
+  <pose>0 0 0 0 0 0.0</pose>
+</include>
+<include>
+  <name>takeoff_pad</name>
+  <uri>model://takeoff_pad</uri>
+  <pose>0 0 0.01 0 0 0.0</pose>
+</include>
+<include>
+  <name>drop_1</name>
+  <uri>model://drop_bucket_15</uri>
+  <pose>28.44 0.02 0 0 0 0.0</pose>
+</include>
+<include>
+  <name>drop_2</name>
+  <uri>model://drop_bucket_20</uri>
+  <pose>30.05 2.56 0 0 0 0.0</pose>
+</include>
+<include>
+  <name>drop_3</name>
+  <uri>model://drop_bucket_25</uri>
+  <pose>28.37 -1.96 0 0 0 0.0</pose>
+</include>
+<include>
+  <name>recon_1</name>
+  <uri>model://recon_bucket</uri>
+  <pose>55.41 0.4 0 0 0 0.0</pose>
+</include>
+<include>
+  <name>recon_2</name>
+  <uri>model://recon_bucket</uri>
+  <pose>56.16 0.34 0 0 0 0.0</pose>
+</include>
+<include>
+  <name>recon_3</name>
+  <uri>model://recon_bucket</uri>
+  <pose>55.95 1.9 0 0 0 0.0</pose>
+</include>
+<include>
+  <name>recon_4</name>
+  <uri>model://recon_bucket</uri>
+  <pose>53.93 0.81 0 0 0 0.0</pose>
+</include>
+<include>
+  <name>recon_5</name>
+  <uri>model://recon_bucket</uri>
+  <pose>53.4 2.25 0 0 0 0.0</pose>
+</include>
+<model name="hazard_toxic_recon_4">
+  <static>true</static>
+  <pose>53.93 0.81 0.165 0 0 -1.57079632679</pose>
+  <link name="link">
+    <visual name="marker">
+      <pose>0 0 0 0 0 0</pose>
+      <geometry>
+        <box>
+          <size>0.12 0.12 0.004</size>
+        </box>
+      </geometry>
+      <material>
+        <diffuse>1 1 1 1</diffuse>
+        <pbr>
+          <metal>
+            <albedo_map>model://hazard_marker/materials/textures/toxic.png</albedo_map>
+            <roughness>0.65</roughness>
+            <metalness>0</metalness>
+          </metal>
+        </pbr>
+      </material>
+    </visual>
+  </link>
+</model>
+<model name="hazard_biohazard_recon_1">
+  <static>true</static>
+  <pose>55.41 0.4 0.165 0 0 3.14159265359</pose>
+  <link name="link">
+    <visual name="marker">
+      <pose>0 0 0 0 0 0</pose>
+      <geometry>
+        <box>
+          <size>0.12 0.12 0.004</size>
+        </box>
+      </geometry>
+      <material>
+        <diffuse>1 1 1 1</diffuse>
+        <pbr>
+          <metal>
+            <albedo_map>model://hazard_marker/materials/textures/biohazard.png</albedo_map>
+            <roughness>0.65</roughness>
+            <metalness>0</metalness>
+          </metal>
+        </pbr>
+      </material>
+    </visual>
+  </link>
+</model>
+<model name="hazard_radioactive_recon_3">
+  <static>true</static>
+  <pose>55.95 1.9 0.165 0 0 3.14159265359</pose>
+  <link name="link">
+    <visual name="marker">
+      <pose>0 0 0 0 0 0</pose>
+      <geometry>
+        <box>
+          <size>0.12 0.12 0.004</size>
+        </box>
+      </geometry>
+      <material>
+        <diffuse>1 1 1 1</diffuse>
+        <pbr>
+          <metal>
+            <albedo_map>model://hazard_marker/materials/textures/radioactive.png</albedo_map>
+            <roughness>0.65</roughness>
+            <metalness>0</metalness>
+          </metal>
+        </pbr>
+      </material>
+    </visual>
+  </link>
+</model>
+      
+    <!-- 2026-10-12 生成: 去掉了原世界中 <include>model://iris_d435i</include>
+         (那是给 ArduPilot 用的模型, 缺 PX4 需要的 imu/baro/mag/navsat 传感器);
+         飞机改由 PX4 自己生成我们那份 (iris 质量惯量 + 我们的 130 度下视相机)。 -->
+  
+    <!-- 2026-10-12: 已剥掉内联的 gz-sim system 插件 —— PX4 的 gz 由
+         GZ_SIM_SERVER_CONFIG_PATH(server.config) 全局加载 physics/imu/air-pressure/
+         magnetometer/navsat/sensors; 世界内再声明一遍会造成重复注册, 实测后果是
+         `barometer 0 missing` + `Found 0 compass` 而拒绝解锁。 -->
+  </world>
+    </sdf>

@@ -1,0 +1,226 @@
+<?xml version="1.0" ?>
+<sdf version="1.6">
+  <world name="competition_field">
+
+    <!-- 基础环境 -->
+    <include>
+      <uri>model://sun</uri>
+    </include>
+    <include>
+      <uri>model://ground_plane</uri>
+    </include>
+
+    <!-- 赛道边界：宽 8m，Y 从 -3 到 5，X 从 3.5 到 66.5，平移 +3.51 使起降圈对齐 spawn -->
+    <!-- 跑道中心 Y=1，飞机 spawn Gazebo(1.01,0.98)≈(1,1) 在跑道正中间/起降圈圆心 -->
+    <model name="boundary_left">
+      <static>true</static>
+      <pose>35.01 5 0.001 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>63 0.02 0.01</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>63 0.02 0.01</size></box></geometry>
+          <material><ambient>1 1 1 1</ambient></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="boundary_right">
+      <static>true</static>
+      <pose>35.01 -3 0.001 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>63 0.02 0.01</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>63 0.02 0.01</size></box></geometry>
+          <material><ambient>1 1 1 1</ambient></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- 起飞线 X=0，横穿跑道 -->
+    <model name="start_line">
+      <static>true</static>
+      <pose>3.51 1 0.001 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>0.02 8.1 0.01</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>0.02 8.1 0.01</size></box></geometry>
+          <material><ambient>0 1 0 1</ambient></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- 起降点 Φ5m = 半径 2.5m，圆心 Gazebo (-2.5, 1) — 起飞线后方 -->
+    <model name="takeoff_landing_zone">
+      <static>true</static>
+      <pose>1.01 1 0.001 0 0 0</pose>
+      <link name="link">
+        <visual name="circle">
+          <geometry><cylinder><radius>2.5</radius><length>0.01</length></cylinder></geometry>
+          <material><ambient>1 0 0 0.5</ambient><diffuse>1 0 0 0.5</diffuse></material>
+        </visual>
+        <visual name="cross_h">
+          <geometry><box><size>0.02 5.1 0.01</size></box></geometry>
+          <material><ambient>1 1 1 1</ambient></material>
+        </visual>
+        <visual name="cross_v">
+          <geometry><box><size>5.1 0.02 0.01</size></box></geometry>
+          <material><ambient>1 1 1 1</ambient></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- 投放区标记 黄色半透明 X=30~35，宽 ~8m -->
+    <model name="drop_zone">
+      <static>true</static>
+      <pose>36.01 1 0.001 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry><box><size>4.9 7.9 0.01</size></box></geometry>
+          <material><ambient>1 1 0 0.2</ambient></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- 侦察区标记 蓝色半透明 X≈59~66，宽 ~8m -->
+    <model name="recon_zone">
+      <static>true</static>
+      <pose>62.51 1 0.001 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry><box><size>7.9 7.9 0.01</size></box></geometry>
+          <material><ambient>0 0 1 0.2</ambient></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ========== 投放目标：3 个红色圆柱桶 ========== -->
+    <!-- 桶1：直径 0.15m，半径 0.075m，高 0.30m -->
+    <!-- 桶2：直径 0.20m，半径 0.10m，高 0.30m -->
+    <!-- 桶3：直径 0.25m，半径 0.125m，高 0.30m -->
+
+    <model name="red_bucket_1">
+      <static>true</static>
+      <pose>35.51 2 0.15 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><cylinder><radius>0.075</radius><length>0.30</length></cylinder></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><cylinder><radius>0.075</radius><length>0.30</length></cylinder></geometry>
+          <material><ambient>1 0 0 1</ambient></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="red_bucket_2">
+      <static>true</static>
+      <pose>37.01 1 0.15 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><cylinder><radius>0.10</radius><length>0.30</length></cylinder></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><cylinder><radius>0.10</radius><length>0.30</length></cylinder></geometry>
+          <material><ambient>1 0 0 1</ambient></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="red_bucket_3">
+      <static>true</static>
+      <pose>35.51 0 0.15 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><cylinder><radius>0.125</radius><length>0.30</length></cylinder></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><cylinder><radius>0.125</radius><length>0.30</length></cylinder></geometry>
+          <material><ambient>1 0 0 1</ambient></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ========== 侦察目标：5 个白色圆柱筒 ========== -->
+    <!-- 高 0.15m，直径 0.20m（半径 0.10m） -->
+
+    <model name="white_cylinder_1">
+      <static>true</static>
+      <pose>59.51 2.5 0.075 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><cylinder><radius>0.10</radius><length>0.15</length></cylinder></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><cylinder><radius>0.10</radius><length>0.15</length></cylinder></geometry>
+          <material><ambient>1 1 1 1</ambient></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="white_cylinder_2">
+      <static>true</static>
+      <pose>60.51 -0.5 0.075 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><cylinder><radius>0.10</radius><length>0.15</length></cylinder></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><cylinder><radius>0.10</radius><length>0.15</length></cylinder></geometry>
+          <material><ambient>1 1 1 1</ambient></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="white_cylinder_3">
+      <static>true</static>
+      <pose>61.51 2 0.075 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><cylinder><radius>0.10</radius><length>0.15</length></cylinder></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><cylinder><radius>0.10</radius><length>0.15</length></cylinder></geometry>
+          <material><ambient>1 1 1 1</ambient></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="white_cylinder_4">
+      <static>true</static>
+      <pose>62.51 0 0.075 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><cylinder><radius>0.10</radius><length>0.15</length></cylinder></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><cylinder><radius>0.10</radius><length>0.15</length></cylinder></geometry>
+          <material><ambient>1 1 1 1</ambient></material>
+        </visual>
+      </link>
+    </model>
+
+    <model name="white_cylinder_5">
+      <static>true</static>
+      <pose>63.51 1 0.075 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><cylinder><radius>0.10</radius><length>0.15</length></cylinder></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><cylinder><radius>0.10</radius><length>0.15</length></cylinder></geometry>
+          <material><ambient>1 1 1 1</ambient></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- 必须加载 gazebo_ros_state 插件，发布 /model_states -->
+    <plugin name="gazebo_ros_state" filename="libgazebo_ros_state.so"/>
+
+  </world>
+</sdf>

@@ -1,0 +1,46 @@
+<?xml version="1.0" ?>
+<sdf version="1.6">
+  <world name="default">
+    <plugin name="gazebo_ros_init" filename="libgazebo_ros_init.so"/>
+    <plugin name="gazebo_ros_state" filename="libgazebo_ros_state.so"/>
+
+    <include>
+      <uri>model://sun</uri>
+    </include>
+
+    <include>
+      <uri>model://ground_plane</uri>
+    </include>
+
+    <!-- 单桶: NED y≈10 (飞机正前方10m, 纯东方向) -->
+    <!-- Gazebo: (11.01, 0.98, 0.25) → NED (0, 10, ~0.58) -->
+    <model name="target_bucket">
+      <pose>11.01 0.98 0.25 0 0 0</pose>
+      <link name="bucket_link">
+        <inertial>
+          <mass>0.5</mass>
+          <inertia>
+            <ixx>0.01</ixx><ixy>0</ixy><ixz>0</ixz>
+            <iyy>0.01</iyy><iyz>0</iyz>
+            <izz>0.01</izz>
+          </inertia>
+        </inertial>
+        <collision name="bucket_collision">
+          <geometry>
+            <cylinder><radius>0.125</radius><length>0.25</length></cylinder>
+          </geometry>
+        </collision>
+        <visual name="bucket_visual">
+          <geometry>
+            <cylinder><radius>0.125</radius><length>0.25</length></cylinder>
+          </geometry>
+          <material>
+            <ambient>1 0 0 1</ambient>
+            <diffuse>1 0 0 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+  </world>
+</sdf>

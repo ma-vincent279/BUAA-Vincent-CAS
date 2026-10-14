@@ -1,0 +1,41 @@
+<?xml version="1.0" ?>
+<sdf version="1.6">
+  <world name="default">
+    <include>
+      <uri>model://sun</uri>
+    </include>
+
+    <!-- 红桶模型 -->
+    <model name="red_bucket">
+      <pose>5 0 0.5 0 0 0</pose>
+      <link name="bucket_link">
+        <inertial>
+          <mass>1.0</mass>
+          <inertia>
+            <ixx>0.1</ixx><ixy>0</ixy><ixz>0</ixz>
+            <iyy>0.1</iyy><iyz>0</iyz>
+            <izz>0.1</izz>
+          </inertia>
+        </inertial>
+        <collision name="bucket_collision">
+          <geometry>
+            <cylinder><radius>0.25</radius><length>0.5</length></cylinder>
+          </geometry>
+        </collision>
+        <visual name="bucket_visual">
+          <geometry>
+            <cylinder><radius>0.25</radius><length>0.5</length></cylinder>
+          </geometry>
+          <material>
+            <ambient>1 0 0 1</ambient>
+            <diffuse>1 0 0 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <include>
+      <uri>model://ground_plane</uri>
+    </include>
+  </world>
+</sdf>

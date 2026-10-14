@@ -1,0 +1,305 @@
+#!/usr/bin/env python3
+"""
+地面测试任务 — 不装桨，原地验证 ARM→视觉检测→AUX5 投放 全链路。
+ARM 后保持 AUTO_LOITER 怠速，不切 OFFBOARD，飞机不移动。
+持续监控 /bucket/detection，检测到桶后触发 AUX5 投放。
+
+状态机: ARMING → IDLE ⇄ DETECTED → DROP → COOLDOWN → IDLE
+
+sim 模式: yolov8_bucket_detector (GT投影合成图像 + YOLOv8)
+real 模式: yolov8_bucket_detector (真实摄像头 + YOLOv8)
+
+启动:
+  sim 测试:  bash ~/SITL/scripts/ground_test_start.sh
+  real 测试:  (待适配)
+"""
+
+import math
+import rclpy
+from rclpy.node import Node
+from px4_msgs.msg import (
+    VehicleCommand, VehicleStatus, VehicleLocalPosition,
+    ManualControlSetpoint, VehicleControlMode,
+)
+from sensor_msgs.msg import RegionOfInterest
+from std_msgs.msg import Float32
+from geometry_msgs.msg import Point
+from drone_drl.common import (
+    QOS_BE, status_topic, local_pos_topic, control_mode_topic,
+    is_armed, send_arm,
+)
+
+# ============================================================
+# 可调参数
+# ============================================================
+DETECT_WAIT    = 0.5   # 检测到桶后等 N 秒投放
+DROP_HOLD      = 1.0   # AUX5 DROP 信号保持 N 秒
+DETECT_TIMEOUT = 3.0   # 多久没收到检测算"丢失" (CPU YOLOv8 推理慢需放宽)
+COOLDOWN_TIME  = 5.0   # COOLDOWN 最长 N 秒后强制回 IDLE (sim 桶不动时兜底)
+
+# AUX5 舵机
+AUX5_LOCK  = 0.0        # aux5 → PWM 1500us (锁定/关仓)
+AUX5_DROP  = 0.83333    # aux5 → PWM 2000us (投放/开仓)
+MANUAL_TIMER_PERIOD = 0.005  # 200Hz
+
+# ============================================================
+# 状态
+# ============================================================
+(STEP_ARMING, STEP_IDLE,
+ STEP_DETECTED, STEP_DROP, STEP_COOLDOWN) = range(5)
+
+STEP_NAME = {
+    STEP_ARMING: "ARMING", STEP_IDLE: "IDLE",
+    STEP_DETECTED: "DETECTED", STEP_DROP: "DROP",
+    STEP_COOLDOWN: "COOLDOWN",
+}
+
+
+class GroundTestMission(Node):
+    def __init__(self):
+        super().__init__('ground_test_mission')
+
+        # Pub
+        self.cmd_pub = self.create_publisher(
+            VehicleCommand, '/fmu/in/vehicle_command', 10)
+        self.manual_pub = self.create_publisher(
+            ManualControlSetpoint, '/fmu/in/manual_control_input', 10)
+        self.aux5_pwm_pub = self.create_publisher(
+            Float32, '/drop/aux5_pwm', 10)
+        self.impact_pub = self.create_publisher(
+            Point, '/drop/impact_point', 10)
+
+        # Sub
+        self.status_sub = self.create_subscription(
+            VehicleStatus, status_topic(), self._cb_status, QOS_BE)
+        self.local_sub = self.create_subscription(
+            VehicleLocalPosition, local_pos_topic(),
+            self._cb_local, QOS_BE)
+        self.detect_sub = self.create_subscription(
+            RegionOfInterest, '/bucket/detection', self._cb_detect, 10)
+        self.control_mode_sub = self.create_subscription(
+            VehicleControlMode, control_mode_topic(),
+            self._cb_control_mode, QOS_BE)
+
+        # 飞机状态
+        self.x = self.y = self.z = 0.0
+        self.home_x = self.home_y = self.home_z = None
+        self.heading = None
+        self.status = None
+        self._control_mode = None
+
+        # 检测
+        self.latest_roi = None
+        self._last_detect_time = self.get_clock().now()
+
+        # 任务
+        self.step = STEP_ARMING
+        self._step_start_time = None
+        self._drop_signal_start = None
+
+        # ManualControlSetpoint
+        self._aux5_value = AUX5_LOCK
+        self._drop_triggered = False
+
+        # ARM
+        self._arm_req = False
+        self._last_arm_attempt = -10.0
+        self._init_start = self.get_clock().now()
+
+        # 日志
+        self._print_ctr = 0
+        self._aux5_pwm_ctr = 0
+        self._start_wall = self.get_clock().now()
+
+        self.timer = self.create_timer(0.05, self.control_loop)
+        self.manual_timer = self.create_timer(
+            MANUAL_TIMER_PERIOD, self._publish_manual_control)
+        self.get_logger().info(
+            "Ground Test Mission ready — "
+            "ARM → IDLE (AUTO_LOITER) → detect bucket → DROP → LOCK → wait next")
+
+    # ========== 回调 ==========
+    def _cb_status(self, m):
+        self.status = m
+
+    def _cb_control_mode(self, m):
+        self._control_mode = m
+
+    def _cb_local(self, m):
+        self.x, self.y, self.z = m.x, m.y, m.z
+        if math.isfinite(m.heading):
+            self.heading = m.heading
+        if self.home_x is None:
+            self.home_x, self.home_y, self.home_z = self.x, self.y, self.z
+            self.get_logger().info(
+                f"Home: NED({self.home_x:.3f},{self.home_y:.3f},{self.home_z:.3f}) "
+                f"heading={math.degrees(self.heading):.1f}deg")
+
+    def _cb_detect(self, m):
+        self.latest_roi = m
+        self._last_detect_time = self.get_clock().now()
+
+    # ========== 发布 ==========
+    def _send_cmd(self, cmd, **p):
+        self.cmd_pub.publish(VehicleCommand(
+            timestamp=self.get_clock().now().nanoseconds // 1000,
+            command=cmd, target_system=1, target_component=1,
+            source_system=1, source_component=1, from_external=True, **p))
+
+    def _enter_step(self, step):
+        self.step = step
+        self._step_start_time = self.get_clock().now()
+        self._drop_triggered = False
+        self._drop_signal_start = None
+
+    def _step_elapsed(self):
+        if self._step_start_time is None:
+            return 0.0
+        return (self.get_clock().now() - self._step_start_time).nanoseconds * 1e-9
+
+    def _detect_fresh(self):
+        if self.latest_roi is None:
+            return False
+        dt = (self.get_clock().now() - self._last_detect_time).nanoseconds * 1e-9
+        return dt < DETECT_TIMEOUT
+
+    # ========== ManualControlSetpoint 200Hz (AUX5 舵机) ==========
+    def _publish_manual_control(self):
+        msg = ManualControlSetpoint()
+        msg.timestamp = self.get_clock().now().nanoseconds // 1000
+        msg.timestamp_sample = msg.timestamp
+        msg.valid = True
+        msg.data_source = ManualControlSetpoint.SOURCE_RC
+        msg.roll = 0.0
+        msg.pitch = 0.0
+        msg.yaw = 0.0
+        msg.throttle = -1.0     # 最低油门 (怠速安全)
+        msg.flaps = 0.0
+        msg.aux1 = 0.0
+        msg.aux2 = 0.0
+        msg.aux3 = 0.0
+        msg.aux4 = 0.0
+        msg.aux5 = float(self._aux5_value)
+        msg.aux6 = 0.0
+        msg.sticks_moving = True
+        msg.buttons = 0
+        self.manual_pub.publish(msg)
+
+        # PWM 监控 10Hz
+        self._aux5_pwm_ctr += 1
+        if self._aux5_pwm_ctr >= 20:
+            self._aux5_pwm_ctr = 0
+            pwm_us = 1500.0 + self._aux5_value * 600.0
+            self.aux5_pwm_pub.publish(Float32(data=float(pwm_us)))
+
+    # ========== 主循环 ==========
+    def control_loop(self):
+        if self.home_x is None or self.heading is None:
+            return
+
+        # ---- 状态打印 ~1Hz ----
+        self._print_ctr += 1
+        if self._print_ctr >= 20:
+            tag = STEP_NAME.get(self.step, "???")
+            hdg = math.degrees(self.heading)
+            has_det = "DET" if self._detect_fresh() else "no-det"
+            nav = self.status.nav_state if self.status else "?"
+            armed = "ARMED" if is_armed(self.status, self._control_mode) else "disarmed"
+            self.get_logger().info(
+                f"[{tag}] NED({self.x:.2f},{self.y:.2f},{self.z:.2f}) "
+                f"h={hdg:.0f}deg nav={nav} {armed} {has_det} "
+                f"aux5={self._aux5_value:.3f}")
+            self._print_ctr = 0
+
+        # ---- ARM (等待预检通过) ----
+        if self.status is None and self._control_mode is None:
+            return
+
+        armed = is_armed(self.status, self._control_mode)
+        elapsed = (self.get_clock().now() - self._init_start).nanoseconds * 1e-9
+
+        if not armed:
+            if self.status is not None and not self.status.pre_flight_checks_pass:
+                if self._print_ctr == 0:  # ~1Hz
+                    self.get_logger().info(
+                        f"Waiting for preflight... (t={elapsed:.0f}s)")
+                return
+
+            if not self._arm_req or elapsed - self._last_arm_attempt > 1.0:
+                self._arm_req = True
+                self._last_arm_attempt = elapsed
+                send_arm(self.cmd_pub, self)
+                self.get_logger().info(
+                    f"Requesting ARM (t={elapsed:.1f}s "
+                    f"nav={self.status.nav_state if self.status else '?'})")
+            return
+
+        # ================================================================
+        # 状态机 (ARM 后，AUTO_LOITER 怠速)
+        # ================================================================
+        if self.step == STEP_ARMING:
+            self._enter_step(STEP_IDLE)
+            self.get_logger().info(
+                "ARMED — entering IDLE, waiting for bucket detection...")
+
+        elif self.step == STEP_IDLE:
+            if self._detect_fresh():
+                self._enter_step(STEP_DETECTED)
+                self.get_logger().info(
+                    f"Bucket detected → waiting {DETECT_WAIT}s...")
+
+        elif self.step == STEP_DETECTED:
+            if not self._detect_fresh():
+                self.get_logger().info(
+                    "Detection lost during wait → back to IDLE")
+                self._enter_step(STEP_IDLE)
+                return
+
+            if self._step_elapsed() >= DETECT_WAIT:
+                self._enter_step(STEP_DROP)
+                self._aux5_value = AUX5_DROP
+                self._drop_triggered = True
+                self._drop_signal_start = self.get_clock().now()
+                # 记录落点 (地面投影)
+                self.impact_pub.publish(Point(
+                    x=float(self.x), y=float(self.y), z=float(self.home_z)))
+                self.get_logger().info(
+                    f"{'='*60}\n"
+                    f">>> DROP! AUX5={AUX5_DROP:.3f} (PWM 2000us) "
+                    f"at NED({self.x:.3f},{self.y:.3f},{self.z:.3f}) "
+                    f"heading={math.degrees(self.heading):.1f}deg\n"
+                    f"{'='*60}")
+
+        elif self.step == STEP_DROP:
+            hold_elapsed = (self.get_clock().now() - self._drop_signal_start
+                           ).nanoseconds * 1e-9
+            if hold_elapsed >= DROP_HOLD:
+                self._aux5_value = AUX5_LOCK
+                self._drop_triggered = False
+                self.get_logger().info(
+                    f"AUX5 restored to LOCK ({AUX5_LOCK:.3f}, PWM 1500us) "
+                    f"→ COOLDOWN")
+                self._enter_step(STEP_COOLDOWN)
+
+        elif self.step == STEP_COOLDOWN:
+            # 检测消失 或 COOLDOWN 超时 → IDLE
+            if not self._detect_fresh() or self._step_elapsed() >= COOLDOWN_TIME:
+                self.get_logger().info(
+                    "Detection cleared → IDLE, ready for next")
+                self._enter_step(STEP_IDLE)
+
+
+def main():
+    rclpy.init()
+    node = GroundTestMission()
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
+
+
+if __name__ == '__main__':
+    main()
