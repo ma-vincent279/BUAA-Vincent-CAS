@@ -54,7 +54,11 @@
 ## 快速上手
 
 ```bash
-# 跑一轮仿真（在仓库根目录）
+# ① 刚 clone 下来, 先恢复出可运行的工作空间
+git clone --recurse-submodules git@github.com:ma-vincent279/BUAA-Vincent-CAS.git ~/SITL
+cd ~/SITL && bash 恢复工作空间.sh
+
+# ② 跑一轮仿真
 colcon build --packages-select drone_drl
 bash scripts/test_k.sh              # 默认 Gazebo Harmonic
 bash scripts/cleanup_sim.sh         # ⚠ 每轮前必清进程

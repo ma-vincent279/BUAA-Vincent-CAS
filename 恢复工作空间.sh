@@ -34,5 +34,4 @@ echo "    source install/setup.bash"
 echo "    python3 scripts/test_k_servo_20261011.py     # 离线验收 104 项"
 echo "    bash scripts/test_k.sh                       # 跑一轮仿真"
 echo
-echo "⚠️ 还没做的一步: Gazebo 模型的网格 (meshes/materials) 需从 PX4 拷贝,"
-echo "   见 技术文档/配置仿真环境.md 第三节。"
+echo "ℹ️ Gazebo 模型的网格/贴图**已经包含在仓库里** (包括 22MB 的机身网格), 无需另外准备 ✓"

@@ -21,9 +21,9 @@
 git clone --recurse-submodules git@github.com:ma-vincent279/BUAA-Vincent-CAS.git ~/SITL
 cd ~/SITL
 
-# 2. 补 Gazebo 网格（未入库，从 PX4 逐字节拷）
-cp -r ~/PX4-Autopilot/Tools/simulation/gz/models/x500_base/{meshes,materials} gz_models/x500_base/
-cp -r ~/PX4-Autopilot/Tools/simulation/gz/models/x500_base/{meshes,materials} gz_models_combined/x500_base/
+# 2. ★ 恢复可运行的工作空间 (一条命令)
+bash 恢复工作空间.sh
+#    ⇒ 顶层出现 src/ scripts/ worlds/ gz_models*/ (含网格) 等
 
 # 3. PX4 侧 4 行改动（让环境变量能覆盖路径）—— 详见 技术文档/配置仿真环境.md 第 1.4 节
 
