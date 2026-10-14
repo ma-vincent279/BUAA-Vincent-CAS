@@ -125,6 +125,7 @@ class YOLOv8BucketDetector(Node):
         #   会在启动时直接 FileNotFoundError 崩掉, 整轮仿真 0 检出 ✗
         if self._use_sim and self._sim_gt_direct:
             self.model = None
+            self._model_names = {0: 'bucket'}      # ★ 后面日志要用, 跳过加载时必须一起补 ✗
             self.get_logger().info(
                 "SIM (GT direct): 跳过 YOLO 模型加载 (不需要 model_path) ✓")
         else:

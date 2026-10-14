@@ -24,6 +24,7 @@ import time
 import threading
 import numpy as np
 import cv2
+import os
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String
@@ -36,7 +37,7 @@ class MultiBucketDetector(Node):
 
         # ---- 参数 ----
         self.declare_parameter('model_path',
-                               '/home/nvidia/balloon.engine')
+                               os.path.join(os.path.expanduser('~'), 'balloon.engine'))
         self.declare_parameter('camera_device', '/dev/video0')
         self.declare_parameter('conf_threshold', 0.4)
         self.declare_parameter('target_class', 'balloon')

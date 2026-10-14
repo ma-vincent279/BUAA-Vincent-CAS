@@ -32,6 +32,7 @@ import math
 import time
 import numpy as np
 import cv2
+import os
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import RegionOfInterest, Image
@@ -49,7 +50,7 @@ class YOLOv8BucketDetectorWide(Node):
         self._use_sim = self.get_parameter('use_sim').value
 
         self.declare_parameter('model_path',
-                               '/home/vincent/SITL/yolo_v8/best2.pt')
+                               os.path.join(os.path.expanduser('~'), 'yolo_v8', 'best2.pt'))
         self.declare_parameter('camera_topic', '/camera/image_raw')
         self.declare_parameter('camera_device', '')  # 如 /dev/video0，直接读摄像头
         self.declare_parameter('conf_threshold', 0.5)
@@ -72,8 +73,14 @@ class YOLOv8BucketDetectorWide(Node):
         self.infer_hz = self.get_parameter('infer_hz').value
         self.visualize = self.get_parameter('visualize').value
 
-        # ---- 加载 YOLOv8 模型 (sim / real 共用) ----
-        self._load_model()
+        # ---- 加载 YOLOv8 模型 (仅在真正需要推理时) ----
+        # 2026-10-15: 仿真 + GT 直通模式不需要模型, 原无条件加载会让没有模型的环境直接崩 ✗
+        if self._use_sim and self._sim_gt_direct:
+            self.model = None
+            self._model_names = {0: 'bucket'}      # ★ 后面日志要用, 跳过加载时必须一起补 ✗
+            self.get_logger().info("SIM (GT direct): 跳过 YOLO 模型加载 ✓")
+        else:
+            self._load_model()
 
         # ---- 检测输出 ----
         self.det_pub = self.create_publisher(

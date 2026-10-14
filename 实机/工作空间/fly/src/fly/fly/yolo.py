@@ -30,6 +30,7 @@ import time
 import threading
 import numpy as np
 import cv2
+import os
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import RegionOfInterest, Image
@@ -45,7 +46,7 @@ class YOLOv8BucketDetector(Node):
         # ---- 参数 ----
         self.declare_parameter('use_sim', False)                     # 真机模式
         self.declare_parameter('model_path',
-                               '/home/nvidia/c.engine')
+                               os.path.join(os.path.expanduser('~'), 'c.engine'))
         self.declare_parameter('camera_topic', '/camera/image_raw')
         self.declare_parameter('camera_device', '/dev/video0')       # 直读摄像头
         self.declare_parameter('conf_threshold', 0.65)
