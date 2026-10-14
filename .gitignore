@@ -1,0 +1,41 @@
+# ============================================================================
+#  .gitignore
+# ----------------------------------------------------------------------------
+# 顶层这些目录是**本地运行用的工作空间** (colcon / PX4 / Gazebo 需要它们在这个位置),
+# 它们的**归档副本**已经整理进中文目录里 (方便阅读):
+#
+#   src/  worlds/  gz_models*/  gz_worlds*/   →  SITL/工作空间/
+#   fly/                                      →  实机/工作空间/
+#   scripts/                                  →  SITL/脚本/  与  实机/脚本/
+#
+# 改了代码之后, 跑 `bash 同步到仓库.sh` 一键刷新归档。
+# ============================================================================
+/src/
+/fly/
+/scripts/
+/worlds/
+/gz_models/
+/gz_models_combined/
+/gz_models_cuadc/
+/gz_worlds/
+/gz_worlds_cuadc_px4/
+/backups/
+/cuadc_ref/
+
+# 编译产物 / 运行产物 (可重新生成)
+build/
+install/
+log/
+runs/
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.o
+*.so
+*.a
+
+# 编辑器 / 系统 / 会话数据
+.claude/
+.vscode/
+.idea/
+.DS_Store
