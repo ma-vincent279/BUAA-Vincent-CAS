@@ -12,7 +12,9 @@
 # ============================================================================
 set -euo pipefail
 
-JETSON="nvidia@192.168.98.136"; PW="${SSHPASS:?SET_SSHPASS}"
+# ★ 密码**不再硬编码** —— 从环境变量 SSHPASS 读, 未设置就报错退出 ✗
+JETSON="${JETSON:-nvidia@192.168.98.136}"
+PW="${SSHPASS:?请先 export SSHPASS=<你的 Jetson 密码>}"
 REMOTE="/home/nvidia/fly"
 RSRC="$REMOTE/src/fly/fly"
 RINST="$REMOTE/install/fly/lib/python3.10/site-packages/fly"

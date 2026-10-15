@@ -26,8 +26,8 @@
 # ================================================================
 set -e
 
-JETSON="nvidia@192.168.98.136"
-export SSHPASS="${SSHPASS:?SET_SSHPASS}"
+JETSON="${JETSON:-nvidia@192.168.98.136}"
+export SSHPASS="${SSHPASS:?请先 export SSHPASS=<你的 Jetson 密码>}"   # ★ 不再硬编码 ✗
 SSOC="StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR"
 SSH="sshpass -e ssh -o $SSOC $JETSON"
 SCP="sshpass -e scp -o $SSOC"
