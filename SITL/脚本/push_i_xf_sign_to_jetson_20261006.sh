@@ -10,8 +10,8 @@
 # 用法: bash /home/vincent/SITL/scripts/push_i_xf_sign_to_jetson_20261006.sh
 set -euo pipefail
 
-JETSON="${JETSON:-nvidia@192.168.98.136}"
-PW="${SSHPASS:?请先 export SSHPASS=<你的 Jetson 密码>}"   # ★ 不再硬编码 ✗
+JETSON="nvidia@192.168.98.136"
+PW="nvidia"
 REMOTE_WS="/home/nvidia/fly"
 REMOTE_PY="$REMOTE_WS/src/fly/fly/i.py"
 INSTALLED="$REMOTE_WS/install/fly/lib/python3.10/site-packages/fly/i.py"
