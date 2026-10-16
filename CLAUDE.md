@@ -182,7 +182,7 @@ QGC 导出的 `.params` 是 tab 分隔：`sysid→compid→参数名→值→类
 ⇒ 回灌时非 comp1 的会被 PX4 忽略 ✓（无害但是噪音 ✓）
 ⇒ 提取纯飞控参数：
 ```bash
-grep -v '^#' RTK_NEW.params | awk -F'\t' '$2=="1"' | sort -t$'\t' -k3 > 干净版.params
+grep -v '^#' 实飞数据/飞控参数/RTK_NEW_原始导出_含comp125.params | awk -F'\t' '$2=="1"' | sort -t$'\t' -k3 > 干净版.params
 ```
 
 ---
@@ -276,7 +276,7 @@ bash scripts/bench_k_runs.sh 33 7 101 && python3 scripts/bench_k_report.py   # �
 | `改前基线_20261016_171821.txt` | 改 `P_NOISE` 前 |
 | `改前基线_20261016_172527.txt` | 改 `V_NOISE` 前 |
 | **`RTK_NEW_仅飞控comp1.params`** | ★ **改动 + 重启后**的真实状态（1160 项）|
-| `../RTK_NEW.params` | 用户 QGC 导出的原件（**含 comp125 的 31 项** ⚠）|
+| `RTK_NEW_原始导出_含comp125.params` | 用户 QGC 导出的原件（**含 comp125 的 31 项** ⚠）|
 
 ---
 
